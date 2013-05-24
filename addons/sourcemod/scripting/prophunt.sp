@@ -8,10 +8,10 @@
 #include <tf2_stocks>
 #include <sdkhooks>
 
+#undef REQUIRE_EXTENSIONS
+#include <steamtools>
 
-
-
-#define PL_VERSION "1.93"
+#define PL_VERSION "1.93pl"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -172,10 +172,12 @@ new Handle:g_PropMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
-new Handle:g_PHAdmFlag = INVALID_HANDLE;
+//new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 
-new String:g_AdText[128] = "GamingMasters.org";
+new String:g_AdText[128] = "";
+
+new bool:g_SteamTools = false;
 
 public Plugin:myinfo =
 {
@@ -246,9 +248,6 @@ public OnPluginStart()
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
 
-	if(GetExtensionFileStatus("sdkhooks.ext") < 1)
-	SetFailState("SDK Hooks is not loaded.");
-
 	new bool:statsbool = false;
 #if defined STATS
 	statsbool = true;
@@ -257,7 +256,7 @@ public OnPluginStart()
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
+//	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin");
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only, 1 = all players");
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
@@ -271,7 +270,6 @@ public OnPluginStart()
 	g_Text4 = CreateHudSynchronizer();
 
 	AddServerTag("PropHunt");
-
 
 	HookEvent("player_spawn", Event_player_spawn);
 	HookEvent("player_team", Event_player_team);
@@ -296,6 +294,7 @@ public OnPluginStart()
 	g_offsCollisionGroup = FindSendPropOffs("CBaseEntity", "m_CollisionGroup");
 #endif
 	LoadTranslations("prophunt.phrases");
+	LoadTranslations("common.phrases");
  
 	//g_oFOV = FindSendPropOffs("CBasePlayer", "m_iFOV");
 	//g_oDefFOV = FindSendPropOffs("CBasePlayer", "m_iDefaultFOV");
@@ -338,6 +337,15 @@ public OnPluginStart()
 	SetCVars();
 }
 
+public OnAllPluginsLoaded()
+{
+	g_SteamTools = LibraryExists("SteamTools");
+	if (g_SteamTools)
+	{
+		SetGameDescription();
+	}
+}
+
 loadGlobalConfig()
 {
 	decl String:Path[256];
@@ -352,6 +360,38 @@ loadGlobalConfig()
 	config_parseWeapons();
 	config_parseClasses();
 	config_parseSounds();
+}
+
+public OnLibraryAdded(const String:name[])
+{
+	if (StrEqual(name, "steamtools", false))
+	{
+		g_SteamTools = true;
+		if (g_PHEnable)
+		{
+			SetGameDescription();
+		}
+	}
+}
+
+public OnLibraryRemoved(const String:name[])
+{
+	if (StrEqual(name, "steamtools", false))
+	{
+		g_SteamTools = false;
+	}
+}
+
+SetGameDescription()
+{
+	decl String:gameDesc[128];
+	
+	if (strlen(g_AdText) > 0)
+	Format(gameDesc, sizeof(gameDesc), "PropHunt %s (%s)", g_Version, g_AdText);
+	else
+	Format(gameDesc, sizeof(gameDesc), "PropHunt %s", g_Version);
+	
+	Steam_SetGameDescription(gameDesc);
 }
 
 config_parseWeapons()
@@ -662,7 +702,7 @@ public Action:CallCheckInventory(Handle:event, const String:name[], bool:dontBro
 
 public Action:CheckInventory(Handle:timer, any:userid)
 {
-	new entity;
+	new entity = -1;
 	new prev = 0;
 	new client = GetClientOfUserId(userid);
 	if(client)
@@ -677,8 +717,7 @@ public Action:CheckInventory(Handle:timer, any:userid)
 				RemoveEdict(prev);
 				prev = entity;
 			}
-			else
-			if(IsValidEdict(entity) && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+			else if(IsValidEdict(entity) && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
 			{
 				SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
 				SetEntityRenderColor(entity, 255, 255, 255, 255);
@@ -686,6 +725,26 @@ public Action:CheckInventory(Handle:timer, any:userid)
 				AcceptEntityInput(client, "EnableShadow");
 			}
 		}
+
+		while((entity = FindEntityByClassname(entity, "tf_powerup_bottle")) != -1 && IsValidEntity(entity))
+		{
+			if(IsClientInGame(client) && GetClientTeam(client) == TEAM_RED && IsValidEntity(entity) && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+			{
+				SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(entity, 255, 255, 255, 0);
+				if (prev && IsValidEdict(prev)) 
+				RemoveEdict(prev);
+				prev = entity;
+			}
+			else if(IsValidEdict(entity) && GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") == client)
+			{
+				SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(entity, 255, 255, 255, 255);
+				SetVariantString("");
+				AcceptEntityInput(client, "EnableShadow");
+			}
+		}
+		
 		if (prev && IsValidEdict(prev)) 
 		RemoveEdict(prev);
 	}
@@ -711,6 +770,7 @@ stock FillHealth (entity)
 	}
 }
 
+/*
 stock bool:IsValidAdmin(client)
 {
 	decl String:flags[26];
@@ -726,6 +786,7 @@ stock bool:IsValidAdmin(client)
 	}
 	return false;
 }
+*/
 
 stock ExtinguishPlayer (client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
@@ -895,6 +956,10 @@ public OnPluginEnd()
 #if defined STATS
 	Stats_Uninit();
 #endif
+	if (g_SteamTools)
+	{
+		Steam_SetGameDescription("Team Fortress");
+	}
 }
 
 public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3], damagecustom)
@@ -1004,7 +1069,12 @@ public Action:Command_ReloadConfig(client, args)
 
 public Action:Command_propmenu(client, args)
 {
-	if(GetConVarInt(g_PHPropMenu) == 1 || IsValidAdmin(client) && GetConVarInt(g_PHPropMenu) == 0)
+	if (client <= 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0)
 	{
 		if(GetClientTeam(client) == TEAM_RED && IsPlayerAlive(client))
 		{
@@ -1041,7 +1111,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 		{
 			if(IsClientInGame(param1))
 			{
-				if(GetConVarInt(g_PHPropMenu) == 1 || IsValidAdmin(param1))
+				if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
 				{
 					if(GetClientTeam(param1) == TEAM_RED && IsPlayerAlive(param1))
 					{
@@ -1084,6 +1154,11 @@ public ResetPlayer(client)
 
 public Action: Command_respawn(client, args)
 {
+	if (client < 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
 	TF2_RespawnPlayer(client);
 	return Plugin_Handled;
 }
@@ -1127,6 +1202,11 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 
 public Action:Command_switch(client, args)
 {
+	if (client < 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, TEAM_RED);
 	TF2_RespawnPlayer(client);
@@ -1136,6 +1216,11 @@ public Action:Command_switch(client, args)
 
 public Action:Command_pyro(client, args)
 {
+	if (client < 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
 	g_PlayerModel[client] = "";
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, TEAM_BLUE);
@@ -1535,6 +1620,11 @@ public GetClassCount(TFClassType:class, team)
 
 public Action:Command_motd(client, args)
 {
+	if (client <= 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
 	if(IsClientInGame(client))
 	{
 		ShowMOTDPanel(client, "PropHunt Stats", "http://www.gamingmasters.org/prophunt/index.php", MOTDPANEL_TYPE_URL);
@@ -1783,11 +1873,10 @@ public Action:Event_arena_round_start(Handle:event, const String:name[], bool:do
 
 stock RemovePlayerCanteen(client)
 {
-	new edict = MaxClients+1;
+	new edict = -1;
 	while((edict = FindEntityByClassname(edict, "tf_powerup_bottle")) != -1)
 	{
-		new idx = GetEntProp(edict, Prop_Send, "m_iItemDefinitionIndex");
-		if(idx == 489)
+		if (GetEntPropEnt(edict, Prop_Send, "m_hOwnerEntity") == client)
 		{
 			AcceptEntityInput(edict, "Kill");
 		}
@@ -1814,7 +1903,6 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 	if (IsValidClient(client, false)){			
 		SetVariantString("");
 		AcceptEntityInput(client, "SetCustomModel");
-		RemovePlayerCanteen(client);	
 	}
 		
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
@@ -1873,6 +1961,7 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 		else
 		if(GetClientTeam(client) == TEAM_RED)
 		{
+			//RemovePlayerCanteen(client);	
 			if(g_RoundOver)
 			{
 				SetEntityMoveType(client, MOVETYPE_NONE);
@@ -2129,14 +2218,24 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		#endif
 		// fire in a nice random model
 		decl String:model[MAXMODELNAME], String:offset[32];
-		new RandomInt = GetRandomInt(0, GetArraySize(g_ModelName)-1);
+		new modelIndex = -1;
 		if(strlen(g_PlayerModel[client]) > 1)
 		{
 			model = g_PlayerModel[client];
+			modelIndex = FindStringInArray(g_ModelName, model);
 		}
 		else
 		{
-			GetArrayString(g_ModelName, RandomInt, model, sizeof(model));
+			modelIndex = GetRandomInt(0, GetArraySize(g_ModelName)-1);
+			GetArrayString(g_ModelName, modelIndex, model, sizeof(model));
+		}
+		if (modelIndex > -1)
+		{
+			GetArrayString(g_ModelOffset, modelIndex, offset, sizeof(offset));
+		}
+		else
+		{
+			strcopy(offset, sizeof(offset), "0 0 0");
 		}
 		#if defined LOG
 				LogMessage("[PH] do equip_3 %N", client);
@@ -2159,7 +2258,6 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		#if defined LOG
 				LogMessage("[PH] do equip_4 %N", client);
 		#endif
-		GetArrayString(g_ModelOffset, RandomInt, offset, sizeof(offset));
 		g_PlayerModel[client] = model;
 		SetVariantString(model);
 		AcceptEntityInput(client, "SetCustomModel");
