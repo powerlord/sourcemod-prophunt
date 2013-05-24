@@ -583,13 +583,9 @@ SetCVars(){
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("mp_autoteambalance");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_autoteambalance");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
-	SetConVarInt(FindConVar("mp_idlemaxtime"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
-	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("tf_tournament_hide_domination_icons"), 0, true);
 	SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
 	SetConVarInt(FindConVar("sv_alltalk"), 1, true);
@@ -613,13 +609,25 @@ SetCVars(){
 	SetConVarBounds(FindConVar("tf_arena_preround_time"), ConVarBound_Upper, false);
 	SetConVarInt(FindConVar("tf_arena_preround_time"), IsDedicatedServer() ? 20:5, true);
 #if !defined AIRBLAST
+	// Avoid a dependency on TF2Items or TF2Attributes
 	SetConVarInt(FindConVar("tf_flamethrower_burstammo"), 201, true);
 #endif
 	
 	cvar = FindConVar("mp_idledealmethod");
-	if(GetConVarInt(cvar) == 1)
+	new val = GetConVarInt(cvar);
+	if(val == 1)
 	{
 		SetConVarInt(cvar, 2, true);
+	}
+	
+	if (val > 0)
+	{
+		// Must be > 5 because rounds run at least 5 minutes.
+		cvar = FindConVar("mp_idlemaxtime");
+		if (GetConVarInt(cvar) < 10)
+		{
+			SetConVarInt(cvar, 10, true);
+		}
 	}
 	
 	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
