@@ -551,7 +551,7 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
-				SetTrieString(g_Sounds, SectionName, soundString, true);
+				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
 		}
 		while(KvGotoNextKey(g_ConfigKeyValues));
@@ -598,7 +598,6 @@ SetCVars(){
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
 	SetConVarInt(FindConVar("mp_enableroundwaittime"), 0, true);
 	SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
-	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
 	SetConVarInt(FindConVar("mp_waitingforplayers_time"), 40, true);
 	SetConVarInt(FindConVar("tf_arena_use_queue"), 0, true);
 	SetConVarInt(FindConVar("mp_stalemate_enable"), 1, true);
@@ -630,6 +629,7 @@ SetCVars(){
 		}
 	}
 	
+	// RunTeamLogic shouldn't be used with this mode, but just in case...
 	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
 	{
 		cvar = FindConVar("rtl_arenateamsize");
@@ -1201,7 +1201,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
-		SetEventInt(broadcastEvent, "team", -1);
+		SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
 		SetEventString(broadcastEvent, "sound", sample);
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
