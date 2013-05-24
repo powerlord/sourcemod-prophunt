@@ -101,7 +101,7 @@ enum ScReason
 };
 
 new bool:g_RoundOver = true;
-new bool:g_inPreRound = true;
+new bool:g_inPreRound = false;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -141,6 +141,7 @@ new Handle:g_TimerStart = INVALID_HANDLE;
 new Handle:g_CountdownSoundTimers[8] = INVALID_HANDLE;
 new const String:g_CountdownSounds[][] = { "Countdown30", "Countdown20", "Countdown10", "Countdown5", "Countdown4", "Countdown3", "Countdown2", "Countdown1" };
 new	Handle:g_Sounds = INVALID_HANDLE;
+new Handle:g_BroadcastSounds = INVALID_HANDLE;
 
 new bool:g_Doors = false;
 new bool:g_Relay = false;
@@ -274,9 +275,11 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_player_spawn);
 	HookEvent("player_team", Event_player_team);
 	HookEvent("player_death", Event_player_death, EventHookMode_Pre);
-	HookEvent("arena_round_start", Event_arena_round_start, EventHookMode_Post);
+	HookEvent("arena_round_start", Event_arena_round_start);
 	HookEvent("arena_win_panel", Event_arena_win_panel);
-	HookEvent("post_inventory_application", CallCheckInventory, EventHookMode_Post);
+	HookEvent("post_inventory_application", CallCheckInventory);
+	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
+	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 
 #if defined STATS
 	Stats_Init();
@@ -300,6 +303,7 @@ public OnPluginStart()
 	//g_oDefFOV = FindSendPropOffs("CBasePlayer", "m_iDefaultFOV");
 	
 	g_Sounds = CreateTrie();
+	g_BroadcastSounds = CreateTrie();
 	
 	loadGlobalConfig();
 	
@@ -513,6 +517,7 @@ config_parseClasses()
 config_parseSounds()
 {
 	ClearTrie(g_Sounds);
+	ClearTrie(g_BroadcastSounds);
 	
 	if (g_ConfigKeyValues == INVALID_HANDLE)
 	{
@@ -540,6 +545,13 @@ config_parseSounds()
 				{
 					SetTrieString(g_Sounds, SectionName, soundString, true);
 				}
+			}
+			if(KvGetDataType(g_ConfigKeyValues, "broadcast") == KvData_String)
+			{
+				decl String:soundString[128];
+				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
+				
+				SetTrieString(g_Sounds, SectionName, soundString, true);
 			}
 		}
 		while(KvGotoNextKey(g_ConfigKeyValues));
@@ -838,7 +850,7 @@ public OnMapEnd()
 
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_RoundOver = true;
-	g_inPreRound = true;
+	g_inPreRound = false;
 }
 
 public OnMapStart()
@@ -1177,7 +1189,14 @@ public Action:Command_internet(client, args)
 PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
 {
 	decl String:sample[128];
-	if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	
+	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	{
+		new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
+		SetEventInt(broadcastEvent, "team", -1);
+		SetEventString(broadcastEvent, "sound", sample);
+	}
+	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
 		{
@@ -1190,6 +1209,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
 {
 	decl String:sample[128];
+	// Broadcast sounds only apply to ToAll sounds, so skip them here
 	if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
@@ -1690,7 +1710,17 @@ public bool:TraceRayDontHitSelf(entity, mask, any:data)
 	return entity != data;
 }
 
-public Action:Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_teamplay_broadcast_audio(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if (g_inPreRound)
+	{
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(GetEventInt(event, "team") > 1)
@@ -1699,7 +1729,7 @@ public Action:Event_player_team(Handle:event, const String:name[], bool:dontBroa
 	}
 }
 
-public Action:Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadcast)
+public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadcast)
 {
 #if defined LOG
 	LogMessage("[PH] round end");
@@ -1707,7 +1737,7 @@ public Action:Event_arena_win_panel(Handle:event, const String:name[], bool:dont
 
 
 	g_RoundOver = true;
-	g_inPreRound = true;
+	g_inPreRound = false;
 
 #if defined STATS
 	new winner = GetEventInt(event, "winning_team");
@@ -1773,7 +1803,7 @@ public Action:Event_arena_win_panel(Handle:event, const String:name[], bool:dont
 
 	StopPreroundTimers(false);
 }
-
+/*
 public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new bool:reset = GetEventBool(event, "full_reset");
@@ -1802,8 +1832,14 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 		}
 	}
 }
+*/
 
-public Action:Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	g_inPreRound = true;
+}
+
+public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
@@ -1895,7 +1931,7 @@ stock bool:IsValidClient(client, bool:replaycheck = true)
 	return true;
 }
 
-public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
+public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 {
 
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -1913,7 +1949,7 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 		if(!g_RoundOver && !g_AllowedSpawn[client])
 		{
 			ForcePlayerSuicide(client);
-			return Plugin_Continue;
+			return;
 		}
 		RemoveAnimeModel(client);
 		SDKHook(client, SDKHook_OnTakeDamage, TakeDamageHook);
@@ -1944,7 +1980,7 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 				TF2_SetPlayerClass(client, g_defaultClass[TEAM_BLUE-2]);
 				TF2_RespawnPlayer(client);
 				
-				return Plugin_Continue;
+				return;
 			}
 			
 #else
@@ -1952,7 +1988,7 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 			{
 				TF2_SetPlayerClass(client, g_defaultClass[TEAM_BLUE-2]);
 				TF2_RespawnPlayer(client);
-				return Plugin_Continue;
+				return;
 			}
 #endif
 			CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
@@ -1979,7 +2015,6 @@ public Action:Event_player_spawn(Handle:event, const String:name[], bool:dontBro
 		}
 
 	}
-	return Plugin_Continue;
 }
 
 public Action:Event_player_death(Handle:event, const String:name[], bool:dontBroadcast)
@@ -2407,7 +2442,7 @@ public Action:Timer_TimeUp(Handle:timer, any:lol)
 	{
 		ForceTeamWin(TEAM_RED);
 		g_RoundOver = true;
-		g_inPreRound = true;
+		g_inPreRound = false;
 	}
 	g_RoundTimer = INVALID_HANDLE;
 	return Plugin_Handled;
