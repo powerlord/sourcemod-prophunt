@@ -234,6 +234,12 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 */
 #endif
 
+public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+{
+	MarkNativeAsOptional("Steam_SetGameDescription");
+	return APLRes_Success;
+}
+
 public OnPluginStart()
 {
 	if (!IsPropHuntMap()){
@@ -285,7 +291,7 @@ public OnPluginStart()
 #endif
 
 	RegConsoleCmd("help", Command_motd);
-	RegConsoleCmd("motd", Command_motd);
+	//RegConsoleCmd("motd", Command_motd);
 	RegConsoleCmd("propmenu", Command_propmenu);
 
 	AddFileToDownloadsTable("sound/prophunt/found.mp3");
