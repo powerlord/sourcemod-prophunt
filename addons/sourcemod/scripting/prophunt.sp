@@ -101,7 +101,7 @@ enum ScReason
 };
 
 new bool:g_RoundOver = true;
-new bool:g_inPreRound = false;
+new bool:g_inPreRound = true;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -279,7 +279,6 @@ public OnPluginStart()
 	HookEvent("arena_win_panel", Event_arena_win_panel);
 	HookEvent("post_inventory_application", CallCheckInventory);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
-	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 
 #if defined STATS
 	Stats_Init();
@@ -585,6 +584,7 @@ SetCVars(){
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
+	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
 	SetConVarInt(FindConVar("tf_tournament_hide_domination_icons"), 0, true);
 	SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
@@ -592,7 +592,7 @@ SetCVars(){
 	SetConVarInt(FindConVar("mp_friendlyfire"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 500, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 1, true);
-	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 1, true);
+	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 5000, true); // Set really high
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
 	SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
@@ -611,23 +611,6 @@ SetCVars(){
 	// Avoid a dependency on TF2Items or TF2Attributes
 	SetConVarInt(FindConVar("tf_flamethrower_burstammo"), 201, true);
 #endif
-	
-	cvar = FindConVar("mp_idledealmethod");
-	new val = GetConVarInt(cvar);
-	if(val == 1)
-	{
-		SetConVarInt(cvar, 2, true);
-	}
-	
-	if (val > 0)
-	{
-		// Must be > 5 because rounds run at least 5 minutes.
-		cvar = FindConVar("mp_idlemaxtime");
-		if (GetConVarInt(cvar) < 10)
-		{
-			SetConVarInt(cvar, 10, true);
-		}
-	}
 	
 	// RunTeamLogic shouldn't be used with this mode, but just in case...
 	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
@@ -660,7 +643,7 @@ ResetCVars()
 	SetConVarInt(FindConVar("sv_alltalk"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 800, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 0, true);
-	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 0, true);
+	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), -1, true);
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 1, true);
 	SetConVarInt(FindConVar("mp_autoteambalance"), 1, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
@@ -858,7 +841,7 @@ public OnMapEnd()
 
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_RoundOver = true;
-	g_inPreRound = false;
+	g_inPreRound = true;
 }
 
 public OnMapStart()
@@ -1203,6 +1186,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 		new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
 		SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
 		SetEventString(broadcastEvent, "sound", sample);
+		FireEvent(broadcastEvent);
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -1720,7 +1704,10 @@ public bool:TraceRayDontHitSelf(entity, mask, any:data)
 
 public Action:Event_teamplay_broadcast_audio(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (g_inPreRound)
+	decl String:sound[64];
+	GetEventString(event, "sound", sound, sizeof(sound));
+	
+	if (StrEqual(sound, "Announcer.AM_RoundStartRandom", false))
 	{
 		return Plugin_Handled;
 	}
@@ -1745,7 +1732,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 
 	g_RoundOver = true;
-	g_inPreRound = false;
+	g_inPreRound = true;
 
 #if defined STATS
 	new winner = GetEventInt(event, "winning_team");
@@ -1841,11 +1828,6 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 	}
 }
 */
-
-public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	g_inPreRound = true;
-}
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -2450,7 +2432,7 @@ public Action:Timer_TimeUp(Handle:timer, any:lol)
 	{
 		ForceTeamWin(TEAM_RED);
 		g_RoundOver = true;
-		g_inPreRound = false;
+		g_inPreRound = true;
 	}
 	g_RoundTimer = INVALID_HANDLE;
 	return Plugin_Handled;
