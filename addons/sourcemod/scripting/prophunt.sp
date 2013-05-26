@@ -2275,15 +2275,21 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		{
 			decl String:nicemodel[MAXMODELNAME], String:nicemodel2[MAXMODELNAME];
 			
-			new lastslash = FindCharInString(model, '/', true)+1;
-			strcopy(nicemodel, sizeof(nicemodel), model[lastslash]);
+			//new lastslash = FindCharInString(model, '/', true)+1;
+			//strcopy(nicemodel, sizeof(nicemodel), model[lastslash]);
+			
+			strcopy(nicemodel, sizeof(nicemodel), model);
+			ReplaceString(nicemodel, sizeof(nicemodel), "models/", "");
+			
 			ReplaceString(nicemodel, sizeof(nicemodel), ".mdl", "");
+			ReplaceString(nicemodel, sizeof(nicemodel), "/", "-");
+			
 			
 			KvGotoFirstSubKey(g_PropNames);
 			KvJumpToKey(g_PropNames, "names", false);
 			KvGetString(g_PropNames, nicemodel, nicemodel2, sizeof(nicemodel2));
 			if (strlen(nicemodel2) > 0)
-			strcopy(nicemodel, sizeof(nicemodel), nicemodel2);
+				strcopy(nicemodel, sizeof(nicemodel), nicemodel2);
 			PrintToChat(client, "%t", "#TF_PH_NowDisguised", nicemodel);
 		}
 		#if defined LOG
