@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "1.93pl2"
+#define PL_VERSION "1.93pl3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -285,6 +285,7 @@ public OnPluginStart()
 	HookEvent("arena_win_panel", Event_arena_win_panel);
 	HookEvent("post_inventory_application", CallCheckInventory);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
+	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 
 #if defined STATS
 	Stats_Init();
@@ -344,6 +345,8 @@ public OnPluginStart()
 	LogError("Could not load the g_PropNames file!");
 	
 	SetCVars();
+	
+	HookEntityOutput("team_round_timer", "OnFinished", TimeEnd);
 }
 
 public OnAllPluginsLoaded()
@@ -825,6 +828,12 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_Spawn, OnCPEntitySpawned);
 	}
+	else
+	if(strcmp(classname, "team_control_point_master") == 0)
+	{
+		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
+	}
+	
 }
 
 public OnBullshitEntitySpawned(entity)
@@ -841,6 +850,13 @@ public OnCPEntitySpawned(entity)
 	{
 		SDKHook(entity, SDKHook_StartTouch, StartTouchHook);
 	}
+}
+
+public Action:OnCPMasterSpawned(entity)
+{
+	SetEntProp(entity, Prop_Data, "m_iInvalidCapWinner", 1);
+	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 1);
+	return Plugin_Continue;
 }
 
 public OnMapEnd()
@@ -1839,6 +1855,20 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 }
 */
 
+public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// Arena maps should have a team_control_point_master already, but just in case...
+	new ent = FindEntityByClassname(-1, "team_control_point_master");
+	if (ent == -1)
+	{
+		ent = CreateEntityByName("team_control_point_master");
+		DispatchKeyValue(ent, "Name", "master_control_point");
+		DispatchKeyValue(ent, "StartDisabled", "0");
+		DispatchSpawn(ent);
+	}
+	
+}
+
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 #if defined LOG
@@ -2437,6 +2467,19 @@ public Action:Timer_Charge(Handle:timer, any:client)
 	return Plugin_Handled;
 }
 #endif
+
+public TimeEnd(const String:output[], caller, activator, Float:delay)
+{
+#if defined LOG
+	LogMessage("[PH] Time Up");
+#endif
+	if(!g_RoundOver)
+	{
+		ForceTeamWin(_:TFTeam_Red);
+		g_RoundOver = true;
+		g_inPreRound = true;
+	}
+}
 
 public Action:Timer_TimeUp(Handle:timer, any:lol)
 {
