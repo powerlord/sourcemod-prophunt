@@ -593,7 +593,7 @@ SetCVars(){
 	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
 	SetConVarInt(FindConVar("tf_tournament_hide_domination_icons"), 0, true);
-	SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
+	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
 	SetConVarInt(FindConVar("sv_alltalk"), 1, true);
 	SetConVarInt(FindConVar("mp_friendlyfire"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 500, true);
@@ -645,7 +645,7 @@ ResetCVars()
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
 	SetConVarInt(FindConVar("mp_idlemaxtime"), 3, true);
-	SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
+	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
 	SetConVarInt(FindConVar("sv_alltalk"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 800, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 0, true);
@@ -678,6 +678,10 @@ ResetCVars()
 public OnConfigsExecuted()
 {
 	SetCVars();
+	if (g_SteamTools)
+	{
+		SetGameDescription();
+	}
 }
 
 public OnConVarChanged(Handle:hCvar, const String:oldValue[], const String:newValue[])
@@ -858,7 +862,7 @@ public OnMapStart()
 	g_ModelName = CreateArray(arraySize);
 	g_ModelOffset = CreateArray(arraySize);
 	PushArrayString(g_ModelName, "models/props_gameplay/cap_point_base.mdl");
-	PushArrayString(g_ModelOffset, "0 0 0");
+	PushArrayString(g_ModelOffset, "0 0 -2");
 	
 #if defined STATS
 	g_MapChanging = false;
@@ -1781,7 +1785,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	LogMessage("Team balancing...");
 #endif
 	decl String:cname[64];
-	while(GetTeamClientCount(TEAM_RED) > GetTeamClientCount(TEAM_BLUE) )
+	while(GetTeamClientCount(TEAM_RED) > GetTeamClientCount(TEAM_BLUE) + 1 )
 	{
 		client = GetRandomPlayer(TEAM_RED);
 		GetClientName(client, cname, sizeof(cname));
@@ -2271,8 +2275,8 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		#if defined LOG
 				LogMessage("[PH] do equip_3 %N", client);
 		#endif
-		if(strlen(g_PlayerModel[client]) < 1)
-		{
+//		if(strlen(g_PlayerModel[client]) < 1)
+//		{
 			decl String:nicemodel[MAXMODELNAME], String:nicemodel2[MAXMODELNAME];
 			
 			//new lastslash = FindCharInString(model, '/', true)+1;
@@ -2284,14 +2288,13 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 			ReplaceString(nicemodel, sizeof(nicemodel), ".mdl", "");
 			ReplaceString(nicemodel, sizeof(nicemodel), "/", "-");
 			
-			
 			KvGotoFirstSubKey(g_PropNames);
 			KvJumpToKey(g_PropNames, "names", false);
 			KvGetString(g_PropNames, nicemodel, nicemodel2, sizeof(nicemodel2));
 			if (strlen(nicemodel2) > 0)
 				strcopy(nicemodel, sizeof(nicemodel), nicemodel2);
 			PrintToChat(client, "%t", "#TF_PH_NowDisguised", nicemodel);
-		}
+//		}
 		#if defined LOG
 				LogMessage("[PH] do equip_4 %N", client);
 		#endif
