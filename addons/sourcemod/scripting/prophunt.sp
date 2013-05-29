@@ -1801,14 +1801,14 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	g_RoundOver = true;
 	g_inPreRound = true;
 
-	new winner = GetEventInt(event, "winning_team");
 #if defined STATS
+	new winner = GetEventInt(event, "winning_team");
 	DbRound(winner);
 #endif
 
-	if (winner == _:TFTeam_Blue)
+	if (GetEventInt(event, "winreason") == 2)
 	{
-		CreateTimer(GetConVarInt(FindConVar("mp_bonusroundtime")) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(GetConVarInt(FindConVar("mp_bonusroundtime")) - 0.2, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 0, true);
 
