@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "1.93pl3"
+#define PL_VERSION "2.0"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -90,6 +90,8 @@
 
 #define IN_MOVEMENT IN_MOVELEFT | IN_MOVERIGHT | IN_FORWARD | IN_BACK | IN_JUMP
 
+#define TIMER_NAME "prop_hunt_timer"
+
 enum ScReason
 {
 	ScReason_TeamWin = 0,
@@ -137,7 +139,7 @@ new bool:g_MapChanging = false;
 new g_StartTime;
 #endif
 
-new Handle:g_TimerStart = INVALID_HANDLE;
+//new Handle:g_TimerStart = INVALID_HANDLE;
 new Handle:g_CountdownSoundTimers[8] = INVALID_HANDLE;
 new const String:g_CountdownSounds[][] = { "Countdown30", "Countdown20", "Countdown10", "Countdown5", "Countdown4", "Countdown3", "Countdown2", "Countdown1" };
 new	Handle:g_Sounds = INVALID_HANDLE;
@@ -168,7 +170,7 @@ new Handle:g_Text2 = INVALID_HANDLE;
 new Handle:g_Text3 = INVALID_HANDLE;
 new Handle:g_Text4 = INVALID_HANDLE;
 
-new Handle:g_RoundTimer = INVALID_HANDLE;
+//new Handle:g_RoundTimer = INVALID_HANDLE;
 new Handle:g_PropMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
@@ -183,8 +185,8 @@ new bool:g_SteamTools = false;
 public Plugin:myinfo =
 {
 	name = "PropHunt",
-	author = "Darkimmortal",
-	description = "GamingMasters.org",
+	author = "Darkimmortal and Powerlord",
+	description = "Hide as a prop from the evil Pyro menace",
 	version = PL_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=107104"
 }
@@ -286,6 +288,7 @@ public OnPluginStart()
 	HookEvent("post_inventory_application", CallCheckInventory);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
+	HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
 
 #if defined STATS
 	Stats_Init();
@@ -313,7 +316,6 @@ public OnPluginStart()
 	
 	loadGlobalConfig();
 	
-
 	RegAdminCmd("ph_respawn", Command_respawn, ADMFLAG_ROOT, "Respawns you");
 	RegAdminCmd("ph_switch", Command_switch, ADMFLAG_BAN, "Switches to RED");
 	RegAdminCmd("ph_internet", Command_internet, ADMFLAG_BAN, "Spams Internet");
@@ -345,8 +347,6 @@ public OnPluginStart()
 	LogError("Could not load the g_PropNames file!");
 	
 	SetCVars();
-	
-	HookEntityOutput("team_round_timer", "OnFinished", TimeEnd);
 }
 
 public OnAllPluginsLoaded()
@@ -573,8 +573,8 @@ config_parseSounds()
 SetCVars(){
 
 	new Handle:cvar = INVALID_HANDLE;
-	cvar = FindConVar("tf_arena_round_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+//	cvar = FindConVar("tf_arena_round_time");
+//	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_use_queue");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_max_streak");
@@ -592,12 +592,13 @@ SetCVars(){
 	cvar = FindConVar("mp_autoteambalance");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
+	//SetConVarInt(FindConVar("tf_arena_round_time"), -1, true);
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
 	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
 	SetConVarInt(FindConVar("tf_tournament_hide_domination_icons"), 0, true);
 	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
-	SetConVarInt(FindConVar("sv_alltalk"), 1, true);
+	//SetConVarInt(FindConVar("sv_alltalk"), 1, true);
 	SetConVarInt(FindConVar("mp_friendlyfire"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 500, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 1, true);
@@ -634,8 +635,8 @@ ResetCVars()
 {
 
 	new Handle:cvar = INVALID_HANDLE;
-	cvar = FindConVar("tf_arena_round_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+//	cvar = FindConVar("tf_arena_round_time");
+//	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_use_queue");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_max_streak");
@@ -649,7 +650,7 @@ ResetCVars()
 
 	SetConVarInt(FindConVar("mp_idlemaxtime"), 3, true);
 	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
-	SetConVarInt(FindConVar("sv_alltalk"), 0, true);
+	//SetConVarInt(FindConVar("sv_alltalk"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 800, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), -1, true);
@@ -668,7 +669,6 @@ ResetCVars()
 #if !defined AIRBLAST
 	SetConVarInt(FindConVar("tf_flamethrower_burstammo"), 20, true);
 #endif
-
 	
 	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
 	{
@@ -685,6 +685,7 @@ public OnConfigsExecuted()
 	{
 		SetGameDescription();
 	}
+	
 }
 
 public OnConVarChanged(Handle:hCvar, const String:oldValue[], const String:newValue[])
@@ -854,8 +855,42 @@ public OnCPEntitySpawned(entity)
 
 public Action:OnCPMasterSpawned(entity)
 {
-	SetEntProp(entity, Prop_Data, "m_iInvalidCapWinner", 1);
+	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
+	if (arenaLogic == -1)
+	{
+		return Plugin_Continue;
+	}
+	
 	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 1);
+
+	decl String:time[5];
+	IntToString(g_RoundTime - 30, time, sizeof(time));
+	
+	decl String:name[64];
+	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+	
+	new timer = CreateEntityByName("team_round_timer");
+	DispatchKeyValue(timer, "targetname", TIMER_NAME);
+	DispatchKeyValue(timer, "setup_length", "30");
+	DispatchKeyValue(timer, "reset_time", "1");
+	DispatchKeyValue(timer, "auto_countdown", "1");
+	DispatchKeyValue(timer, "timer_length", time);
+	DispatchSpawn(timer);
+
+	decl String:finishedCommand[256];
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinner:%d:0:-1", name, _:TFTeam_Red);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(timer, "AddOutput");
+
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(arenaLogic, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(arenaLogic, "AddOutput");
+
 	return Plugin_Continue;
 }
 
@@ -969,6 +1004,7 @@ public OnMapStart()
 	loadGlobalConfig();
 }
 
+/*
 public Action:OnGetGameDescription(String:gameDesc[64])
 {
 	if (strlen(g_AdText) > 0)
@@ -978,6 +1014,7 @@ public Action:OnGetGameDescription(String:gameDesc[64])
 	
 	return Plugin_Changed;
 }
+*/
 
 public OnPluginEnd()
 {
@@ -1061,18 +1098,21 @@ stock SwitchView (target, bool:observer, bool:viewmodel){
 	AcceptEntityInput(target, "SetCustomModelVisibletoSelf");
 }
 
-
+/*
 stock ForceTeamWin (team){
 	new ent = FindEntityByClassname(-1, "team_control_point_master");
 	if (ent == -1)
 	{
 		ent = CreateEntityByName("team_control_point_master");
+		DispatchKeyValue(ent, "targetname", "master_control_point");
+		DispatchKeyValue(ent, "StartDisabled", "0");
 		DispatchSpawn(ent);
 		AcceptEntityInput(ent, "Enable");
 	}
 	SetVariantInt(team);
 	AcceptEntityInput(ent, "SetWinner");
 }
+*/
 
 public Action:Command_jointeam(client, args)
 {
@@ -1277,6 +1317,7 @@ stock PlayersAlive (){
 	return alive;
 }
 
+/*
 public StopPreroundTimers(bool:instant)
 {
 	StopTimer(g_TimerStart);
@@ -1296,6 +1337,8 @@ public StopPreroundTimers(bool:instant)
 		CreateTimer(2.0, Timer_AfterWinPanel);
 	}
 }
+*/
+
 
 stock ChangeClientTeamAlive (client, team)
 {
@@ -1635,12 +1678,13 @@ public PreThinkHook(client)
 	} // in game
 }
 
+/*
 public SetupRoundTime(time)
 {
 	g_RoundTimer = CreateTimer(float(time-1), Timer_TimeUp, _, TIMER_FLAG_NO_MAPCHANGE);
 	SetConVarInt(FindConVar("tf_arena_round_time"), time, true, false);
 }
-
+*/
 
 public GetClassCount(TFClassType:class, team) 
 {
@@ -1756,18 +1800,22 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	LogMessage("[PH] round end");
 #endif
 
-
 	g_RoundOver = true;
 	g_inPreRound = true;
 
-#if defined STATS
 	new winner = GetEventInt(event, "winning_team");
+#if defined STATS
 	DbRound(winner);
 #endif
 
+	if (winner == _:TFTeam_Blue)
+	{
+		CreateTimer(GetConVarInt(FindConVar("mp_bonusroundtime")) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	}
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 0, true);
 
-	new team, client;
+//	new team, client;
+	new client;
 	for(client=1; client <= MaxClients; client++)
 	{
 		ResetPlayer(client);
@@ -1785,6 +1833,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 			}
 #endif
 			// bit annoying when testing the plugin and/or maps on a listen server
+			/*
 			if(IsDedicatedServer())
 			{
 				team = GetClientTeam(client);
@@ -1794,9 +1843,10 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 					ChangeClientTeamAlive(client, team);
 				}
 			}
+			*/
 		}
 	}
-
+/*
 #if defined LOG
 	LogMessage("Team balancing...");
 #endif
@@ -1818,12 +1868,38 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #if defined LOG
 	LogMessage("Complete");
 #endif
+*/
 
 	SetConVarFlags(FindConVar("mp_teams_unbalance_limit"), GetConVarFlags(FindConVar("mp_teams_unbalance_limit")) & ~(FCVAR_NOTIFY));
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
 
-	StopPreroundTimers(false);
+	//StopPreroundTimers(false);
 }
+
+public Action:Timer_ChangeTeam(Handle:timer)
+{
+	for (new i = 1; i <= MaxClients; ++i)
+	{
+		if (!IsClientInGame(i))
+		{
+			continue;
+		}
+		
+		if (GetClientTeam(i) == _:TFTeam_Blue)
+		{
+			ChangeClientTeamAlive(i, _:TFTeam_Red);
+		}
+		else
+		if (GetClientTeam(i) == _:TFTeam_Red)
+		{
+			ChangeClientTeamAlive(i, _:TFTeam_Blue);
+		}
+		
+	}
+	
+	return Plugin_Continue;
+}
+
 /*
 public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -1862,11 +1938,18 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (ent == -1)
 	{
 		ent = CreateEntityByName("team_control_point_master");
-		DispatchKeyValue(ent, "Name", "master_control_point");
+		DispatchKeyValue(ent, "targetname", "master_control_point");
 		DispatchKeyValue(ent, "StartDisabled", "0");
 		DispatchSpawn(ent);
 	}
-	
+
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientConnected(i))
+		{
+			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
+		}
+	}
 }
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
@@ -1896,7 +1979,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 			}
 		}
 		
-		SetupRoundTime(g_RoundTime);
+		//SetupRoundTime(g_RoundTime);
 		
 		//GameMode Explanation
 		decl String:message[256];
@@ -1908,7 +1991,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 		SetVariantString(message);
 		AcceptEntityInput(ent, "SetBlueTeamGoalString");
 		SetVariantString("2");
-		AcceptEntityInput(ent, "SetRedTeamRole");
+		AcceptEntityInput(ent, "SetBlueTeamRole");
 
 		//RED
 		Format(message, sizeof(message), "%T", "#TF_PH_RedHelp", LANG_SERVER);
@@ -1918,19 +2001,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 		AcceptEntityInput(ent, "SetRedTeamRole");
 
 		CreateTimer(0.1, Timer_Info);
-		
-		g_CountdownSoundTimers[0] = CreateTimer(0.1, Timer_PlaySound, 0, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[1] = CreateTimer(10.0, Timer_PlaySound, 1, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[2] = CreateTimer(20.0, Timer_PlaySound, 2, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[3] = CreateTimer(25.0, Timer_PlaySound, 3, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[4] = CreateTimer(26.0, Timer_PlaySound, 4, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[5] = CreateTimer(27.0, Timer_PlaySound, 5, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[6] = CreateTimer(28.0, Timer_PlaySound, 6, TIMER_FLAG_NO_MAPCHANGE);
-		g_CountdownSoundTimers[7] = CreateTimer(29.0, Timer_PlaySound, 7, TIMER_FLAG_NO_MAPCHANGE);
-		
-		
-		g_TimerStart = CreateTimer(30.0, Timer_Start, _, TIMER_FLAG_NO_MAPCHANGE);
-		
+
 #if defined STATS
 		g_StartTime = GetTime();
 #endif
@@ -2195,7 +2266,7 @@ public Action:Timer_Info(Handle:timer, any:client)
 		{
 			if(IsClientInGame(i) && !IsFakeClient(i))
 			{
-				ShowSyncHudText(i, g_Text2, "By Darkimmortal and Geit");
+				ShowSyncHudText(i, g_Text2, "By Darkimmortal, Geit, and Powerlord");
 			}
 		}
 	}
@@ -2305,8 +2376,8 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		#if defined LOG
 				LogMessage("[PH] do equip_3 %N", client);
 		#endif
-//		if(strlen(g_PlayerModel[client]) < 1)
-//		{
+		if(strlen(g_PlayerModel[client]) < 1)
+		{
 			decl String:nicemodel[MAXMODELNAME], String:nicemodel2[MAXMODELNAME];
 			
 			//new lastslash = FindCharInString(model, '/', true)+1;
@@ -2324,7 +2395,7 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 			if (strlen(nicemodel2) > 0)
 				strcopy(nicemodel, sizeof(nicemodel), nicemodel2);
 			PrintToChat(client, "%t", "#TF_PH_NowDisguised", nicemodel);
-//		}
+		}
 		#if defined LOG
 				LogMessage("[PH] do equip_4 %N", client);
 		#endif
@@ -2415,7 +2486,7 @@ public Action:Timer_Score(Handle:timer, any:entity)
 	PrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
 }
 
-public Action:Timer_Start(Handle:timer, any:client)
+public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
 {
 #if defined LOG
 	LogMessage("[PH] Timer_Start");
@@ -2443,15 +2514,15 @@ public Action:Timer_Start(Handle:timer, any:client)
 
 	if(g_Relay)
 	{
-		decl String:name[128];
+		decl String:relayName[128];
 		while ((ent = FindEntityByClassname(ent, "logic_relay")) != -1)
 		{
-			GetEntPropString(ent, Prop_Data, "m_iName", name, sizeof(name));
-			if(strcmp(name, "hidingover", false) == 0)
+			GetEntPropString(ent, Prop_Data, "m_iName", relayName, sizeof(relayName));
+			if(strcmp(relayName, "hidingover", false) == 0)
 			AcceptEntityInput(ent, "Trigger");
 		}
 	}
-	g_TimerStart = INVALID_HANDLE;
+//	g_TimerStart = INVALID_HANDLE;
 	return Plugin_Handled;
 
 }
@@ -2468,6 +2539,7 @@ public Action:Timer_Charge(Handle:timer, any:client)
 }
 #endif
 
+/*
 public TimeEnd(const String:output[], caller, activator, Float:delay)
 {
 #if defined LOG
@@ -2480,7 +2552,9 @@ public TimeEnd(const String:output[], caller, activator, Float:delay)
 		g_inPreRound = true;
 	}
 }
+*/
 
+/*
 public Action:Timer_TimeUp(Handle:timer, any:lol)
 {
 #if defined LOG
@@ -2495,7 +2569,9 @@ public Action:Timer_TimeUp(Handle:timer, any:lol)
 	g_RoundTimer = INVALID_HANDLE;
 	return Plugin_Handled;
 }
+*/
 
+/*
 public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
 {
 #if defined LOG
@@ -2503,6 +2579,7 @@ public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
 #endif
 	StopTimer(g_RoundTimer);
 }
+*/
 
 public Action:Timer_Unfreeze(Handle:timer, any:client)
 {
