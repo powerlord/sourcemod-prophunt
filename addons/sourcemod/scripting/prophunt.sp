@@ -140,8 +140,6 @@ new g_StartTime;
 #endif
 
 //new Handle:g_TimerStart = INVALID_HANDLE;
-new Handle:g_CountdownSoundTimers[8] = INVALID_HANDLE;
-new const String:g_CountdownSounds[][] = { "Countdown30", "Countdown20", "Countdown10", "Countdown5", "Countdown4", "Countdown3", "Countdown2", "Countdown1" };
 new	Handle:g_Sounds = INVALID_HANDLE;
 new Handle:g_BroadcastSounds = INVALID_HANDLE;
 
@@ -2237,13 +2235,6 @@ public Action:Timer_WeaponAlpha(Handle:timer, any:client)
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	SetWeaponsAlpha(client, 0);
 }
-public Action:Timer_PlaySound(Handle:timer, any:data)
-{
-	PH_EmitSoundToAll(g_CountdownSounds[data], _, _, SNDLEVEL_AIRCRAFT);
-	g_CountdownSoundTimers[data] = INVALID_HANDLE;
-	return Plugin_Handled;
-}
-
 public Action:Timer_Info(Handle:timer, any:client)
 {
 	g_Message_bit++;
