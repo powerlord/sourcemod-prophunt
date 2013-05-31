@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.0"
+#define PL_VERSION "2.01"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -177,6 +177,8 @@ new Handle:g_PHPropMenu = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
+
+new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
 
@@ -853,6 +855,11 @@ public OnCPEntitySpawned(entity)
 
 public Action:OnCPMasterSpawned(entity)
 {
+	if (!g_MapStarted)
+	{
+		return Plugin_Continue;
+	}
+	
 	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
 	if (arenaLogic == -1)
 	{
@@ -898,6 +905,9 @@ public OnMapEnd()
 	g_MapChanging = true;
 #endif
 
+	// workaround for CreateEntityByNsme
+	g_MapStarted = false;
+	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_RoundOver = true;
 	g_inPreRound = true;
@@ -999,6 +1009,9 @@ public OnMapStart()
 	DispatchSpawn(ent);
 	AcceptEntityInput(ent, "Enable");*/
 	
+	// workaround for CreateEntityByNsme
+	g_MapStarted = true;
+
 	loadGlobalConfig();
 }
 
