@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.01"
+#define PL_VERSION "2.02"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -288,7 +288,7 @@ public OnPluginStart()
 	HookEvent("post_inventory_application", CallCheckInventory);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
-	HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
+	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
 
 #if defined STATS
 	Stats_Init();
@@ -589,8 +589,8 @@ SetCVars(){
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_preround_time");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_autoteambalance");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+	//cvar = FindConVar("mp_autoteambalance");
+	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
 	//SetConVarInt(FindConVar("tf_arena_round_time"), -1, true);
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
@@ -604,7 +604,7 @@ SetCVars(){
 	SetConVarInt(FindConVar("mp_forcecamera"), 1, true);
 	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 5000, true); // Set really high
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
-	SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
+	//SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
 	SetConVarInt(FindConVar("mp_enableroundwaittime"), 0, true);
 	SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
@@ -645,8 +645,8 @@ ResetCVars()
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_preround_time");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_autoteambalance");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+	//cvar = FindConVar("mp_autoteambalance");
+	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
 	SetConVarInt(FindConVar("mp_idlemaxtime"), 3, true);
 	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
@@ -655,7 +655,7 @@ ResetCVars()
 	SetConVarInt(FindConVar("mp_forcecamera"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), -1, true);
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 1, true);
-	SetConVarInt(FindConVar("mp_autoteambalance"), 1, true);
+	//SetConVarInt(FindConVar("mp_autoteambalance"), 1, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
 	SetConVarInt(FindConVar("mp_enableroundwaittime"), 1, true);
 	SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
@@ -895,6 +895,8 @@ public Action:OnCPMasterSpawned(entity)
 	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(arenaLogic, "AddOutput");
+	
+	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
 
 	return Plugin_Continue;
 }
@@ -2490,7 +2492,9 @@ public Action:Timer_Score(Handle:timer, any:entity)
 	PrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
 }
 
-public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
+// This used to hook the teamplay_setup_finished event, but ph_kakariko messes with that
+//public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
+public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 {
 #if defined LOG
 	LogMessage("[PH] Timer_Start");
@@ -2527,7 +2531,7 @@ public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], b
 		}
 	}
 //	g_TimerStart = INVALID_HANDLE;
-	return Plugin_Handled;
+	//return Plugin_Handled;
 
 }
 
