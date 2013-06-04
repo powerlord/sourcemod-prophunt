@@ -28,7 +28,7 @@ public Action:Cmd_TimerStats(client, args)
 		new bool:bShowInHud = bool:GetEntProp(timer, Prop_Send, "m_bShowInHUD");
 		new iTimeRemaining = GetEntProp(timer, Prop_Send, "m_nTimerLength");
 		
-		PrintToChatAll("Timer %d. name: %s, paused: %d, disabled: %d, show in hud: %d, time left: %d", timer, name, bIsPaused, bIsDisabled, bShowInHud, iTimeRemaining);
+		ReplyToCommand(client, "Timer %d. name: %s, paused: %d, disabled: %d, show in hud: %d, time left: %d", timer, name, bIsPaused, bIsDisabled, bShowInHud, iTimeRemaining);
 	}
 	return Plugin_Handled;
 }
@@ -44,7 +44,7 @@ public Action:Cmd_MasterControl(client, args)
 		new bool:bSwitchTeams = bool:GetEntProp(point, Prop_Data, "m_bSwitchTeamsOnWin");
 		new bool:bDisabledByDefault = bool:GetEntProp(point, Prop_Data, "m_bDisabled");
 		
-		PrintToChatAll("Master %d. name: %s, switch teams: %d, disabled by default: %d", point, name, bSwitchTeams, bDisabledByDefault);
+		ReplyToCommand(client, "Master %d. name: %s, switch teams: %d, disabled by default: %d", point, name, bSwitchTeams, bDisabledByDefault);
 	}
 	
 	return Plugin_Handled;

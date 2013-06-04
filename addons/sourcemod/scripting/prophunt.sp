@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.02"
+#define PL_VERSION "2.03"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -873,6 +873,11 @@ public Action:OnCPMasterSpawned(entity)
 	
 	decl String:name[64];
 	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+	if (strlen(name) == 0)
+	{
+		SetEntPropString(entity, Prop_Data, "m_iName", "master_control_point");
+		strcopy(name, sizeof(name), "master_control_point");
+	}
 	
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
