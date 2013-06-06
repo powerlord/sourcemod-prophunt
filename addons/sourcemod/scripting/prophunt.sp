@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.03"
+#define PL_VERSION "2.04"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -827,20 +827,21 @@ public OnEntityCreated(entity, const String:classname[])
 	else
 	if(strcmp(classname, "prop_dynamic") == 0 || strcmp(classname, "prop_static") == 0)
 	{
-		SDKHook(entity, SDKHook_Spawn, OnCPEntitySpawned);
+		SDKHook(entity, SDKHook_SpawnPost, OnCPEntitySpawned);
 	}
 	else
 	if(strcmp(classname, "team_control_point_master") == 0)
 	{
-		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
+		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawned);
 	}
 	
 }
 
-public OnBullshitEntitySpawned(entity)
+public Action:OnBullshitEntitySpawned(entity)
 {
-	if(IsValidEntity(entity))
-	AcceptEntityInput(entity, "Kill");
+	return Plugin_Handled;
+	//if(IsValidEntity(entity))
+	//AcceptEntityInput(entity, "Kill");
 }
 
 public OnCPEntitySpawned(entity)
@@ -853,17 +854,17 @@ public OnCPEntitySpawned(entity)
 	}
 }
 
-public Action:OnCPMasterSpawned(entity)
+public OnCPMasterSpawned(entity)
 {
 	if (!g_MapStarted)
 	{
-		return Plugin_Continue;
+		return;
 	}
 	
 	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
 	if (arenaLogic == -1)
 	{
-		return Plugin_Continue;
+		return;
 	}
 	
 	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 1);
@@ -872,8 +873,7 @@ public Action:OnCPMasterSpawned(entity)
 	IntToString(g_RoundTime - 30, time, sizeof(time));
 	
 	decl String:name[64];
-	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
-	if (strlen(name) == 0)
+	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
 	{
 		SetEntPropString(entity, Prop_Data, "m_iName", "master_control_point");
 		strcopy(name, sizeof(name), "master_control_point");
@@ -903,7 +903,7 @@ public Action:OnCPMasterSpawned(entity)
 	
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
 
-	return Plugin_Continue;
+	return;
 }
 
 public OnMapEnd()
