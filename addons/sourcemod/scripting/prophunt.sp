@@ -1160,7 +1160,7 @@ public Action:Command_propmenu(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0)
+	if(GetConVarInt(g_PHPropMenu) == 1 || (CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0))
 	{
 		if(GetClientTeam(client) == TEAM_RED && IsPlayerAlive(client))
 		{
