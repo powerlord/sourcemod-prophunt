@@ -832,16 +832,15 @@ public OnEntityCreated(entity, const String:classname[])
 	else
 	if(strcmp(classname, "team_control_point_master") == 0)
 	{
-		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawned);
+		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 	}
 	
 }
 
 public Action:OnBullshitEntitySpawned(entity)
 {
-	return Plugin_Handled;
-	//if(IsValidEntity(entity))
-	//AcceptEntityInput(entity, "Kill");
+	if(IsValidEntity(entity))
+	AcceptEntityInput(entity, "Kill");
 }
 
 public OnCPEntitySpawned(entity)
@@ -854,17 +853,17 @@ public OnCPEntitySpawned(entity)
 	}
 }
 
-public OnCPMasterSpawned(entity)
+public Action:OnCPMasterSpawned(entity)
 {
 	if (!g_MapStarted)
 	{
-		return;
+		return Plugin_Continue;
 	}
 	
 	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
 	if (arenaLogic == -1)
 	{
-		return;
+		return Plugin_Continue;
 	}
 	
 	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 1);
@@ -875,7 +874,7 @@ public OnCPMasterSpawned(entity)
 	decl String:name[64];
 	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
 	{
-		SetEntPropString(entity, Prop_Data, "m_iName", "master_control_point");
+		DispatchKeyValue(entity, "targetname", "master_control_point");
 		strcopy(name, sizeof(name), "master_control_point");
 	}
 	
@@ -903,7 +902,7 @@ public OnCPMasterSpawned(entity)
 	
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
 
-	return;
+	return Plugin_Continue;
 }
 
 public OnMapEnd()
@@ -1161,7 +1160,7 @@ public Action:Command_propmenu(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0)
+	if(GetConVarInt(g_PHPropMenu) == 1 || (CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0))
 	{
 		if(GetClientTeam(client) == TEAM_RED && IsPlayerAlive(client))
 		{
