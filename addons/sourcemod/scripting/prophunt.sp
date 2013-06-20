@@ -11,7 +11,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.04"
+#define PL_VERSION "2.06"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -573,8 +573,8 @@ config_parseSounds()
 SetCVars(){
 
 	new Handle:cvar = INVALID_HANDLE;
-//	cvar = FindConVar("tf_arena_round_time");
-//	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+	cvar = FindConVar("tf_arena_round_time");
+	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_use_queue");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_max_streak");
@@ -592,7 +592,7 @@ SetCVars(){
 	//cvar = FindConVar("mp_autoteambalance");
 	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
-	//SetConVarInt(FindConVar("tf_arena_round_time"), -1, true);
+	SetConVarInt(FindConVar("tf_arena_round_time"), -1, true);
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
 	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
