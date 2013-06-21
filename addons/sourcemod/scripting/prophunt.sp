@@ -1,5 +1,7 @@
 //  PropHunt by Darkimmortal
 //   - GamingMasters.org -
+//    Updated by Powerlord
+// - reddit.com/r/RUGC_Midwest -
 
 #pragma semicolon 1
 #include <sourcemod>
@@ -163,6 +165,7 @@ new Handle:g_PropNames = INVALID_HANDLE;
 new Handle:g_ConfigKeyValues = INVALID_HANDLE;
 new Handle:g_ModelName = INVALID_HANDLE;
 new Handle:g_ModelOffset = INVALID_HANDLE;
+new Handle:g_ModelRotation = INVALID_HANDLE;
 new Handle:g_Text1 = INVALID_HANDLE;
 new Handle:g_Text2 = INVALID_HANDLE;
 new Handle:g_Text3 = INVALID_HANDLE;
@@ -186,7 +189,7 @@ public Plugin:myinfo =
 {
 	name = "PropHunt",
 	author = "Darkimmortal and Powerlord",
-	description = "Hide as a prop from the evil Pyro menace",
+	description = "Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum",
 	version = PL_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=107104"
 }
@@ -592,7 +595,7 @@ SetCVars(){
 	//cvar = FindConVar("mp_autoteambalance");
 	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 
-	SetConVarInt(FindConVar("tf_arena_round_time"), -1, true);
+	SetConVarInt(FindConVar("tf_arena_round_time"), 0, true);
 	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
 	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
 	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
@@ -607,10 +610,10 @@ SetCVars(){
 	//SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
 	SetConVarInt(FindConVar("mp_enableroundwaittime"), 0, true);
-	SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
+	//SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
 	SetConVarInt(FindConVar("mp_waitingforplayers_time"), 40, true);
 	SetConVarInt(FindConVar("tf_arena_use_queue"), 0, true);
-	SetConVarInt(FindConVar("mp_stalemate_enable"), 1, true);
+	//SetConVarInt(FindConVar("mp_stalemate_enable"), 1, true);
 	SetConVarInt(FindConVar("mp_show_voice_icons"), 0, true);
 	SetConVarInt(FindConVar("mp_bonusroundtime"), 5, true);
 	SetConVarInt(FindConVar("tf_solidobjects"), 0, true);
@@ -635,8 +638,8 @@ ResetCVars()
 {
 
 	new Handle:cvar = INVALID_HANDLE;
-//	cvar = FindConVar("tf_arena_round_time");
-//	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+	cvar = FindConVar("tf_arena_round_time");
+	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_use_queue");
 	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	cvar = FindConVar("tf_arena_max_streak");
@@ -656,11 +659,11 @@ ResetCVars()
 	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), -1, true);
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 1, true);
 	//SetConVarInt(FindConVar("mp_autoteambalance"), 1, true);
-	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
+	SetConVarInt(FindConVar("tf_arena_max_streak"), 3, true);
 	SetConVarInt(FindConVar("mp_enableroundwaittime"), 1, true);
-	SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
+	//SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
 	SetConVarInt(FindConVar("mp_waitingforplayers_time"), 30, true);
-	SetConVarInt(FindConVar("mp_stalemate_enable"), 0, true);
+	//SetConVarInt(FindConVar("mp_stalemate_enable"), 0, true);
 	SetConVarInt(FindConVar("mp_show_voice_icons"), 1, true);
 	SetConVarInt(FindConVar("mp_bonusroundtime"), 15, true);
 	SetConVarInt(FindConVar("tf_arena_preround_time"), 5, true);
@@ -926,8 +929,10 @@ public OnMapStart()
 	new arraySize = ByteCountToCells(100);
 	g_ModelName = CreateArray(arraySize);
 	g_ModelOffset = CreateArray(arraySize);
+	g_ModelRotation = CreateArray(arraySize);
 	PushArrayString(g_ModelName, "models/props_gameplay/cap_point_base.mdl");
 	PushArrayString(g_ModelOffset, "0 0 -2");
+	PushArrayString(g_ModelRotation, "0 0 0");
 	
 #if defined STATS
 	g_MapChanging = false;
@@ -944,7 +949,7 @@ public OnMapStart()
 	AddMenuItem(g_PropMenu, "models/player/pyro.mdl", "models/player/pyro.mdl");
 	AddMenuItem(g_PropMenu, "models/props_halloween/ghost.mdl", "models/props_halloween/ghost.mdl");
 
-	decl String:confil[192], String:buffer[256], String:offset[32], String:tidyname[2][32], String:maptidyname[128];
+	decl String:confil[192], String:buffer[256], String:offset[32], String:rotation[32], String:tidyname[2][32], String:maptidyname[128];
 	ExplodeString(g_Mapname, "_", tidyname, 2, 32);
 	Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
@@ -970,6 +975,8 @@ public OnMapStart()
 			AddMenuItem(g_PropMenu, buffer, buffer);
 			KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
 			PushArrayString(g_ModelOffset, offset);
+			KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
+			PushArrayString(g_ModelRotation, rotation);
 		}
 		while (KvGotoNextKey(fl));
 		KvRewind(fl);
@@ -2363,7 +2370,7 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 				LogMessage("[PH] do equip_2 %N", client);
 		#endif
 		// fire in a nice random model
-		decl String:model[MAXMODELNAME], String:offset[32];
+		decl String:model[MAXMODELNAME], String:offset[32], String:rotation[32];
 		new modelIndex = -1;
 		if(strlen(g_PlayerModel[client]) > 1)
 		{
@@ -2378,10 +2385,12 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		if (modelIndex > -1)
 		{
 			GetArrayString(g_ModelOffset, modelIndex, offset, sizeof(offset));
+			GetArrayString(g_ModelRotation, modelIndex, rotation, sizeof(rotation));
 		}
 		else
 		{
 			strcopy(offset, sizeof(offset), "0 0 0");
+			strcopy(rotation, sizeof(rotation), "0 0 0");
 		}
 		#if defined LOG
 				LogMessage("[PH] do equip_3 %N", client);
@@ -2414,6 +2423,15 @@ public Action:Timer_DoEquip(Handle:timer, any:client)
 		AcceptEntityInput(client, "SetCustomModel");
 		SetVariantString(offset);
 		AcceptEntityInput(client, "SetCustomModelOffset");
+		if (StrEqual(rotation, "0 0 0"))
+		{
+			AcceptEntityInput(client, "ClearCustomModelRotation");
+		}
+		else
+		{
+			SetVariantString(rotation);
+			AcceptEntityInput(client, "SetCustomModelRotation");
+		}
 		SetVariantInt(1);
 		AcceptEntityInput(client, "SetCustomModelRotates");
 		SwitchView(client, true, false);
