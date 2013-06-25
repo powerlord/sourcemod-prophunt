@@ -13,7 +13,10 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
-#define PL_VERSION "2.06"
+#undef REQUIRE_PLUGIN
+#include <tf2attributes>
+
+#define PL_VERSION "2.07"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -178,12 +181,16 @@ new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
+new Handle:g_PHFallDamage = INVALID_HANDLE;
+new Handle:g_PHStripSetBonuses = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
 new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
+
+new bool:g_TF2Attribs = false;
 
 public Plugin:myinfo =
 {
@@ -272,6 +279,8 @@ public OnPluginStart()
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin");
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only, 1 = all players");
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
+	g_PHFallDamage = CreateConVar("ph_falldamage", "1", "Should players take fall damage? Requires TF2Attributes to disable.", _, true, 0.0, true, 1.0);
+	g_PHStripSetBonuses = CreateConVar("ph_stripsetbonuses", "1", "Strip set bonuses during Prop Hunt.  Requires TF2Attributes to enable.", _, true, 0.0, true, 1.0);
 
 	HookConVarChange(g_PHEnable, OnConVarChanged);
 	HookConVarChange(g_PHAdvertisements, OnConVarChanged);
@@ -355,6 +364,7 @@ public OnPluginStart()
 public OnAllPluginsLoaded()
 {
 	g_SteamTools = LibraryExists("SteamTools");
+	g_TF2Attribs = LibraryExists("tf2attributes");
 	if (g_SteamTools)
 	{
 		SetGameDescription();
@@ -387,6 +397,11 @@ public OnLibraryAdded(const String:name[])
 			SetGameDescription();
 		}
 	}
+	else
+	if (StrEqual(name, "tf2attributes", false))
+	{
+		g_TF2Attribs = true;
+	}
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -394,6 +409,11 @@ public OnLibraryRemoved(const String:name[])
 	if (StrEqual(name, "steamtools", false))
 	{
 		g_SteamTools = false;
+	}
+	else
+	if (StrEqual(name, "tf2attributes", false))
+	{
+		g_TF2Attribs = false;
 	}
 }
 
@@ -767,6 +787,19 @@ public Action:CheckInventory(Handle:timer, any:userid)
 		
 		if (prev && IsValidEdict(prev)) 
 		RemoveEdict(prev);
+		
+		if (g_TF2Attribs)
+		{
+			if (GetConVarBool(g_PHStripSetBonuses))
+			{
+				TF2Attrib_RemoveAll(client);
+			}
+			
+			if (!GetConVarBool(g_PHFallDamage))
+			{
+				TF2Attrib_SetByName(client, "cancel falling damage", 1.0);
+			}
+		}
 	}
 }
 
@@ -1176,7 +1209,7 @@ public Action:Command_propmenu(client, args)
 				decl String:model[MAXMODELNAME];
 				GetCmdArg(1, model, MAXMODELNAME);
 				strcopy(g_PlayerModel[client], MAXMODELNAME, model); 
-				Timer_DoEquip(INVALID_HANDLE, client);
+				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}
 			else
 			{
@@ -1209,7 +1242,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					if(GetClientTeam(param1) == TEAM_RED && IsPlayerAlive(param1))
 					{
 						GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
-						Timer_DoEquip(INVALID_HANDLE, param1);
+						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
 					}
 					else
 					{
@@ -1992,12 +2025,12 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 			{
 				if(GetClientTeam(client) == TEAM_RED)
 				{
-					Timer_DoEquip(INVALID_HANDLE, client);
+					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 					SetEntityMoveType(client, MOVETYPE_WALK);
 				}
 				else
 				{
-					Timer_DoEquipBlu(INVALID_HANDLE, client);
+					Timer_DoEquipBlu(INVALID_HANDLE, GetClientUserId(client));
 				}
 				g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 			}
@@ -2136,9 +2169,8 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[TEAM_RED-2]);
 				TF2_RespawnPlayer(client);
 			}
-			CreateTimer(0.1, Timer_DoEquip, client);
+			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
 		}
-
 	}
 }
 
@@ -2307,7 +2339,7 @@ public Action:Timer_Info(Handle:timer, any:client)
 	}
 }
 
-public Action:Timer_DoEquipBlu (Handle:timer, any: UserId)
+public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
 {
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
@@ -2346,10 +2378,10 @@ public Action:Timer_DoEquipBlu (Handle:timer, any: UserId)
 	return Plugin_Handled;
 }
 
-public Action:Timer_DoEquip(Handle:timer, any:client)
+public Action:Timer_DoEquip(Handle:timer, any:UserId)
 {
-
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(UserId);
+	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		//TF2_RegeneratePlayer(client);
 		
@@ -2478,7 +2510,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
-						Timer_DoEquip(INVALID_HANDLE, client);
+						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 						TF2_RemoveAllWeapons(client);
 					}
 				}
@@ -2633,7 +2665,7 @@ public Action:Timer_Move(Handle:timer, any:client)
 		}
 		else
 		{
-			CreateTimer(0.1, Timer_DoEquip, client);
+			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
 		}
 	}
 	return Plugin_Handled;
