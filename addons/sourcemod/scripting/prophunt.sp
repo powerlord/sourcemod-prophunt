@@ -181,8 +181,9 @@ new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
-new Handle:g_PHFallDamage = INVALID_HANDLE;
+new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
 new Handle:g_PHStripSetBonuses = INVALID_HANDLE;
+new Handle:g_PHGameDescription = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -277,13 +278,15 @@ public OnPluginStart()
 
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin");
-	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only, 1 = all players");
+	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only (use propmenu override), 1 = all players");
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
-	g_PHFallDamage = CreateConVar("ph_falldamage", "1", "Should players take fall damage? Requires TF2Attributes to disable.", _, true, 0.0, true, 1.0);
-	g_PHStripSetBonuses = CreateConVar("ph_stripsetbonuses", "1", "Strip set bonuses during Prop Hunt.  Requires TF2Attributes to enable.", _, true, 0.0, true, 1.0);
+	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "If TF2Attributes is loaded, set to 1 to prevent fall damage.", _, true, 0.0, true, 1.0);
+	g_PHStripSetBonuses = CreateConVar("ph_stripsetbonuses", "1", "If TF2Attributes is loaded, strip set bonuses during Prop Hunt.", _, true, 0.0, true, 1.0);
+	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt?", _, true, 0.0, true, 1.0);
 
-	HookConVarChange(g_PHEnable, OnConVarChanged);
-	HookConVarChange(g_PHAdvertisements, OnConVarChanged);
+	HookConVarChange(g_PHEnable, OnEnabledChanged);
+	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
+	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -367,7 +370,7 @@ public OnAllPluginsLoaded()
 	g_TF2Attribs = LibraryExists("tf2attributes");
 	if (g_SteamTools)
 	{
-		SetGameDescription();
+		UpdateGameDescription();
 	}
 }
 
@@ -389,13 +392,10 @@ loadGlobalConfig()
 
 public OnLibraryAdded(const String:name[])
 {
-	if (StrEqual(name, "steamtools", false))
+	if (StrEqual(name, "SteamTools", false))
 	{
 		g_SteamTools = true;
-		if (g_PHEnable)
-		{
-			SetGameDescription();
-		}
+		UpdateGameDescription();
 	}
 	else
 	if (StrEqual(name, "tf2attributes", false))
@@ -406,7 +406,7 @@ public OnLibraryAdded(const String:name[])
 
 public OnLibraryRemoved(const String:name[])
 {
-	if (StrEqual(name, "steamtools", false))
+	if (StrEqual(name, "SteamTools", false))
 	{
 		g_SteamTools = false;
 	}
@@ -417,16 +417,40 @@ public OnLibraryRemoved(const String:name[])
 	}
 }
 
-SetGameDescription()
+public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	decl String:gameDesc[128];
-	
-	if (strlen(g_AdText) > 0)
-	Format(gameDesc, sizeof(gameDesc), "PropHunt %s (%s)", g_Version, g_AdText);
-	else
-	Format(gameDesc, sizeof(gameDesc), "PropHunt %s", g_Version);
-	
-	Steam_SetGameDescription(gameDesc);
+	UpdateGameDescription();
+}
+
+
+UpdateGameDescription(bool:bAddOnly=false)
+{
+	if (g_SteamTools)
+	{
+		decl String:gamemode[128];
+		if (GetConVarBool(g_PHEnable) && GetConVarBool(g_PHGameDescription))
+		{
+			if (strlen(g_AdText) > 0)
+			{
+				Format(gamemode, sizeof(gamemode), "PropHunt %s (%s)", g_Version, g_AdText);
+			}
+			else
+			{
+				Format(gamemode, sizeof(gamemode), "PropHunt %s", g_Version);
+			}
+		}
+		else if (bAddOnly)
+		{
+			// Leave it alone if we're not running, should only be used when configs are executed
+			return;
+		}
+		else
+		{
+			strcopy(gamemode, sizeof(gamemode), "Team Fortress");
+		}
+		
+		Steam_SetGameDescription(gamemode);
+	}
 }
 
 config_parseWeapons()
@@ -704,27 +728,23 @@ ResetCVars()
 public OnConfigsExecuted()
 {
 	SetCVars();
-	if (g_SteamTools)
-	{
-		SetGameDescription();
-	}
-	
+	UpdateGameDescription(true);
 }
 
-public OnConVarChanged(Handle:hCvar, const String:oldValue[], const String:newValue[])
+public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	if (hCvar == g_PHEnable)
+	if(StringToInt(newValue) != 1)
 	{
-		if(StringToInt(newValue) != 1)
-		{
-			Unload();
-		}
+		Unload();
 	}
-	else if (hCvar == g_PHAdvertisements)
-	{
-		strcopy(g_AdText, sizeof(g_AdText), newValue);
-	}
+	UpdateGameDescription();
 }
+
+public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	strcopy(g_AdText, sizeof(g_AdText), newValue);
+}
+
 
 public Unload()
 {
@@ -795,7 +815,7 @@ public Action:CheckInventory(Handle:timer, any:userid)
 				TF2Attrib_RemoveAll(client);
 			}
 			
-			if (!GetConVarBool(g_PHFallDamage))
+			if (GetConVarBool(g_PHPreventFallDamage))
 			{
 				TF2Attrib_SetByName(client, "cancel falling damage", 1.0);
 			}
