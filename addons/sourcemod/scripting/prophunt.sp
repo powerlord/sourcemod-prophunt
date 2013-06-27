@@ -362,6 +362,7 @@ public OnPluginStart()
 	LogError("Could not load the g_PropNames file!");
 	
 	SetCVars();
+	AutoExecConfig(true, "prophunt");
 }
 
 public OnAllPluginsLoaded()
