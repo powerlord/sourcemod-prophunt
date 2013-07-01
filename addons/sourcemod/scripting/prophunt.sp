@@ -137,7 +137,7 @@ new g_Message_red;
 new g_Message_blue;
 new g_RoundTime = 175;
 new g_Message_bit = 0;
-new g_iVelocity = -1;
+//new g_iVelocity = -1;
 
 #if defined STATS
 new bool:g_MapChanging = false;
@@ -337,8 +337,8 @@ public OnPluginStart()
 	RegAdminCmd("ph_pyro", Command_pyro, ADMFLAG_BAN, "Switches to BLU");
 	RegAdminCmd("ph_reloadconfig", Command_ReloadConfig, ADMFLAG_BAN, "Reloads the PropHunt configuration");
 
-	if((g_iVelocity = FindSendPropOffs("CBasePlayer", "m_vecVelocity[0]")) == -1)
-	LogError("Could not find offset for CBasePlayer::m_vecVelocity[0]");
+	//if((g_iVelocity = FindSendPropOffs("CBasePlayer", "m_vecVelocity[0]")) == -1)
+	//LogError("Could not find offset for CBasePlayer::m_vecVelocity[0]");
 
 	CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
 	CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
@@ -1509,7 +1509,8 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 
 stock AddVelocity (client, Float:speed){
 	new Float:velocity[3];
-	GetEntDataVector(client, g_iVelocity, velocity);
+	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+	//GetEntDataVector(client, g_iVelocity, velocity);
 
 	// fucking win
 	if(velocity[0] < 200 && velocity[0] > -200)
@@ -1554,7 +1555,8 @@ public PreThinkHook(client)
 				if(!g_RotLocked[client])
 				{
 					new Float:velocity[3];
-					GetEntDataVector(client, g_iVelocity, velocity);
+					GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+					//GetEntDataVector(client, g_iVelocity, velocity);
 					// if the client is moving, don't allow them to lock in place
 					if(velocity[0] > -5 && velocity[1] > -5 && velocity[2] > -5 && velocity[0] < 5 && velocity[1] < 5 && velocity[2] < 5)
 					{
@@ -1675,7 +1677,8 @@ public PreThinkHook(client)
 						if(!g_RotLocked[client])
 						{
 							new Float:velocity[3];
-							GetEntDataVector(client, g_iVelocity, velocity);
+							GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+							//GetEntDataVector(client, g_iVelocity, velocity);
 							// if the client is moving, don't allow them to lock in place
 							if(velocity[0] > -5 && velocity[1] > -5 && velocity[2] > -5 && velocity[0] < 5 && velocity[1] < 5 && velocity[2] < 5)
 							{
@@ -1803,10 +1806,29 @@ stock SetWeaponsAlpha (target, alpha){
 	if(IsPlayerAlive(target))
 	{
 		decl String:classname[64];
+		
+		/*
+		// Old version
 		new m_hMyWeapons = FindSendPropOffs("CBasePlayer", "m_hMyWeapons");
 		for(new i = 0, weapon; i < 47; i += 4)
 		{
 			weapon = GetEntDataEnt2(target, m_hMyWeapons + i);
+			if(weapon > -1 && IsValidEdict(weapon))
+			{
+				GetEdictClassname(weapon, classname, sizeof(classname));
+				if(StrContains(classname, "tf_weapon", false) != -1)
+				{
+					SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
+					SetEntityRenderColor(weapon, 255, 255, 255, alpha);
+				}
+			}
+		}
+		*/
+		
+		// There are 47 weapon slots of offsets 0 - 188, the previous code was unfortunately wrong.
+		for(new i = 0, weapon; i <= 47; ++i)
+		{
+			weapon = GetEntPropEnt(target, Prop_Send, "m_hMyWeapons", i);
 			if(weapon > -1 && IsValidEdict(weapon))
 			{
 				GetEdictClassname(weapon, classname, sizeof(classname));
@@ -2667,7 +2689,7 @@ public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
 public Action:Timer_Unfreeze(Handle:timer, any:client)
 {
 	if(IsClientInGame(client) && IsPlayerAlive(client))
-	SetEntityMoveType(client, MOVETYPE_WALK);
+		SetEntityMoveType(client, MOVETYPE_WALK);
 	return Plugin_Handled;
 }
 
