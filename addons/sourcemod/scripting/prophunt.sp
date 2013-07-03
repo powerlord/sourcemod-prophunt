@@ -16,7 +16,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "2.07"
+#define PL_VERSION "2.08"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -891,13 +891,42 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 	}
+	else
+	if (g_TF2Attribs && strcmp(classname, "tf_wearable") == 0)
+	{
+		SDKHook(entity, SDKHook_Spawn, OnWearableSpawned);
+	}
 	
 }
 
 public Action:OnBullshitEntitySpawned(entity)
 {
 	if(IsValidEntity(entity))
-	AcceptEntityInput(entity, "Kill");
+		AcceptEntityInput(entity, "Kill");
+	
+	return Plugin_Continue;
+}
+
+public Action:OnWearableSpawned(entity)
+{
+	if(!IsValidEntity(entity))
+	{
+		return Plugin_Continue;
+	}
+	
+	new client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	
+	if (client < 1 || client > MaxClients || !IsClientInGame(client))
+	{
+		return Plugin_Continue;
+	}
+	
+	if (GetClientTeam(client) == TEAM_RED)
+	{
+		TF2Attrib_RemoveByName(entity, "attach particle effect");
+		TF2Attrib_RemoveByName(entity, "attach particle effect static");
+	}
+	return Plugin_Continue;
 }
 
 public OnCPEntitySpawned(entity)
@@ -2061,7 +2090,6 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	g_LastProp = false;
 	if(g_RoundOver)
 	{
-
 		for(new client=1; client <= MaxClients; client++)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
