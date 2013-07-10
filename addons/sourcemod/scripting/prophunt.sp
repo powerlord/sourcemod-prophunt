@@ -1538,7 +1538,7 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 
 stock AddVelocity (client, Float:speed){
 	new Float:velocity[3];
-	GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 	//GetEntDataVector(client, g_iVelocity, velocity);
 
 	// fucking win
