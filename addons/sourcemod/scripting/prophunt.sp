@@ -2074,7 +2074,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientConnected(i))
+		if (IsClientConnected(i) && !IsFakeClient(i))
 		{
 			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
 		}
