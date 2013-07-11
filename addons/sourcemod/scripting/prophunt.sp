@@ -935,6 +935,10 @@ public OnCPEntitySpawned(entity)
 	GetEntPropString(entity, Prop_Data, "m_ModelName", propName, sizeof(propName));
 	if(StrEqual(propName, "models/props_gameplay/cap_point_base.mdl"))
 	{
+		// Reset the skin to neutral.  I'm looking at you, cp_manor_event
+		SetVariantInt(0);
+		AcceptEntityInput(entity, "Skin");
+		// Also, hook it for the heal touch hook
 		SDKHook(entity, SDKHook_StartTouch, StartTouchHook);
 	}
 }
