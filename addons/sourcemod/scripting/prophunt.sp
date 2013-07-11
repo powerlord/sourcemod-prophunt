@@ -182,7 +182,6 @@ new Handle:g_PHPropMenu = INVALID_HANDLE;
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
-new Handle:g_PHStripSetBonuses = INVALID_HANDLE;
 new Handle:g_PHGameDescription = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
@@ -281,7 +280,6 @@ public OnPluginStart()
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only (use propmenu override), 1 = all players");
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "If TF2Attributes is loaded, set to 1 to prevent fall damage.", _, true, 0.0, true, 1.0);
-	g_PHStripSetBonuses = CreateConVar("ph_stripsetbonuses", "1", "If TF2Attributes is loaded, strip set bonuses during Prop Hunt.", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt?", _, true, 0.0, true, 1.0);
 
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
@@ -811,11 +809,6 @@ public Action:CheckInventory(Handle:timer, any:userid)
 		
 		if (g_TF2Attribs)
 		{
-			if (GetConVarBool(g_PHStripSetBonuses))
-			{
-				TF2Attrib_RemoveAll(client);
-			}
-			
 			if (GetConVarBool(g_PHPreventFallDamage))
 			{
 				TF2Attrib_SetByName(client, "cancel falling damage", 1.0);
@@ -1588,7 +1581,7 @@ public PreThinkHook(client)
 				if(!g_RotLocked[client])
 				{
 					new Float:velocity[3];
-					GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+					GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 					//GetEntDataVector(client, g_iVelocity, velocity);
 					// if the client is moving, don't allow them to lock in place
 					if(velocity[0] > -5 && velocity[1] > -5 && velocity[2] > -5 && velocity[0] < 5 && velocity[1] < 5 && velocity[2] < 5)
@@ -1710,7 +1703,7 @@ public PreThinkHook(client)
 						if(!g_RotLocked[client])
 						{
 							new Float:velocity[3];
-							GetEntPropVector(client, Prop_Send, "m_vecVelocity", velocity);
+							GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 							//GetEntDataVector(client, g_iVelocity, velocity);
 							// if the client is moving, don't allow them to lock in place
 							if(velocity[0] > -5 && velocity[1] > -5 && velocity[2] > -5 && velocity[0] < 5 && velocity[1] < 5 && velocity[2] < 5)
