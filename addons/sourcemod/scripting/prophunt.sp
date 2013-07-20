@@ -1300,6 +1300,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 
 public OnClientPutInServer(client)
 {
+	SendConVarValue(client, FindConVar("tf_arena_round_time"), "600");
 	ResetPlayer(client);
 }
 
@@ -2056,7 +2057,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	for (new i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientConnected(i) && !IsFakeClient(i))
+		if (IsClientInGame(i) && !IsFakeClient(i))
 		{
 			if (!IsClientObserver(i))
 			{
