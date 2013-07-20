@@ -996,14 +996,14 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByNsme
 	g_MapStarted = false;
-	
-	// workaround no win panel event - admin changes, rtv, etc.
-	g_RoundOver = true;
-	//g_inPreRound = true;
 }
 
 public OnMapStart()
 {
+	// workaround no win panel event - admin changes, rtv, etc.
+	g_RoundOver = true;
+	//g_inPreRound = true;
+	
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
 
 	new arraySize = ByteCountToCells(100);
