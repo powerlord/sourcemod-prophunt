@@ -648,7 +648,7 @@ SetCVars(){
 	SetConVarInt(FindConVar("mp_friendlyfire"), 0, true);
 	SetConVarInt(FindConVar("sv_gravity"), 500, true);
 	SetConVarInt(FindConVar("mp_forcecamera"), 1, true);
-	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 5000, true); // Set really high
+	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 3600, true); // Set really high
 	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
 	//SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
 	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
@@ -999,7 +999,7 @@ public OnMapEnd()
 	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_RoundOver = true;
-	g_inPreRound = true;
+	//g_inPreRound = true;
 }
 
 public OnMapStart()
@@ -1062,17 +1062,10 @@ public OnMapStart()
 		KvRewind(fl);
 		KvJumpToKey(fl, "Settings", false);
 
-		KvGetString(fl, "doors", buffer, sizeof(buffer), "0");
-		g_Doors = strcmp(buffer, "1") == 0;
-
-		KvGetString(fl, "relay", buffer, sizeof(buffer), "0");
-		g_Relay = strcmp(buffer, "1") == 0;
-
-		KvGetString(fl, "freeze", buffer, sizeof(buffer), "1");
-		g_Freeze = strcmp(buffer, "1") == 0;
-
-		KvGetString(fl, "round", buffer, sizeof(buffer), "175");
-		g_RoundTime = StringToInt(buffer);
+		g_Doors = bool:KvGetNum(fl, "doors", 0);
+		g_Relay = bool:KvGetNum(fl, "relay", 0);
+		g_Freeze = bool:KvGetNum(fl, "freeze", 1);
+		g_RoundTime = KvGetNum(fl, "round", 175);
 
 		PrintToServer("Successfully parsed %s", confil);
 		PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-1, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
@@ -1927,7 +1920,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #endif
 
 	g_RoundOver = true;
-	g_inPreRound = true;
+	//g_inPreRound = true;
 
 #if defined STATS
 	new winner = GetEventInt(event, "winning_team");
@@ -2059,6 +2052,20 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	g_inPreRound = true;
+
+	for (new i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientConnected(i) && !IsFakeClient(i))
+		{
+			if (!IsClientObserver(i))
+			{
+				SetEntityMoveType(i, MOVETYPE_NONE);
+			}
+			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
+		}
+	}
+	
 	// Arena maps should have a team_control_point_master already, but just in case...
 	new ent = FindEntityByClassname(-1, "team_control_point_master");
 	if (ent == -1)
@@ -2069,13 +2076,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		DispatchSpawn(ent);
 	}
 
-	for (new i = 1; i <= MaxClients; i++)
-	{
-		if (IsClientConnected(i) && !IsFakeClient(i))
-		{
-			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
-		}
-	}
 }
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
