@@ -2100,6 +2100,10 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 				else
 				{
 					Timer_DoEquipBlu(INVALID_HANDLE, GetClientUserId(client));
+					if (!g_Freeze)
+					{
+						SetEntityMoveType(client, MOVETYPE_WALK);
+					}
 				}
 				g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 			}
@@ -2239,6 +2243,11 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 				TF2_RespawnPlayer(client);
 			}
 			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+		}
+		
+		if (g_inPreRound)
+		{
+			SetEntityMoveType(client, MOVETYPE_NONE);
 		}
 	}
 }
@@ -2413,7 +2422,7 @@ public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		if(g_Freeze)
+		if(g_inPreRound)
 		{
 			SetEntityMoveType(client, MOVETYPE_NONE);
 		}
