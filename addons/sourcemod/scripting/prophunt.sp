@@ -1938,7 +1938,6 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	new client;
 	for(client=1; client <= MaxClients; client++)
 	{
-		ResetPlayer(client);
 		if(IsClientInGame(client))
 		{
 #if defined STATS
@@ -1965,6 +1964,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 			}
 			*/
 		}
+		ResetPlayer(client);
 	}
 /*
 #if defined LOG
