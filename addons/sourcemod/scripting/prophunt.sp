@@ -9,6 +9,8 @@
 #include <tf2>
 #include <tf2_stocks>
 #include <sdkhooks>
+#include <tf2items>
+#include <tf2itemsinfo>
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
@@ -16,7 +18,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "2.09"
+#define PL_VERSION "2.10"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -152,9 +154,13 @@ new bool:g_Doors = false;
 new bool:g_Relay = false;
 new bool:g_Freeze = true;
 
-new bool:g_weaponRemovals[MAXITEMS];
-new Float:g_weaponNerfs[MAXITEMS];
-new Float:g_weaponSelfDamage[MAXITEMS];
+//new bool:g_weaponRemovals[MAXITEMS];
+//new Float:g_weaponNerfs[MAXITEMS];
+//new Float:g_weaponSelfDamage[MAXITEMS];
+
+new Handle:g_hWeaponRemovals;
+new Handle:g_hWeaponNerfs;
+new Handle:g_hWeaponSelfDamage;
 
 new g_classLimits[2][10];
 new TFClassType:g_defaultClass[2];
@@ -194,7 +200,7 @@ new bool:g_TF2Attribs = false;
 
 public Plugin:myinfo =
 {
-	name = "PropHunt",
+	name = "PropHunt Redux",
 	author = "Darkimmortal and Powerlord",
 	description = "Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum",
 	version = PL_VERSION,
@@ -272,6 +278,11 @@ public OnPluginStart()
 	statsbool = true;
 #endif
 
+	g_hWeaponRemovals = CreateArray();
+	
+	g_hWeaponNerfs = CreateTrie();
+	g_hWeaponSelfDamage = CreateTrie();
+	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
@@ -454,12 +465,18 @@ UpdateGameDescription(bool:bAddOnly=false)
 
 config_parseWeapons()
 {
+	/*
 	for(new i = 0; i < MAXITEMS; i++)
 	{
 		g_weaponNerfs[i] = 1.0;
 		g_weaponSelfDamage[i] = 10.0;
 		g_weaponRemovals[i] = false;
 	}
+	*/
+	
+	ClearArray(g_hWeaponRemovals);
+	ClearTrie(g_hWeaponNerfs);
+	ClearTrie(g_hWeaponSelfDamage);
 	
 	if (g_ConfigKeyValues == INVALID_HANDLE)
 	{
@@ -480,15 +497,18 @@ config_parseWeapons()
 			KvGetSectionName(g_ConfigKeyValues, SectionName, sizeof(SectionName));
 			if(KvGetDataType(g_ConfigKeyValues, "damage_hunters") == KvData_Float)
 			{
-				g_weaponNerfs[StringToInt(SectionName)] = KvGetFloat(g_ConfigKeyValues, "damage_hunters");
+				SetTrieValue(g_hWeaponNerfs, SectionName, KvGetFloat(g_ConfigKeyValues, "damage_hunters"));
 			}
 			if(KvGetDataType(g_ConfigKeyValues, "removed_hunters") == KvData_Int)
 			{
-				g_weaponRemovals[StringToInt(SectionName)] = bool:KvGetNum(g_ConfigKeyValues, "removed_hunters");
+				if (bool:KvGetNum(g_ConfigKeyValues, "removed_hunters"))
+				{
+					PushArrayCell(g_hWeaponRemovals, StringToInt(SectionName));
+				}
 			}
 			if(KvGetDataType(g_ConfigKeyValues, "self_damage_hunters") == KvData_Float)
 			{
-				g_weaponSelfDamage[StringToInt(SectionName)] = KvGetFloat(g_ConfigKeyValues, "self_damage_hunters");
+				SetTrieValue(g_hWeaponSelfDamage, SectionName, KvGetFloat(g_ConfigKeyValues, "self_damage_hunters"));
 			}
 		}
 		while(KvGotoNextKey(g_ConfigKeyValues));
@@ -1144,8 +1164,15 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	
 	if(weapon > MaxClients && IsValidEntity(weapon))
 	{
-		damage = FloatMul(damage, g_weaponNerfs[GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex")]);
-		return Plugin_Changed;
+		new String:weaponIndex[10];
+		IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
+		
+		new Float:multiplier;
+		if (GetTrieValue(g_hWeaponNerfs, weaponIndex, multiplier))
+		{
+			damage *= multiplier;
+			return Plugin_Changed;
+		}
 	}
 	
 	//block prop drowning
@@ -1514,13 +1541,20 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_BLUE && IsValidEntity(weapon))
 	{
-		new Float:damage = 10.0;
-		damage = g_weaponSelfDamage[GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex")];
+		new Float:damage;
+		
+		new String:weaponIndex[10];
+		IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
+		
+		if (!GetTrieValue(g_hWeaponSelfDamage, weaponIndex, damage))
+		{
+			damage = 10.0;
+		}
 		
 		SDKHooks_TakeDamage(client, client, weapon, damage, DMG_PREVENT_PHYSICS_FORCE);
 		
 		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0) AddVelocity(client, 1.0);
-
+		
 		result = false;
 		return Plugin_Handled;
 	}
@@ -2430,23 +2464,19 @@ public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
 		SwitchView(client, false, true);
 		SetAlpha(client, 255);
 		
-		new removedWeapons, validWeapons;
+		new validWeapons;
 		
-		for (new i = 0; i < 5; i++)
+		for (new i = 0; i < 3; i++)
 		{
 			new playerItemSlot = GetPlayerWeaponSlot(client, i);
 			
 			if(playerItemSlot > MaxClients && IsValidEntity(playerItemSlot))
 			{
 				validWeapons++;
-				if( g_weaponRemovals[GetEntProp(playerItemSlot, Prop_Send, "m_iItemDefinitionIndex")])
-				{
-					TF2_RemoveWeaponSlot(client, i);
-					removedWeapons++;
-				}			
 			}
 		}
-		if(validWeapons == removedWeapons)
+		
+		if(validWeapons == 0)
 		{
 			TF2_SetPlayerClass(client, TFClass_Pyro);
 			g_AllowedSpawn[client] = true;
@@ -2747,4 +2777,93 @@ public Action:Timer_Move(Handle:timer, any:client)
 		}
 	}
 	return Plugin_Handled;
+}
+
+public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefinitionIndex, &Handle:hItem)
+{
+	static Handle:weapon = INVALID_HANDLE;
+	
+	if (weapon != INVALID_HANDLE)
+	{
+		CloseHandle(weapon);
+		weapon = INVALID_HANDLE;
+	}
+	
+	if (!GetConVarBool(g_PHEnable))
+	{
+		return Plugin_Continue;
+	}
+	
+	if (GetClientTeam(client) == _:TFTeam_Red)
+	{
+		new TF2ItemSlot:slot = TF2II_GetItemSlot(client);
+		switch (slot)
+		{
+			case TF2ItemSlot_Head, TF2ItemSlot_Misc, TF2ItemSlot_Action:
+			{
+				return Plugin_Handled;
+			}
+		}
+	}
+	
+	if (FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
+	{
+		return Plugin_Handled;
+	}
+	
+	new String:weaponIndex[10]; // At the rate Valve is going, we'll need 9 digits
+	IntToString(iItemDefinitionIndex, weaponIndex, sizeof(weaponIndex));
+	
+	new Float:damage;
+	if (GetTrieValue(g_hWeaponNerfs, weaponIndex, damage))
+	{
+		weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
+		
+		new attribCount = TF2II_GetItemNumAttributes(iItemDefinitionIndex);
+		new bool:found = false;
+		
+		for (new i = 0; i < attribCount; ++i)
+		{
+			new attrib = TF2II_GetItemAttributeID(iItemDefinitionIndex, i);
+			new Float:value = TF2II_GetItemAttributeValue(iItemDefinitionIndex, i);
+			if (attrib == 1 || attrib == 2)
+			{
+				value *= damage;
+				if (damage < 1.0)
+				{
+					TF2Items_SetAttribute(weapon, i, 1, damage);
+					
+				}
+				else if (damage > 1.0)
+				{
+					TF2Items_SetAttribute(weapon, i, 2, damage);
+				}
+				found = true;
+			}
+			else
+			{
+				TF2Items_SetAttribute(weapon, i, attrib, value);
+			}
+		}
+		
+		if (!found)
+		{
+			if (damage < 1.0)
+			{
+				TF2Items_SetAttribute(weapon, attribCount, 1, damage);
+				attribCount++;
+			}
+			else if (damage > 1.0)
+			{
+				TF2Items_SetAttribute(weapon, attribCount, 2, damage);
+				attribCount++;
+			}
+		}
+		TF2Items_SetNumAttributes(weapon, attribCount);
+		
+		hItem = weapon;
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
 }
