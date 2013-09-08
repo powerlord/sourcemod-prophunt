@@ -10,7 +10,7 @@
 #include <tf2_stocks>
 #include <sdkhooks>
 #include <tf2items>
-#include <tf2itemsinfo>
+#include <tf2attributes>
 
 #define SNDCHAN_VOICE2 7
 
@@ -18,7 +18,6 @@
 #include <steamtools>
 
 #undef REQUIRE_PLUGIN
-#include <tf2attributes>
 #include <optin_multimod>
 
 #define PL_VERSION "3.0.0 alpha"
@@ -124,7 +123,7 @@ new String:g_PlayerModel[MAXPLAYERS+1][MAXMODELNAME];
 
 new String:g_Mapname[128];
 new String:g_ServerIP[32];
-new String:g_Version[8];
+new String:g_Version[16];
 
 #if defined CHARGE
 new g_offsCollisionGroup;
@@ -191,10 +190,45 @@ new String:g_AdText[128] = "";
 new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
-
-new bool:g_TF2Attribs = false;
+new bool:g_OptinMultiMod = false;
 
 new bool:g_Enabled = true;
+
+// Valve CVars we're going to save and adjust
+new Handle:g_hArenaRoundTime;
+new g_ArenaRoundTime;
+new Handle:g_hWeaponCriticals;
+new g_WeaponCriticals;
+new Handle:g_hIdledealmethod;
+new g_Idledealmethod;
+new Handle:g_hTournamentStopwatch;
+new g_TournamentStopwatch;
+new Handle:g_hTournamentHideDominationIcons;
+new g_TournamentHideDominationIcons;
+new Handle:g_hFriendlyfire;
+new g_Friendlyfire;
+new Handle:g_hGravity;
+new g_Gravity;
+new Handle:g_hForcecamera;
+new g_Forcecamera;
+new Handle:g_hArenaCapEnableTime;
+new g_ArenaCapEnableTime;
+new Handle:g_hTeamsUnbalanceLimit;
+new g_TeamsUnbalanceLimit;
+new Handle:g_hArenaMaxStreak;
+new g_ArenaMaxStreak;
+new Handle:g_hEnableRoundWaitTime;
+new g_EnableRoundWaitTime;
+new Handle:g_hWaitingForPlayerTime;
+new g_WaitingForPlayerTime;
+new Handle:g_hArenaUseQueue;
+new g_ArenaUseQueue;
+new Handle:g_hShowVoiceIcons;
+new g_ShowVoiceIcons;
+new Handle:g_hSolidObjects;
+new g_SolidObjects;
+new Handle:g_hArenaPreroundTime;
+new g_ArenaPreroundTime;
 
 public Plugin:myinfo =
 {
@@ -294,6 +328,25 @@ public OnPluginStart()
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast?", _, true, 0.0, true, 1.0);
 
+	// These are expensive and should be done just once at plugin start.
+	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
+	g_hWeaponCriticals = FindConVar("tf_weapon_criticals");
+	g_hIdledealmethod = FindConVar("mp_idledealmethod");
+	g_hTournamentStopwatch = FindConVar("mp_tournament_stopwatch");
+	g_hTournamentHideDominationIcons = FindConVar("tf_tournament_hide_domination_icons");
+	g_hFriendlyfire = FindConVar("mp_friendlyfire");
+	g_hGravity = FindConVar("sv_gravity");
+	g_hForcecamera = FindConVar("mp_forcecamera");
+	g_hArenaCapEnableTime = FindConVar("tf_arena_override_cap_enable_time");
+	g_hTeamsUnbalanceLimit = FindConVar("mp_teams_unbalance_limit");
+	g_hArenaMaxStreak = FindConVar("tf_arena_max_streak");
+	g_hEnableRoundWaitTime = FindConVar("mp_enableroundwaittime");
+	g_hWaitingForPlayerTime = FindConVar("mp_waitingforplayers_time");
+	g_hArenaUseQueue = FindConVar("tf_arena_use_queue");
+	g_hShowVoiceIcons = FindConVar("mp_show_voice_icons");
+	g_hSolidObjects = FindConVar("tf_solidobjects");
+	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
+	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
@@ -372,17 +425,19 @@ public OnPluginStart()
 	LogError("Could not load the g_PropNames file!");
 	
 	AutoExecConfig(true, "prophunt_redux");
-	
-	OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
 }
 
 public OnAllPluginsLoaded()
 {
 	g_SteamTools = LibraryExists("SteamTools");
-	g_TF2Attribs = LibraryExists("tf2attributes");
+	g_OptinMultiMod = LibraryExists("optin_multimod");
 	if (g_SteamTools)
 	{
 		UpdateGameDescription();
+	}
+	if (g_OptinMultiMod)
+	{
+		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
 	}
 }
 
@@ -409,9 +464,9 @@ public OnLibraryAdded(const String:name[])
 		UpdateGameDescription();
 	}
 	else
-	if (StrEqual(name, "tf2attributes", false))
+	if (StrEqual(name, "optin_multimod", false))
 	{
-		g_TF2Attribs = true;
+		g_OptinMultiMod = true;
 	}
 }
 
@@ -422,9 +477,9 @@ public OnLibraryRemoved(const String:name[])
 		g_SteamTools = false;
 	}
 	else
-	if (StrEqual(name, "tf2attributes", false))
+	if (StrEqual(name, "optin_multimod", false))
 	{
-		g_TF2Attribs = false;
+		g_OptinMultiMod = false;
 	}
 }
 
@@ -446,11 +501,11 @@ UpdateGameDescription(bool:bAddOnly=false)
 	{
 		if (strlen(g_AdText) > 0)
 		{
-			Format(gamemode, sizeof(gamemode), "PropHunt %s (%s)", g_Version, g_AdText);
+			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s (%s)", g_Version, g_AdText);
 		}
 		else
 		{
-			Format(gamemode, sizeof(gamemode), "PropHunt %s", g_Version);
+			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s", g_Version);
 		}
 	}
 	else if (bAddOnly)
@@ -643,107 +698,104 @@ config_parseSounds()
 
 SetCVars(){
 
-	new Handle:cvar = INVALID_HANDLE;
-	cvar = FindConVar("tf_arena_round_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_use_queue");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_max_streak");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_tournament");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_tournament_stopwatch");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_tournament_hide_domination_icons");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_teams_unbalance_limit");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_preround_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	//cvar = FindConVar("mp_autoteambalance");
+	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
+	//cvar = FindConVar("mp_tournament");
 	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hTournamentStopwatch, GetConVarFlags(g_hTournamentStopwatch) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hTournamentHideDominationIcons, GetConVarFlags(g_hTournamentHideDominationIcons) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaPreroundTime, GetConVarFlags(g_hArenaPreroundTime) & ~(FCVAR_NOTIFY));
 
-	SetConVarInt(FindConVar("tf_arena_round_time"), 0, true);
-	SetConVarInt(FindConVar("tf_weapon_criticals"), 1, true);
-	SetConVarInt(FindConVar("mp_idledealmethod"), 0, true);
-	SetConVarInt(FindConVar("mp_tournament_stopwatch"), 0, true);
-	SetConVarInt(FindConVar("tf_tournament_hide_domination_icons"), 0, true);
-	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
-	//SetConVarInt(FindConVar("sv_alltalk"), 1, true);
-	SetConVarInt(FindConVar("mp_friendlyfire"), 0, true);
-	SetConVarInt(FindConVar("sv_gravity"), 500, true);
-	SetConVarInt(FindConVar("mp_forcecamera"), 1, true);
-	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), 3600, true); // Set really high
-	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
-	//SetConVarInt(FindConVar("mp_autoteambalance"), 0, true);
-	SetConVarInt(FindConVar("tf_arena_max_streak"), 5, true);
-	SetConVarInt(FindConVar("mp_enableroundwaittime"), 0, true);
-	//SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
-	SetConVarInt(FindConVar("mp_waitingforplayers_time"), 40, true);
-	SetConVarInt(FindConVar("tf_arena_use_queue"), 0, true);
-	//SetConVarInt(FindConVar("mp_stalemate_enable"), 1, true);
-	SetConVarInt(FindConVar("mp_show_voice_icons"), 0, true);
-//	SetConVarInt(FindConVar("mp_bonusroundtime"), 5, true);
-	SetConVarInt(FindConVar("tf_solidobjects"), 0, true);
+	g_ArenaRoundTime = GetConVarInt(g_hArenaRoundTime);
+	SetConVarInt(g_hArenaRoundTime, 0, true);
 	
-	SetConVarBounds(FindConVar("tf_arena_preround_time"), ConVarBound_Upper, false);
-	SetConVarInt(FindConVar("tf_arena_preround_time"), IsDedicatedServer() ? 20:5, true);
+	g_ArenaUseQueue = GetConVarInt(g_hArenaUseQueue);
+	SetConVarInt(g_hArenaUseQueue, 0, true);
+
+	g_ArenaMaxStreak = GetConVarInt(g_hArenaMaxStreak);
+	SetConVarInt(g_hArenaMaxStreak, 4, true);
 	
-	// RunTeamLogic shouldn't be used with this mode, but just in case...
-	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
-	{
-		cvar = FindConVar("rtl_arenateamsize");
-		SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-		SetConVarInt(FindConVar("rtl_arenateamsize"), 16);
-	}
+	g_TournamentStopwatch = GetConVarInt(g_hTournamentStopwatch);
+	SetConVarInt(g_hTournamentStopwatch, 0, true);
+	
+	g_TournamentHideDominationIcons = GetConVarInt(g_hTournamentHideDominationIcons);
+	SetConVarInt(g_hTournamentHideDominationIcons, 0, true);
+
+	g_TeamsUnbalanceLimit = GetConVarInt(g_hTeamsUnbalanceLimit);
+	SetConVarInt(g_hTeamsUnbalanceLimit, UNBALANCE_LIMIT, true);
+
+	SetConVarBounds(g_hArenaPreroundTime, ConVarBound_Upper, false);
+	g_ArenaPreroundTime = GetConVarInt(g_hArenaPreroundTime);
+	SetConVarInt(g_hArenaPreroundTime, IsDedicatedServer() ? 20:5, true);
+	
+	g_WeaponCriticals = GetConVarInt(g_hWeaponCriticals);
+	SetConVarInt(g_hWeaponCriticals, 1, true);
+	
+	g_Idledealmethod = GetConVarInt(g_hIdledealmethod);
+	SetConVarInt(g_hIdledealmethod, 0, true);
+	
+	g_Friendlyfire = GetConVarInt(g_hFriendlyfire);
+	SetConVarInt(g_hFriendlyfire, 0, true);
+	
+	g_Gravity = GetConVarInt(g_hGravity);
+	SetConVarInt(g_hGravity, 500, true);
+	
+	g_Forcecamera = GetConVarInt(g_hForcecamera);
+	SetConVarInt(g_hForcecamera, 1, true);
+	
+	g_ArenaCapEnableTime = GetConVarInt(g_hArenaCapEnableTime);
+	SetConVarInt(g_hArenaCapEnableTime, 3600, true); // Set really high
+	
+	g_EnableRoundWaitTime = GetConVarInt(g_hEnableRoundWaitTime);
+	SetConVarInt(g_hEnableRoundWaitTime, 0, true);
+
+	g_WaitingForPlayerTime = GetConVarInt(g_hWaitingForPlayerTime);
+	SetConVarInt(g_hWaitingForPlayerTime, 40, true);
+	
+	g_ShowVoiceIcons = GetConVarInt(g_hShowVoiceIcons);
+	SetConVarInt(g_hShowVoiceIcons, 0, true);
+
+	g_SolidObjects = GetConVarInt(g_hSolidObjects);
+	SetConVarInt(g_hSolidObjects, 0, true);
 }
 
 ResetCVars()
 {
+	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
+	SetConVarFlags(g_hArenaPreroundTime, GetConVarFlags(g_hArenaPreroundTime) & ~(FCVAR_NOTIFY));
 
-	new Handle:cvar = INVALID_HANDLE;
-	cvar = FindConVar("tf_arena_round_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_use_queue");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_max_streak");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("mp_teams_unbalance_limit");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	cvar = FindConVar("tf_arena_preround_time");
-	SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-	//cvar = FindConVar("mp_autoteambalance");
-	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-
-	SetConVarInt(FindConVar("mp_idlemaxtime"), 3, true);
-	//SetConVarInt(FindConVar("mp_maxrounds"), 0, true);
-	//SetConVarInt(FindConVar("sv_alltalk"), 0, true);
-	SetConVarInt(FindConVar("sv_gravity"), 800, true);
-	SetConVarInt(FindConVar("mp_forcecamera"), 0, true);
-	SetConVarInt(FindConVar("tf_arena_override_cap_enable_time"), -1, true);
-	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 1, true);
-	//SetConVarInt(FindConVar("mp_autoteambalance"), 1, true);
-	SetConVarInt(FindConVar("tf_arena_max_streak"), 3, true);
-	SetConVarInt(FindConVar("mp_enableroundwaittime"), 1, true);
-	//SetConVarInt(FindConVar("mp_stalemate_timelimit"), 5, true);
-	SetConVarInt(FindConVar("mp_waitingforplayers_time"), 30, true);
-	//SetConVarInt(FindConVar("mp_stalemate_enable"), 0, true);
-	SetConVarInt(FindConVar("mp_show_voice_icons"), 1, true);
-//	SetConVarInt(FindConVar("mp_bonusroundtime"), 15, true);
-	SetConVarInt(FindConVar("tf_arena_preround_time"), 5, true);
-	SetConVarInt(FindConVar("tf_solidobjects"), 1, true);
-	
-	if(GetExtensionFileStatus("runteamlogic.ext") == 1)
-	{
-		cvar = FindConVar("rtl_arenateamsize");
-		SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
-		SetConVarInt(FindConVar("rtl_arenateamsize"), 16);
-	}
+	SetConVarInt(g_hArenaRoundTime, g_ArenaRoundTime, true);
+	SetConVarInt(g_hArenaUseQueue, g_ArenaUseQueue, true);
+	SetConVarInt(g_hArenaMaxStreak, g_ArenaMaxStreak, true);
+	SetConVarInt(g_hTournamentStopwatch, g_TournamentStopwatch, true);
+	SetConVarInt(g_hTournamentHideDominationIcons, g_TournamentHideDominationIcons, true);
+	SetConVarInt(g_hTeamsUnbalanceLimit, g_TeamsUnbalanceLimit, true);
+	SetConVarInt(g_hArenaPreroundTime, g_ArenaPreroundTime, true);
+	SetConVarInt(g_hWeaponCriticals, g_WeaponCriticals, true);
+	SetConVarInt(g_hIdledealmethod, g_Idledealmethod, true);
+	SetConVarInt(g_hFriendlyfire, g_Friendlyfire, true);
+	SetConVarInt(g_hGravity, g_Gravity, true);
+	SetConVarInt(g_hForcecamera, g_Forcecamera, true);
+	SetConVarInt(g_hArenaCapEnableTime, g_ArenaCapEnableTime, true);
+	SetConVarInt(g_hEnableRoundWaitTime, g_EnableRoundWaitTime, true);
+	SetConVarInt(g_hWaitingForPlayerTime, g_WaitingForPlayerTime, true);
+	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
+	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
 }
 
 public OnConfigsExecuted()
 {
-	SetCVars();
+	g_Enabled = GetConVarBool(g_PHEnable) && IsPropHuntMap();
+	
+	if (g_Enabled)
+	{
+		SetCVars();
+	}
 	UpdateGameDescription(true);
 }
 
@@ -751,10 +803,16 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 {
 	if (GetConVarBool(g_PHEnable))
 	{
+		SetCVars();
 		g_Enabled = IsPropHuntMap();
+		if (g_Enabled)
+		{
+			SetCVars();
+		}
 	}
 	else
 	{
+		ResetCVars();
 		g_Enabled = false;
 	}
 	UpdateGameDescription();
@@ -767,9 +825,84 @@ public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newV
 
 public Action:CallCheckInventory(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (g_Enabled && g_TF2Attribs && GetConVarBool(g_PHPreventFallDamage))
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if (g_Enabled && GetConVarBool(g_PHPreventFallDamage))
 	{
-		TF2Attrib_SetByName(GetClientOfUserId(GetEventInt(event, "userid")), "cancel falling damage", 1.0);
+		TF2Attrib_SetByName(client, "cancel falling damage", 1.0);
+	}
+	
+	// Engineer has 6 slots
+	for (new slot = 0; slot < 6; ++slot)
+	{
+		new weapon = GetPlayerWeaponSlot(client, slot);
+		
+		if (weapon == -1)
+		{
+			continue;
+		}
+		
+		new iItemDefinitionIndex = GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
+		
+		new String:weaponIndex[10]; // At the rate Valve is going, we'll need 9 digits
+		IntToString(iItemDefinitionIndex, weaponIndex, sizeof(weaponIndex));
+		
+		new Float:damage;
+		if (!GetTrieValue(g_hWeaponNerfs, weaponIndex, damage))
+		{
+			continue;
+		}
+		
+		new Address:penalty = TF2Attrib_GetByName(weapon, "damage penalty");
+		new Address:bonus = TF2Attrib_GetByName(weapon, "damage bonus");
+		
+		new Float:originalDamage;
+		
+		if (penalty != Address_Null)
+		{
+			originalDamage = TF2Attrib_GetValue(penalty);
+		}
+		else if (bonus != Address_Null)
+		{
+			originalDamage = TF2Attrib_GetValue(bonus);
+		}
+		else
+		{
+			originalDamage = 1.0;
+		}
+		
+		originalDamage *= damage;
+		if (damage < 1.0)
+		{
+			if (bonus != Address_Null)
+			{
+				TF2Attrib_RemoveByName(weapon, "damage bonus");
+			}
+			
+			TF2Attrib_SetByName(weapon, "damage penalty", originalDamage);
+		}
+		else
+		if (damage > 1.0)
+		{
+			if (penalty != Address_Null)
+			{
+				TF2Attrib_RemoveByName(weapon, "damage penalty");
+			}
+			
+			TF2Attrib_SetByName(weapon, "damage bonus", originalDamage);
+		}
+		else
+		{
+			if (penalty != Address_Null)
+			{
+				TF2Attrib_RemoveByName(weapon, "damage penalty");
+			}
+			
+			if (bonus != Address_Null)
+			{
+				TF2Attrib_RemoveByName(weapon, "damage bonus");
+			}
+		}
+		
 	}
 }
 
@@ -846,11 +979,6 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 	}
-	else
-	if (g_TF2Attribs && strcmp(classname, "tf_wearable") == 0)
-	{
-		SDKHook(entity, SDKHook_Spawn, OnWearableSpawned);
-	}
 	
 }
 
@@ -859,28 +987,6 @@ public Action:OnBullshitEntitySpawned(entity)
 	if(IsValidEntity(entity))
 		AcceptEntityInput(entity, "Kill");
 	
-	return Plugin_Continue;
-}
-
-public Action:OnWearableSpawned(entity)
-{
-	if(!IsValidEntity(entity))
-	{
-		return Plugin_Continue;
-	}
-	
-	new client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	
-	if (client < 1 || client > MaxClients || !IsClientInGame(client))
-	{
-		return Plugin_Continue;
-	}
-	
-	if (GetClientTeam(client) == _:TFTeam_Red)
-	{
-		TF2Attrib_RemoveByName(entity, "attach particle effect");
-		TF2Attrib_RemoveByName(entity, "attach particle effect static");
-	}
 	return Plugin_Continue;
 }
 
@@ -958,6 +1064,7 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByNsme
 	g_MapStarted = false;
+	ResetCVars();
 }
 
 public OnMapStart()
@@ -1088,7 +1195,10 @@ public OnPluginEnd()
 	{
 		Steam_SetGameDescription("Team Fortress");
 	}
-	OptInMultiMod_Unregister("Prop Hunt");
+	if (g_OptinMultiMod)
+	{
+		OptInMultiMod_Unregister("Prop Hunt");
+	}
 }
 
 public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3], damagecustom)
@@ -1493,8 +1603,7 @@ stock bool:IsPropHuntMap ()
 
 public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &bool:result)
 {
-	
-	if(g_Enabled || g_RoundOver)
+	if(!g_Enabled || g_RoundOver)
 		return Plugin_Continue;
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
@@ -2780,15 +2889,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
+	// Block wearables, action items, and canteens for Props
 	if (GetClientTeam(client) == _:TFTeam_Red)
 	{
-		new TF2ItemSlot:slot = TF2II_GetItemSlot(client);
-		switch (slot)
+		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle"))
 		{
-			case TF2ItemSlot_Head, TF2ItemSlot_Misc, TF2ItemSlot_Action:
-			{
-				return Plugin_Handled;
-			}
+			return Plugin_Handled;
 		}
 	}
 	
@@ -2797,62 +2903,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Handled;
 	}
 	
-	new String:weaponIndex[10]; // At the rate Valve is going, we'll need 9 digits
-	IntToString(iItemDefinitionIndex, weaponIndex, sizeof(weaponIndex));
-	
-	new Float:damage;
-	if (GetTrieValue(g_hWeaponNerfs, weaponIndex, damage))
+	// 594 is Phlogistinator and already has airblast disabled
+	if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != 594 && StrEqual(classname, "tf_weapon_flamethrower"))
 	{
-		weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
-		
-		new attribCount = TF2II_GetItemNumAttributes(iItemDefinitionIndex);
-		new bool:found = false;
-		
-		for (new i = 0; i < attribCount; ++i)
-		{
-			new attrib = TF2II_GetItemAttributeID(iItemDefinitionIndex, i);
-			new Float:value = TF2II_GetItemAttributeValue(iItemDefinitionIndex, i);
-			if (attrib == 1 || attrib == 2)
-			{
-				value *= damage;
-				if (damage < 1.0)
-				{
-					TF2Items_SetAttribute(weapon, i, 1, damage);
-					
-				}
-				else if (damage > 1.0)
-				{
-					TF2Items_SetAttribute(weapon, i, 2, damage);
-				}
-				found = true;
-			}
-			else
-			{
-				TF2Items_SetAttribute(weapon, i, attrib, value);
-			}
-		}
-		
-		if (!found)
-		{
-			if (damage < 1.0)
-			{
-				TF2Items_SetAttribute(weapon, attribCount, 1, damage);
-				attribCount++;
-			}
-			else if (damage > 1.0)
-			{
-				TF2Items_SetAttribute(weapon, attribCount, 2, damage);
-				attribCount++;
-			}
-		}
-		
-		if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != 594 && StrEqual(classname, "tf_weapon_flamethrower"))
-		{
-			attribCount++;
-			TF2Items_SetAttribute(weapon, attribCount, 356, 1.0); // "airblast disabled"
-		}
-		
-		TF2Items_SetNumAttributes(weapon, attribCount);
+		weapon = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|OVERRIDE_ATTRIBUTES);
+		TF2Items_SetNumAttributes(weapon, 1);
+		TF2Items_SetAttribute(weapon, 0, 356, 1.0); // "airblast disabled"
 		
 		hItem = weapon;
 		return Plugin_Changed;
