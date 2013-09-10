@@ -83,6 +83,8 @@
 //Pyro
 #define WEP_SHOTGUNPYRO 12
 
+#define WEP_PHLOGISTINATOR 594
+
 #define LOCKVOL 0.7
 #define UNBALANCE_LIMIT 1
 #define MAXMODELNAME 96
@@ -350,6 +352,7 @@ public OnPluginStart()
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
+	HookConVarChange(g_PHAirblast, OnAirblastChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -816,6 +819,32 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 		g_Enabled = false;
 	}
 	UpdateGameDescription();
+}
+
+public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	if (GetConVarBool(g_PHAirblast))
+	{
+		new weapon = -1;
+		while ((weapon = FindEntityByClassname(weapon, "tf_weapon_flamethrower")) != -1)
+		{
+			if (GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex") != WEP_PHLOGISTINATOR)
+			{
+				TF2Attrib_RemoveByName(weapon, "airblast disabled");
+			}
+		}
+	}
+	else
+	{
+		new weapon = -1;
+		while ((weapon = FindEntityByClassname(weapon, "tf_weapon_flamethrower")) != -1)
+		{
+			if (GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex") != WEP_PHLOGISTINATOR)
+			{
+				TF2Attrib_SetByName(weapon, "airblast disabled", 1.0);
+			}
+		}
+	}
 }
 
 public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -2904,7 +2933,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	}
 	
 	// 594 is Phlogistinator and already has airblast disabled
-	if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != 594 && StrEqual(classname, "tf_weapon_flamethrower"))
+	if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != WEP_PHLOGISTINATOR && StrEqual(classname, "tf_weapon_flamethrower"))
 	{
 		weapon = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|OVERRIDE_ATTRIBUTES);
 		TF2Items_SetNumAttributes(weapon, 1);
