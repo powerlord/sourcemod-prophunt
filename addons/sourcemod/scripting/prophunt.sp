@@ -10,7 +10,6 @@
 #include <tf2_stocks>
 #include <sdkhooks>
 #include <tf2items>
-#include <tf2attributes>
 
 #define SNDCHAN_VOICE2 7
 
@@ -308,7 +307,6 @@ public OnPluginStart()
 
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
-
 	new bool:statsbool = false;
 #if defined STATS
 	statsbool = true;
@@ -328,7 +326,7 @@ public OnPluginStart()
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "If TF2Attributes is loaded, set to 1 to prevent fall damage.", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt?", _, true, 0.0, true, 1.0);
-	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast?", _, true, 0.0, true, 1.0);
+	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? If TF2Attributes is loaded, this change will happen immediately.", _, true, 0.0, true, 1.0);
 
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -352,7 +350,6 @@ public OnPluginStart()
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
-	HookConVarChange(g_PHAirblast, OnAirblastChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -366,7 +363,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_player_death, EventHookMode_Pre);
 	HookEvent("arena_round_start", Event_arena_round_start);
 	HookEvent("arena_win_panel", Event_arena_win_panel);
-	HookEvent("post_inventory_application", CallCheckInventory);
+	//HookEvent("post_inventory_application", CallCheckInventory);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
@@ -490,7 +487,6 @@ public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const St
 {
 	UpdateGameDescription();
 }
-
 
 UpdateGameDescription(bool:bAddOnly=false)
 {
@@ -821,118 +817,9 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 	UpdateGameDescription();
 }
 
-public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	if (GetConVarBool(g_PHAirblast))
-	{
-		new weapon = -1;
-		while ((weapon = FindEntityByClassname(weapon, "tf_weapon_flamethrower")) != -1)
-		{
-			if (GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex") != WEP_PHLOGISTINATOR)
-			{
-				TF2Attrib_RemoveByName(weapon, "airblast disabled");
-			}
-		}
-	}
-	else
-	{
-		new weapon = -1;
-		while ((weapon = FindEntityByClassname(weapon, "tf_weapon_flamethrower")) != -1)
-		{
-			if (GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex") != WEP_PHLOGISTINATOR)
-			{
-				TF2Attrib_SetByName(weapon, "airblast disabled", 1.0);
-			}
-		}
-	}
-}
-
 public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	strcopy(g_AdText, sizeof(g_AdText), newValue);
-}
-
-public Action:CallCheckInventory(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if (g_Enabled && GetConVarBool(g_PHPreventFallDamage))
-	{
-		TF2Attrib_SetByName(client, "cancel falling damage", 1.0);
-	}
-	
-	// Engineer has 6 slots
-	for (new slot = 0; slot < 6; ++slot)
-	{
-		new weapon = GetPlayerWeaponSlot(client, slot);
-		
-		if (weapon == -1)
-		{
-			continue;
-		}
-		
-		new iItemDefinitionIndex = GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex");
-		
-		new String:weaponIndex[10]; // At the rate Valve is going, we'll need 9 digits
-		IntToString(iItemDefinitionIndex, weaponIndex, sizeof(weaponIndex));
-		
-		new Float:damage;
-		if (!GetTrieValue(g_hWeaponNerfs, weaponIndex, damage))
-		{
-			continue;
-		}
-		
-		new Address:penalty = TF2Attrib_GetByName(weapon, "damage penalty");
-		new Address:bonus = TF2Attrib_GetByName(weapon, "damage bonus");
-		
-		new Float:originalDamage;
-		
-		if (penalty != Address_Null)
-		{
-			originalDamage = TF2Attrib_GetValue(penalty);
-		}
-		else if (bonus != Address_Null)
-		{
-			originalDamage = TF2Attrib_GetValue(bonus);
-		}
-		else
-		{
-			originalDamage = 1.0;
-		}
-		
-		originalDamage *= damage;
-		if (damage < 1.0)
-		{
-			if (bonus != Address_Null)
-			{
-				TF2Attrib_RemoveByName(weapon, "damage bonus");
-			}
-			
-			TF2Attrib_SetByName(weapon, "damage penalty", originalDamage);
-		}
-		else
-		if (damage > 1.0)
-		{
-			if (penalty != Address_Null)
-			{
-				TF2Attrib_RemoveByName(weapon, "damage penalty");
-			}
-			
-			TF2Attrib_SetByName(weapon, "damage bonus", originalDamage);
-		}
-		else
-		{
-			if (penalty != Address_Null)
-			{
-				TF2Attrib_RemoveByName(weapon, "damage penalty");
-			}
-			
-			if (bonus != Address_Null)
-			{
-				TF2Attrib_RemoveByName(weapon, "damage bonus");
-			}
-		}
-		
-	}
 }
 
 public StartTouchHook(entity, other)
@@ -951,7 +838,7 @@ stock FillHealth (entity)
 {
 	if(IsValidEntity(entity))
 	{
-		SetEntityHealth(entity, GetEntData(entity, FindDataMapOffs(entity, "m_iMaxHealth")));
+		SetEntityHealth(entity, GetEntProp(entity, Prop_Send, "m_iMaxHealth"));
 	}
 }
 
@@ -1265,14 +1152,19 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	}
 	
 	//block prop drowning
-	if(damagetype == DMG_DROWN && victim > 0 && victim < MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == _:TFTeam_Red && attacker == 0)
+	if(damagetype & DMG_DROWN && victim > 0 && victim < MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == _:TFTeam_Red && attacker == 0)
+	{
+		damage = 0.0;
+		return Plugin_Changed;
+	}
+
+	if(damagetype & DMG_FALL && GetConVarBool(g_PHPreventFallDamage) && victim > 0 && victim < MaxClients && IsClientInGame(victim) && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
 	}
 	return Plugin_Continue;
 }
-
 
 stock RemoveAnimeModel (client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
@@ -1284,7 +1176,6 @@ stock RemoveAnimeModel (client){
 		
 		SetVariantString("");
 		AcceptEntityInput(client, "SetCustomModel");
-		
 	}
 }
 
@@ -1445,9 +1336,6 @@ public ResetPlayer(client)
 	g_First[client] = false;
 	g_PlayerModel[client] = "";
 	g_SetClass[client] = false;
-	
-	
-	
 }
 
 public Action: Command_respawn(client, args)
@@ -1682,111 +1570,6 @@ public Action:SetTransmitHook(entity, client)
 	return Plugin_Continue;
 }
 
-/*
-public PreThinkHook(client)
-{
-
-	if(IsClientInGame(client) && IsPlayerAlive(client))
-	{
-		if(!(TF2_IsPlayerInCondition(client, TFCond_Slowed) || TF2_IsPlayerInCondition(client, TFCond_Zoomed) || 
-		TF2_IsPlayerInCondition(client, TFCond_Bonked) || TF2_IsPlayerInCondition(client, TFCond_Dazed) || 
-		TF2_IsPlayerInCondition(client, TFCond_Charging) || TF2_IsPlayerInCondition(client, TFCond_SpeedBuffAlly)))
-		{
-			ResetSpeed(client);
-		}
-		
-		new clientButtons = GetClientButtons(client);
-
-		if(GetClientTeam(client) == _:TFTeam_Red)
-		{
-			if(clientButtons & IN_ATTACK && !g_HoldingLMB[client] || g_RotLocked[client])
-			{
-				g_HoldingLMB[client] = true;
-				if(!g_RotLocked[client])
-				{
-					new Float:velocity[3];
-					GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
-					//GetEntDataVector(client, g_iVelocity, velocity);
-					// if the client is moving, don't allow them to lock in place
-					if(velocity[0] > -5 && velocity[1] > -5 && velocity[2] > -5 && velocity[0] < 5 && velocity[1] < 5 && velocity[2] < 5)
-					{
-						//PrintToChatAll("PH DEBUG: %L Has locked their prop!", client);
-						SetVariantInt(0);
-						AcceptEntityInput(client, "SetCustomModelRotates");
-						g_RotLocked[client] = true;
-#if defined LOCKSOUND
-						PH_EmitSoundToClient(client, "LockSound", _, _, _, _, LOCKVOL);
-#endif
-					}
-				}
-				else if(clientButtons & IN_MOVEMENT)
-				{
-					//PrintToChatAll("PH DEBUG: %L Has unlocked their prop!", client);
-					SetVariantInt(1);
-					AcceptEntityInput(client, "SetCustomModelRotates");
-#if defined LOCKSOUND
-					PH_EmitSoundToClient(client, "UnlockSound", _, _, _, _, LOCKVOL);
-#endif
-					g_RotLocked[client] = false;
-				}
-			}
-			else if(!(clientButtons & IN_ATTACK))
-			{
-				g_HoldingLMB[client] = false;
-			}
-			
-			if((clientButtons & IN_ATTACK2) == IN_ATTACK2 && !g_HoldingRMB[client])
-			{
-				//PrintToChatAll("PH DEBUG: %L Has clicked!", client);
-				g_HoldingRMB[client] = true;
-				if(g_First[client])
-				{
-					PrintHintText(client, "Third Person mode selected");
-					SwitchView(client, true, false);
-				}
-				else
-				{
-					PrintHintText(client, "First Person mode selected");
-					SwitchView(client, false, false);
-				}
-
-			}
-			else
-			if((clientButtons & IN_ATTACK2) != IN_ATTACK2)
-			{
-				g_HoldingRMB[client] = false;
-			}
-#if defined CHARGE
-			if((clientButtons & IN_RELOAD) == IN_RELOAD)
-			{
-				if(!g_Charge[client])
-				{
-					g_Charge[client] = true;
-					SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_DEBRIS_TRIGGER, _, true);
-					TF2_SetPlayerClass(client, TFClass_DemoMan, false);
-					TF2_AddCondition(client, TFCond_Charging, 2.5);
-					CreateTimer(2.5, Timer_Charge, client);
-				}
-			}
-#endif
-		}
-		else
-		if(GetClientTeam(client) == _:TFTeam_Blue && TF2_GetPlayerClass(client) == TFClass_Pyro)
-		{
-			if(IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUNPYRO || IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUN_UNIQUE)
-			{
-				SetEntData(client, FindDataMapOffs(client, "m_iAmmo") + 8, SHOTGUN_MAX_AMMO-GetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1")));
-				if(GetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1")) > SHOTGUN_MAX_AMMO)
-				{
-					SetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1"), SHOTGUN_MAX_AMMO);
-				}
-			}
-		}
-	} // in game
-}
-*/
-
-
 public PreThinkHook(client)
 {
 	if (!g_Enabled)
@@ -1886,7 +1669,8 @@ public PreThinkHook(client)
 					if(!g_Charge[client])
 					{
 						g_Charge[client] = true;
-						SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_DEBRIS_TRIGGER, _, true);
+						//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_DEBRIS_TRIGGER, _, true);
+						SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
 						TF2_SetPlayerClass(client, TFClass_DemoMan, false);
 						TF2_AddCondition(client, TFCond_Charging, 2.5);
 						CreateTimer(2.5, Timer_Charge, client);
@@ -1897,6 +1681,7 @@ public PreThinkHook(client)
 			else
 			if(GetClientTeam(client) == _:TFTeam_Blue && TF2_GetPlayerClass(client) == TFClass_Pyro)
 			{
+				/*
 				if(IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUNPYRO || IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUN_UNIQUE)
 				{
 					SetEntData(client, FindDataMapOffs(client, "m_iAmmo") + 8, SHOTGUN_MAX_AMMO-GetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1")));
@@ -1905,6 +1690,23 @@ public PreThinkHook(client)
 						SetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1"), SHOTGUN_MAX_AMMO);
 					}
 				}
+				*/
+				new shotgun = GetPlayerWeaponSlot(client, 1);
+				if(IsValidEntity(shotgun))
+				{
+					new index = GetEntProp(shotgun, Prop_Send, "m_iItemDefinitionIndex");
+					if (index == WEP_SHOTGUNPYRO || index == WEP_SHOTGUN_UNIQUE)
+					{
+						new ammoOffset = GetEntProp(shotgun, Prop_Send, "m_iPrimaryAmmoType");
+						new clip = GetEntProp(shotgun, Prop_Send, "m_iClip1");
+						SetEntProp(client, Prop_Send, "m_iAmmo", SHOTGUN_MAX_AMMO - clip, _, ammoOffset);
+						if (clip > SHOTGUN_MAX_AMMO)
+						{
+							SetEntProp(shotgun, Prop_Send, "m_iClip1", SHOTGUN_MAX_AMMO);
+						}
+					}
+				}
+				
 			}
 
 		} // alive
@@ -1957,7 +1759,7 @@ stock SetAlpha (target, alpha){
 stock SetWeaponsAlpha (target, alpha){
 	if(IsPlayerAlive(target))
 	{
-		decl String:classname[64];
+		//decl String:classname[64];
 		
 		/*
 		// Old version
@@ -1976,7 +1778,9 @@ stock SetWeaponsAlpha (target, alpha){
 			}
 		}
 		*/
-		
+	
+		/*
+		// "New" old version
 		// There are 47 weapon slots of offsets 0 - 188, the previous code was unfortunately wrong.
 		for(new i = 0, weapon; i <= 47; ++i)
 		{
@@ -1989,6 +1793,20 @@ stock SetWeaponsAlpha (target, alpha){
 					SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
 					SetEntityRenderColor(weapon, 255, 255, 255, alpha);
 				}
+			}
+		}
+		*/
+		
+		// TF2 only supports 1 weapon per slot, so save time and just check all 6 slots.
+		// Engy is the only class with 6 items (3 weapons, 2 tools, and an invisible builder)
+		for(new i = 0; i <= 5; ++i)
+		{
+			new weapon = GetPlayerWeaponSlot(target, i);
+			if(weapon > -1 && IsValidEdict(weapon))
+			{
+				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
+				SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(weapon, 255, 255, 255, alpha);
 			}
 		}
 	}
@@ -2009,14 +1827,14 @@ public Speedup (client)
 		clientSpeed = g_classSpeeds[clientClass][1];
 	}
 	
-	SetEntDataFloat(client, FindSendPropInfo("CTFPlayer", "m_flMaxspeed"), clientSpeed);
+	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", clientSpeed);
 	
 	g_currentSpeed[client]  = clientSpeed;
 }
 
 ResetSpeed (client)
 {	
-		SetEntDataFloat(client, FindSendPropInfo("CTFPlayer", "m_flMaxspeed"), g_currentSpeed[client]);
+	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_currentSpeed[client]);
 }
 
 public bool:TraceRayDontHitSelf(entity, mask, any:data)
@@ -2501,7 +2319,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 				if(GetClientTeam(client2) == _:TFTeam_Red)
 				{
 					TF2_RegeneratePlayer(client2);
-					CreateTimer(0.2, Timer_WeaponAlpha, client2);
+					CreateTimer(0.1, Timer_WeaponAlpha, client2);
 				}
 				else
 				if(GetClientTeam(client2) == _:TFTeam_Blue)
@@ -2512,6 +2330,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 #endif
 	}
+	// This is to kill the particle effects from the Harvest Ghost prop and the like
 	SetVariantString("ParticleEffectStop");
 	AcceptEntityInput(client, "DispatchEffect");
 	return Plugin_Continue;
@@ -2828,7 +2647,8 @@ public Action:Timer_Charge(Handle:timer, any:client)
 {
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
+		//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
+		SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
 		TF2_SetPlayerClass(client, g_defaultClass[red], false);
 	}
 	return Plugin_Handled;
