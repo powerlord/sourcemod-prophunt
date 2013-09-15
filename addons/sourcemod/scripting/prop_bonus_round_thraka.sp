@@ -38,7 +38,7 @@
 #include <adminmenu>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION "1.3.2c"
+#define PLUGIN_VERSION "1.3.2d"
 
 #define INVIS					{255,255,255,0}
 #define NORMAL					{255,255,255,255}
@@ -71,9 +71,6 @@ new g_IsPropModel[MAXPLAYERS+1] = { 0, ... };
 new g_iPlayerModelIndex[MAXPLAYERS+1] = { -1, ... };
 //new g_iFov[MAXPLAYERS+1] = { -1, ... };
 //new g_iDefFov[MAXPLAYERS+1] = { -1, ... };
-
-new g_oFOV;
-new g_oDefFOV;
 
 new bool:bIsPlayerAdmin[MAXPLAYERS + 1] = { false, ... };
 new bool:g_bIsEnabled = true;
@@ -119,9 +116,6 @@ public OnPluginStart()
 	HookConVarChange(Cvar_AdminOnly, Cvars_Changed);
 	HookConVarChange(Cvar_Announcement, Cvars_Changed);
 	HookConVarChange(Cvar_Respawnplayer, Cvars_Changed);
-
-	g_oFOV = FindSendPropOffs("CBasePlayer", "m_iFOV");
-	g_oDefFOV = FindSendPropOffs("CBasePlayer", "m_iDefaultFOV");
 
 	CreateThirdpersonCommands();
 
@@ -754,21 +748,21 @@ public Colorize(client, color[4])
 	new TFClassType:class = TF2_GetPlayerClass(client);
 
 	//Colorize the wearables, such as hats
-	SetWearablesRGBA_Impl(client, "tf_wearable", "CTFWearableItem",color);
+	SetWearablesRGBA_Impl(client, "tf_wearable", color);
 
 	if(color[3] > 0)
 	type = 1;
 
 	if(class == TFClass_DemoMan)
 	{
-		SetWearablesRGBA_Impl(client, "tf_wearable_demoshield", "CTFWearableDemoShield", color);
+		SetWearablesRGBA_Impl(client, "tf_wearable_demoshield", color);
 		HideGlowingEyes(client, type);
 	}
 
 	return;
 }
 
-SetWearablesRGBA_Impl(client,  const String:entClass[], const String:serverClass[], color[4])
+SetWearablesRGBA_Impl(client,  const String:entClass[], color[4])
 {
 	new ent = -1;
 	while((ent = FindEntityByClassname(ent, entClass)) != -1)
