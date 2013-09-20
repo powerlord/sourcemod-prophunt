@@ -334,7 +334,7 @@ public OnPluginStart()
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change.", _, true, 0.0, true, 1.0);
-	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons.", _, true, 0.0, true, 1.0);
+	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -2647,11 +2647,6 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 
 public Action:Timer_AntiHack(Handle:timer, any:entity)
 {
-	if (!GetConVarBool(g_PHAntiHack))
-	{
-		return Plugin_Stop;
-	}
-	
 	new red = _:TFTeam_Red - 2;
 	if(!g_RoundOver && !g_LastProp)
 	{
