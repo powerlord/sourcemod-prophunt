@@ -16,7 +16,25 @@ enum ControlPoint
 	TFTeam:ControlPoint_Owner
 }
 
+new TFGameType
+{
+	TFGameType_CTF,
+	TFGameType_5CP,
+	TFGameType_ADCP,
+	TFGameType_TC,
+	TFGameType_PL,
+	TFGameType_PLR,
+	TFGameType_Arena,
+	TFGameType_KOTH,
+	TFGameType_SD,
+	TFGameType_MvM,
+	
+}
+
 new cpInfo[MAX_CONTROL_POINTS][ControlPoint];
+
+new bool:multiRound;
+new Handle:g_Kv_RoundStrings;
 
 public Plugin:myinfo = 
 {
@@ -38,6 +56,13 @@ public OnPluginStart()
 	
 }
 
+public OnMapStart()
+{
+	multiRound = false;
+	CloseHandle(g_Kv_RoundStrings);
+	g_Kv_RoundStrings = INVALID_HANDLE;
+}
+
 public Action:Cmd_PrintCPStatus(client, args)
 {
 	
@@ -49,6 +74,35 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnCpSpawned);
 	}
+	else if (StrEqual(classname, "team_control_point_round"))
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnRoundSpawned);
+	}
+}
+
+public OnRoundSpawned(entity)
+{
+	if (!IsValidEntity(entity))
+	{
+		return;
+	}
+	
+	if (g_Kv_RoundStrings == INVALID_HANDLE)
+	{
+		g_Kv_RoundStrings = CreateKeyValues("Rounds");
+	}
+	
+	KvRewind(g_Kv_RoundStrings);
+	
+	new count = KvGetNum(g_Kv_RoundStrings, "count", 0) + 1;
+	
+	new String:strEntity[6];
+	KvJumpToKey(g_Kv_RoundStrings, strEntity, true);
+	IntToString(entity, strEntity, sizeof(strEntity));
+	new String:roundName[64];
+	GetEntPropString(entity, Prop_Data, "m_iName", roundName, sizeof(roundName));
+	KvSetString(g_Kv_RoundStrings, "name", roundName);
+	KvSetNum(g_Kv_RoundStrings, "priority", GetEntProp(entity, Prop_Data, "m_nPriority"));
 }
 
 public OnCpSpawned(entity)
