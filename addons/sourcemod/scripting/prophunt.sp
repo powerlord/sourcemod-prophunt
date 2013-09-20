@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <optin_multimod>
 
-#define PL_VERSION "3.0.0 alpha"
+#define PL_VERSION "3.0.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -411,9 +411,9 @@ public OnPluginStart()
 	//if((g_iVelocity = FindSendPropOffs("CBasePlayer", "m_vecVelocity[0]")) == -1)
 	//LogError("Could not find offset for CBasePlayer::m_vecVelocity[0]");
 
-	CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
-	CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
-	CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+	//CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+	//CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
+	//CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
 
 
 	for(new client=1; client <= MaxClients; client++)
@@ -932,7 +932,7 @@ public StartTouchHook(entity, other)
 		FillHealth(other);
 		ExtinguishPlayer(other);
 		PrintToChat(other, "%t", "#TF_PH_CPBonus");
-		PH_EmitSoundToClient(other, "CPBonus", _, SNDCHAN_VOICE2, SNDLEVEL_AIRCRAFT);
+		PH_EmitSoundToClient(other, "CPBonus", _, _, SNDLEVEL_AIRCRAFT);
 		g_TouchingCP[other] = true;
 	}
 }
@@ -941,7 +941,7 @@ stock FillHealth (entity)
 {
 	if(IsValidEntity(entity))
 	{
-		SetEntityHealth(entity, GetEntProp(entity, Prop_Send, "m_iMaxHealth"));
+		SetEntityHealth(entity, GetEntProp(entity, Prop_Data, "m_iMaxHealth"));
 	}
 }
 
