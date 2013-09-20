@@ -2864,7 +2864,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
 	
 	// 594 is Phlogistinator and already has airblast disabled
-	if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != WEP_PHLOGISTINATOR && StrEqual(classname, "tf_weapon_flamethrower"))
+	if (!GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower"))
 	{
 		if (stripattribs)
 		{
