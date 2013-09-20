@@ -11,12 +11,15 @@
 #include <sdkhooks>
 #include <tf2items>
 
+#if !defined SNDCHAN_VOICE2
 #define SNDCHAN_VOICE2 7
+#endif
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 
 #undef REQUIRE_PLUGIN
+#include <tf2attributes>
 #include <optin_multimod>
 
 #define PL_VERSION "3.0.0 alpha"
@@ -126,10 +129,6 @@ new String:g_Mapname[128];
 new String:g_ServerIP[32];
 new String:g_Version[16];
 
-#if defined CHARGE
-new g_offsCollisionGroup;
-#endif
-
 new g_Message_red;
 new g_Message_blue;
 new g_RoundTime = 175;
@@ -156,6 +155,7 @@ new bool:g_Freeze = true;
 new Handle:g_hWeaponRemovals;
 new Handle:g_hWeaponNerfs;
 new Handle:g_hWeaponSelfDamage;
+new Handle:g_hWeaponStripAttribs;
 
 new g_classLimits[2][10];
 new TFClassType:g_defaultClass[2];
@@ -185,6 +185,7 @@ new Handle:g_PHAdvertisements = INVALID_HANDLE;
 new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
 new Handle:g_PHGameDescription = INVALID_HANDLE;
 new Handle:g_PHAirblast = INVALID_HANDLE;
+new Handle:g_PHAntiHack = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -194,6 +195,12 @@ new bool:g_SteamTools = false;
 new bool:g_OptinMultiMod = false;
 
 new bool:g_Enabled = true;
+
+// Timers
+new Handle:g_hAntiHack;
+new Handle:g_hLocked;
+new Handle:g_hScore;
+
 
 // Valve CVars we're going to save and adjust
 new Handle:g_hArenaRoundTime;
@@ -313,9 +320,9 @@ public OnPluginStart()
 #endif
 
 	g_hWeaponRemovals = CreateArray();
-	
 	g_hWeaponNerfs = CreateTrie();
 	g_hWeaponSelfDamage = CreateTrie();
+	g_hWeaponStripAttribs = CreateArray();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
@@ -324,10 +331,11 @@ public OnPluginStart()
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only (use propmenu override), 1 = all players");
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
-	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "If TF2Attributes is loaded, set to 1 to prevent fall damage.", _, true, 0.0, true, 1.0);
-	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt?", _, true, 0.0, true, 1.0);
-	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? If TF2Attributes is loaded, this change will happen immediately.", _, true, 0.0, true, 1.0);
-
+	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
+	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
+	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change.", _, true, 0.0, true, 1.0);
+	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons.", _, true, 0.0, true, 1.0);
+	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
 	g_hWeaponCriticals = FindConVar("tf_weapon_criticals");
@@ -350,6 +358,9 @@ public OnPluginStart()
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
+	HookConVarChange(g_PHAntiHack, OnAntiHackChanged);
+	HookConVarChange(g_PHAirblast, OnAirblastChanged);
+	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -380,9 +391,6 @@ public OnPluginStart()
 	AddFileToDownloadsTable("sound/prophunt/snaaake.mp3");
 	AddFileToDownloadsTable("sound/prophunt/oneandonly.mp3");
 	
-#if defined CHARGE
-	g_offsCollisionGroup = FindSendPropOffs("CBaseEntity", "m_CollisionGroup");
-#endif
 	LoadTranslations("prophunt.phrases");
 	LoadTranslations("common.phrases");
  
@@ -488,6 +496,52 @@ public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const St
 	UpdateGameDescription();
 }
 
+public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	if (GetConVarBool(g_PHAntiHack) && g_hAntiHack == INVALID_HANDLE)
+	{
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+	}
+	else if (!GetConVarBool(g_PHAntiHack) && g_hAntiHack != INVALID_HANDLE)
+	{
+		CloseHandle(g_hAntiHack);
+		g_hAntiHack = INVALID_HANDLE;
+	}
+}
+
+public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new bool:airblast = GetConVarBool(g_PHAirblast);
+
+	new flamethrower = -1;
+	
+	while ((flamethrower = FindEntityByClassname(flamethrower, "tf_weapon_flamethrower")) != -1)
+	{
+		new iItemDefinitionIndex = GetEntProp(flamethrower, Prop_Send, "m_iItemDefinitionIndex");
+		if (iItemDefinitionIndex != WEP_PHLOGISTINATOR || FindValueInArray(g_hWeaponStripAttribs, WEP_PHLOGISTINATOR) >= 0)
+		{
+			if (airblast)
+			{
+				TF2Attrib_RemoveByName(flamethrower, "airblast disabled");
+			}
+			else
+			{
+				TF2Attrib_SetByName(flamethrower, "airblast disabled", 1.0);
+			}
+		}
+	}
+}
+
+public OnFallDamageChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new Float:fall = GetConVarFloat(g_PHPreventFallDamage);
+	
+	for (new i = 1; i <= MaxClients; ++i)
+	{
+		TF2Attrib_SetByName(i, "cancel falling damage", fall);
+	}
+}
+
 UpdateGameDescription(bool:bAddOnly=false)
 {
 	if (!g_SteamTools)
@@ -534,6 +588,7 @@ config_parseWeapons()
 	ClearArray(g_hWeaponRemovals);
 	ClearTrie(g_hWeaponNerfs);
 	ClearTrie(g_hWeaponSelfDamage);
+	ClearArray(g_hWeaponStripAttribs);
 	
 	if (g_ConfigKeyValues == INVALID_HANDLE)
 	{
@@ -566,6 +621,13 @@ config_parseWeapons()
 			if(KvGetDataType(g_ConfigKeyValues, "self_damage_hunters") == KvData_Float)
 			{
 				SetTrieValue(g_hWeaponSelfDamage, SectionName, KvGetFloat(g_ConfigKeyValues, "self_damage_hunters"));
+			}
+			if(KvGetDataType(g_ConfigKeyValues, "stripattribs") == KvData_Int)
+			{
+				if (bool:KvGetNum(g_ConfigKeyValues, "stripattribs"))
+				{
+					PushArrayCell(g_hWeaponStripAttribs, StringToInt(SectionName));
+				}
 			}
 		}
 		while(KvGotoNextKey(g_ConfigKeyValues));
@@ -794,24 +856,65 @@ public OnConfigsExecuted()
 	if (g_Enabled)
 	{
 		SetCVars();
+		StartTimers();
 	}
 	UpdateGameDescription(true);
+}
+
+StartTimers()
+{
+	if (g_hLocked == INVALID_HANDLE)
+	{
+		g_hLocked = CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
+	}
+		
+	if (g_hScore == INVALID_HANDLE)
+	{
+		g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+	}
+
+	if (GetConVarBool(g_PHAntiHack) && g_hAntiHack == INVALID_HANDLE)
+	{
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+	}
+}
+
+StopTimers()
+{
+	if (g_hAntiHack != INVALID_HANDLE)
+	{
+		CloseHandle(g_hAntiHack);
+		g_hAntiHack = INVALID_HANDLE;
+	}
+	
+	if (g_hLocked != INVALID_HANDLE)
+	{
+		CloseHandle(g_hLocked);
+		g_hLocked = INVALID_HANDLE;
+	}
+	
+	if (g_hScore != INVALID_HANDLE)
+	{
+		CloseHandle(g_hScore);
+		g_hScore = INVALID_HANDLE;
+	}
 }
 
 public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	if (GetConVarBool(g_PHEnable))
 	{
-		SetCVars();
 		g_Enabled = IsPropHuntMap();
 		if (g_Enabled)
 		{
 			SetCVars();
 		}
+		StartTimers();
 	}
 	else
 	{
 		ResetCVars();
+		StopTimers();
 		g_Enabled = false;
 	}
 	UpdateGameDescription();
@@ -978,9 +1081,10 @@ public OnMapEnd()
 	g_MapChanging = true;
 #endif
 
-	// workaround for CreateEntityByNsme
+	// workaround for CreateEntityByName
 	g_MapStarted = false;
 	ResetCVars();
+	StopTimers();
 }
 
 public OnMapStart()
@@ -2543,7 +2647,11 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 
 public Action:Timer_AntiHack(Handle:timer, any:entity)
 {
-#if defined ANTIHACK
+	if (!GetConVarBool(g_PHAntiHack))
+	{
+		return Plugin_Stop;
+	}
+	
 	new red = _:TFTeam_Red - 2;
 	if(!g_RoundOver && !g_LastProp)
 	{
@@ -2568,7 +2676,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 			}
 		}
 	}
-#endif
+	return Plugin_Continue;
 }
 
 public Action:Timer_Ragdoll(Handle:timer, any:client)
@@ -2645,6 +2753,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 #if defined CHARGE
 public Action:Timer_Charge(Handle:timer, any:client)
 {
+	new red = _:TFTeam_Red-2;
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
@@ -2752,16 +2861,39 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Handled;
 	}
 	
+	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
+	
 	// 594 is Phlogistinator and already has airblast disabled
 	if (!GetConVarBool(g_PHAirblast) && iItemDefinitionIndex != WEP_PHLOGISTINATOR && StrEqual(classname, "tf_weapon_flamethrower"))
 	{
-		weapon = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|OVERRIDE_ATTRIBUTES);
+		if (stripattribs)
+		{
+			weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
+		}
+		else if (iItemDefinitionIndex == WEP_PHLOGISTINATOR)
+		{
+			return Plugin_Continue;
+		}
+		else
+		{
+			weapon = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|OVERRIDE_ATTRIBUTES);
+		}
+		
 		TF2Items_SetNumAttributes(weapon, 1);
 		TF2Items_SetAttribute(weapon, 0, 356, 1.0); // "airblast disabled"
 		
 		hItem = weapon;
 		return Plugin_Changed;
 	}
+	
+	if (stripattribs)
+	{
+		weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
+		TF2Items_SetNumAttributes(weapon, 0);
+		
+		hItem = weapon;
+		return Plugin_Changed;
+	}		
 	
 	return Plugin_Continue;
 }
