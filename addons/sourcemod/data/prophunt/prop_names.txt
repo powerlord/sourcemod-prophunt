@@ -112,7 +112,7 @@
 		"props_gameplay-sign_barricade001a"	"Barricade"
 
 		"props_granary-grain_sack"	"Grain Sack"
-		"props_granary/rocket_launchpad3"	"Rocket"
+		"props_granary-rocket_launchpad3"	"Rocket"
 
 		"props_halloween-ghost"	"Ghost"
 		"props_halloween-pumpkin_01"	"Small Halloween Pumpkin"
