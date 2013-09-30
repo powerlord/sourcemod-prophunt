@@ -445,7 +445,7 @@ public OnAllPluginsLoaded()
 	}
 	if (g_OptinMultiMod)
 	{
-		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
+		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status, MultiMod_TranslateName);
 	}
 }
 
@@ -2896,6 +2896,11 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 public MultiMod_Status(bool:enabled)
 {
 	SetConVarBool(g_PHEnable, enabled);
+}
+
+public MultiMod_TranslateName(client, String:translation[], maxlength)
+{
+	Format(translation, maxlength, "%T", "game_mode", client);
 }
 
 public bool:ValidateMap(const String:map[])

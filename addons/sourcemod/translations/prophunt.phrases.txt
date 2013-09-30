@@ -133,4 +133,8 @@
 	{
 		"en"		"That Class is full!"
 	}
+	"mode_name"
+	{
+		"en"  "PropHunt"
+	}
 }
