@@ -1,18 +1,18 @@
 "Phrases"
 {
-    "#TF_PH_CPBonus"
-    {
-        "en"        "Control point bonus! Health filled."
-    }
+	"#TF_PH_CPBonus"
+	{
+		"en"        "Control point bonus! Health filled."
+	}
 	"#TF_PH_WeaponPunish"
-    {
-        "#format"    "{1:s}"
-        "en"        "Punished {1} for possession of a weapon on RED."
-    }
+	{
+		"#format"    "{1:s}"
+		"en"        "Punished {1} for possession of a weapon on RED."
+	}
 	"#TF_PH_CPBonusRefreshed"
-    {
-        "en"        "Control Point Bonus refreshed!"
-    }
+	{
+	        "en"        "Control Point Bonus refreshed!"
+	}
 	"#TF_PH_BluHelp"
 	{
 		"en"		"Hunt down the Hidden Props! Find them all before time runs out to win!"
@@ -46,22 +46,22 @@
 	}
 	"#TF_PH_AlterScore_Death"
 	{
-        "#format"    "{1:s},{2:i}"
+		"#format"    "{1:s},{2:i}"
 		"en"		 "You were killed by {1}! You lose {2} point(s)."
 	}
 	"#TF_PH_AlterScore_Kill"
 	{
-        "#format"    "{1:s},{2:i}"
+		"#format"    "{1:s},{2:i}"
 		"en"		 "You killed {1}! You gain {2} point(s)."
 	}
 	"#TF_PH_AlterScore_Assist"
 	{
-        "#format"    "{1:s},{2:i}"
+		"#format"    "{1:s},{2:i}"
 		"en"		 "You assisted in killing {1}! You gain {2} point(s)."
 	}
 	"#TF_PH_Stats_Top10"
 	{
-		"en"		"PropHunt Top 10 Players"
+		"en"		"PropHunt Redux Top 10 Players"
 	}
 	"#TF_PH_CloseMenu"
 	{
@@ -69,60 +69,60 @@
 	}
 	"#TF_PH_Stats_PersonalHeader"
 	{
-		"en"		"PropHunt Personal Stats"
+		"en"		"PropHunt Redux Personal Stats"
 	}
 	"#TF_PH_Stats_PersonalRank"
 	{
-        "#format"    "{1:i}"
+		"#format"    "{1:i}"
 		"en"		"Rank: {1}"
 	}
 	"#TF_PH_Stats_PersonalWins"
 	{
-        "#format"    "{1:i}"
+		"#format"    "{1:i}"
 		"en"		"Wins: {1}"
 	}
 	"#TF_PH_Stats_PersonalLosses"
 	{
-        "#format"    "{1:i}"
+		"#format"    "{1:i}"
 		"en"		"Losses: {1}"
 	}
 	"#TF_PH_Stats_PersonalWinLoss"
 	{
-        "#format"    "{1:s}"
+		"#format"    "{1:s}"
 		"en"		"Win/Loss Ratio: {1}"
 	}
 	"#TF_PH_Stats_PersonalScore"
 	{
-        "#format"    "{1:i}"
+		"#format"    "{1:i}"
 		"en"		"Score: {1}"
 	}
 	"#TF_PH_Stats_PersonalTime"
 	{
-        "#format"    "{1:i}"
+		"#format"    "{1:i}"
 		"en"		"Time played: {1} hour(s)"
 	}
 	"#TF_PH_PluginReload"
 	{
-		"en"		"PropHunt is being reloaded, please be patient."	
+		"en"		"PropHunt Redux is being reloaded, please be patient."	
 	}
 	"#TF_PH_NowDisguised"
 	{
-        "#format"    "{1:s}"
+		"#format"    "{1:s}"
 		"en"		"You are now disguised as a: {1}"
 	}
 	"#TF_PH_Stats_StatsMe"
 	{
-        "#format"    "{1:s},{2:i},{3:i},{4:i},{5:i},{6:i}"
+		"#format"    "{1:s},{2:i},{3:i},{4:i},{5:i},{6:i}"
 		"en"		"{1} is on rank {2} with {3} score ({4} wins and {5} losses). Time played {6} hours."
 	}
 	"#TF_PH_BalanceBlu"
 	{
-        "#format"   "{1:s}"
+		"#format"   "{1:s}"
 		"en"		"Moving {1} to Hunters (BLU) to balance the teams."
 	}
 	"#TF_PH_BalanceRed"
 	{
-        "#format"   "{1:s}"
+		"#format"   "{1:s}"
 		"en"		"Moving {1} to Props (RED) to balance the teams."
 	}
 	"#TF_PH_ClassBlocked"
@@ -132,5 +132,9 @@
 	"#TF_PH_ClassFull"
 	{
 		"en"		"That Class is full!"
+	}
+	"#TF_PH_ModeName"
+	{
+		"en"		"PropHunt Redux"
 	}
 }
