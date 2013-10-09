@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <optin_multimod>
 
-#define PL_VERSION "3.0.0 alpha 2"
+#define PL_VERSION "3.0.0 alpha 3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -97,6 +97,15 @@
 
 #define TIMER_NAME "prop_hunt_timer"
 
+enum
+{
+	Item_Classname,
+	Item_Index,
+	Item_Quality,
+	Item_Level,
+	Item_Attributes,
+}
+
 enum ScReason
 {
 	ScReason_TeamWin = 0,
@@ -156,6 +165,8 @@ new Handle:g_hWeaponRemovals;
 new Handle:g_hWeaponNerfs;
 new Handle:g_hWeaponSelfDamage;
 new Handle:g_hWeaponStripAttribs;
+new Handle:g_hWeaponAddAttribs;
+new Handle:g_hWeaponReplacements;
 
 new g_classLimits[2][10];
 new TFClassType:g_defaultClass[2];
@@ -201,7 +212,6 @@ new Handle:g_hAntiHack;
 new Handle:g_hLocked;
 new Handle:g_hScore;
 
-
 // Valve CVars we're going to save and adjust
 new Handle:g_hArenaRoundTime;
 new g_ArenaRoundTime;
@@ -237,6 +247,9 @@ new Handle:g_hSolidObjects;
 new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
+
+new g_Replacements[MAXPLAYERS+1][6];
+new g_ReplacementCount[MAXPLAYERS+1];
 
 public Plugin:myinfo =
 {
@@ -323,6 +336,8 @@ public OnPluginStart()
 	g_hWeaponNerfs = CreateTrie();
 	g_hWeaponSelfDamage = CreateTrie();
 	g_hWeaponStripAttribs = CreateArray();
+	g_hWeaponAddAttribs = CreateTrie();
+	g_hWeaponReplacements = CreateTrie();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
@@ -374,7 +389,7 @@ public OnPluginStart()
 	HookEvent("player_death", Event_player_death, EventHookMode_Pre);
 	HookEvent("arena_round_start", Event_arena_round_start);
 	HookEvent("arena_win_panel", Event_arena_win_panel);
-	//HookEvent("post_inventory_application", CallCheckInventory);
+	HookEvent("post_inventory_application", Event_post_inventory_application);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
@@ -589,6 +604,8 @@ config_parseWeapons()
 	ClearTrie(g_hWeaponNerfs);
 	ClearTrie(g_hWeaponSelfDamage);
 	ClearArray(g_hWeaponStripAttribs);
+	ClearTrie(g_hWeaponAddAttribs);
+	ClearTrie(g_hWeaponReplacements);
 	
 	if (g_ConfigKeyValues == INVALID_HANDLE)
 	{
@@ -627,6 +644,26 @@ config_parseWeapons()
 				if (bool:KvGetNum(g_ConfigKeyValues, "stripattribs"))
 				{
 					PushArrayCell(g_hWeaponStripAttribs, StringToInt(SectionName));
+				}
+			}
+			if(KvGetDataType(g_ConfigKeyValues, "addattribs") == KvData_String)
+			{
+				new String:attribs[128];
+				KvGetString(g_ConfigKeyValues, "addattribs", attribs, sizeof(attribs));
+				
+				if (attribs[0] != '\0')
+				{
+					SetTrieString(g_hWeaponAddAttribs, SectionName, attribs);
+				}
+			}
+			if(KvGetDataType(g_ConfigKeyValues, "replace") == KvData_String)
+			{
+				new String:attribs[128];
+				KvGetString(g_ConfigKeyValues, "replace", attribs, sizeof(attribs));
+				
+				if (attribs[0] != '\0')
+				{
+					SetTrieString(g_hWeaponReplacements, SectionName, attribs);
 				}
 			}
 		}
@@ -1262,7 +1299,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 		return Plugin_Changed;
 	}
 
-	if(damagetype & DMG_FALL && GetConVarBool(g_PHPreventFallDamage) && victim > 0 && victim < MaxClients && IsClientInGame(victim) && attacker == 0)
+	if(GetConVarBool(g_PHPreventFallDamage) && damagetype & DMG_FALL && victim > 0 && victim < MaxClients && IsClientInGame(victim) && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -2114,6 +2151,21 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 }
 */
 
+public Event_post_inventory_application(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	
+	if (g_ReplacementCount[client] == 0)
+	{
+		return Plugin_Continue;
+	}
+	
+	for (new i = 0; i < g_ReplacementCount[client]; ++i)
+	{
+		asdaf
+	}
+}
+
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	g_inPreRound = true;
@@ -2842,53 +2894,136 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
-	// Block wearables, action items, and canteens for Props
 	if (GetClientTeam(client) == _:TFTeam_Red)
 	{
+		// If they're not the last prop, don't give them anything
+		if (!g_LastProp)
+		{
+			return Plugin_Handled;
+		}
+		
+		// Block wearables, action items, and canteens for Props
+		// From testing, Action items still work even if you block them
 		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle"))
 		{
 			return Plugin_Handled;
 		}
 	}
+
+	new String:defIndex[7];
+	IntToString(iItemDefinitionIndex, defIndex, sizeof(defIndex));
 	
+	new flags;	
+	
+	new String:replacement[140];
+	new String:addAttributes[128];
+	new bool:replace = GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement));
+	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
+	new bool:addattribs = GetTrieString(g_hWeaponAddAttribs, defIndex, addAttributes, sizeof(addAttributes));
+	new bool:removeAirblast = !GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower");
+	new String:pieces[5][128];
+
+	if (replace)
+	{
+		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
+		if (!StrEqual(classname, pieces[Item_Classname], false))
+		{
+			g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
+			return Plugin_Stop;
+		}
+		
+		flags |= OVERRIDE_ALL;
+	}
+
 	if (FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
 	{
-		return Plugin_Handled;
+		return Plugin_Stop;
 	}
 	
-	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
-	
-	// 594 is Phlogistinator and already has airblast disabled
-	if (!GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower"))
+	if (!replace && !stripattribs && !addattribs && !removeAirblast)
 	{
-		if (stripattribs)
+		return Plugin_Continue;
+	}
+	
+	if (!stripattribs)
+	{
+		flags |= PRESERVE_ATTRIBUTES;
+	}
+	
+	flags |= OVERRIDE_ATTRIBUTES;
+	
+	weapon = TF2Items_CreateItem(flags);
+
+	new attribCount = 0;
+	// 594 is Phlogistinator and already has airblast disabled
+	if (removeAirblast && (iItemDefinitionIndex != WEP_PHLOGISTINATOR || stripattribs))
+	{
+		TF2Items_SetNumAttributes(weapon, 1);
+		TF2Items_SetAttribute(weapon, attribCount++, 356, 1.0); // "airblast disabled"
+	}
+	
+	if (replace)
+	{
+		TrimString(pieces[Item_Index]);
+		TrimString(pieces[Item_Quality]);
+		TrimString(pieces[Item_Level]);
+		TrimString(pieces[Item_Attributes]);
+
+		new index = StringToInt(pieces[Item_Index]);
+		new quality = StringToInt(pieces[Item_Quality]);
+		new level = StringToInt(pieces[Item_Level]);
+		TF2Items_SetItemIndex(weapon, index);
+		TF2Items_SetQuality(weapon, quality);
+		TF2Items_SetLevel(weapon, level);
+		
+		if (strlen(pieces[Item_Attributes]) > 0)
 		{
-			weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
+			new String:newAttribs[32][6];
+			new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
+			if (count % 2 > 0)
+			{
+				LogError("Error parsing replacement attributes for item definition index %d", iItemDefinitionIndex);
+				return Plugin_Continue;
+			}
+			
+			for (new i = 0; i < count && attribCount < 16; i += 2)
+			{
+				new attrib = StringToInt(newAttribs[i]);
+				new Float:value = StringToFloat(newAttribs[i+1]);
+				TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
+			}
 		}
-		else if (iItemDefinitionIndex == WEP_PHLOGISTINATOR)
+	}
+	
+	if (addattribs)
+	{
+		// Pawn is dumb and this "shadows" a preceding variable despite being at a different block level
+		new String:newAttribs2[32][6];
+		new count = ExplodeString(addAttributes, ";", newAttribs2, sizeof(newAttribs2), sizeof(newAttribs2[]));
+		if (count % 2 > 0)
 		{
+			LogError("Error parsing additional attributes for item definition index %d", iItemDefinitionIndex);
 			return Plugin_Continue;
 		}
-		else
+		
+		for (new i = 0; i < count && attribCount < 16; i += 2)
 		{
-			weapon = TF2Items_CreateItem(PRESERVE_ATTRIBUTES|OVERRIDE_ATTRIBUTES);
+			new attrib = StringToInt(newAttribs2[i]);
+			new Float:value = StringToFloat(newAttribs2[i+1]);
+			TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
 		}
-		
-		TF2Items_SetNumAttributes(weapon, 1);
-		TF2Items_SetAttribute(weapon, 0, 356, 1.0); // "airblast disabled"
-		
+	}
+	
+	if (attribCount >= 16)
+	{
+		LogError("Some attributes were truncated for item index %d ... items can only have 16 attributes", iItemDefinitionIndex);
+	}
+	
+	if (!(flags & PRESERVE_ATTRIBUTES) || attribCount > 1)
+	{
 		hItem = weapon;
 		return Plugin_Changed;
 	}
-	
-	if (stripattribs)
-	{
-		weapon = TF2Items_CreateItem(OVERRIDE_ATTRIBUTES);
-		TF2Items_SetNumAttributes(weapon, 0);
-		
-		hItem = weapon;
-		return Plugin_Changed;
-	}		
 	
 	return Plugin_Continue;
 }
