@@ -786,6 +786,13 @@ config_parseSounds()
 				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
+			if(KvGetDataType(g_ConfigKeyValues, "game") == KvData_String)
+			{
+				decl String:soundString[128];
+				KvGetString(g_ConfigKeyValues, "game", soundString, sizeof(soundString));
+				
+				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
+			}
 		}
 		while(KvGotoNextKey(g_ConfigKeyValues));
 	}
@@ -1514,10 +1521,13 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
-		new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
-		SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
-		SetEventString(broadcastEvent, "sound", sample);
-		FireEvent(broadcastEvent);
+		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
+		{
+			new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
+			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
+			SetEventString(broadcastEvent, "sound", sample);
+			FireEvent(broadcastEvent);
+		}
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -1532,8 +1542,12 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
 {
 	decl String:sample[128];
-	// Broadcast sounds only apply to ToAll sounds, so skip them here
-	if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	
+	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	{
+		EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
+	}
+	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
 		{
