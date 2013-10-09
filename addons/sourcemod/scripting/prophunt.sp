@@ -21,6 +21,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 #include <optin_multimod>
+#include <readgamesounds>
 
 #define PL_VERSION "3.0.0 alpha 3"
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2157,12 +2158,62 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 	
 	if (g_ReplacementCount[client] == 0)
 	{
-		return Plugin_Continue;
+		return;
 	}
+	
+	new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL);
 	
 	for (new i = 0; i < g_ReplacementCount[client]; ++i)
 	{
-		asdaf
+		new String:defIndex[7];
+		IntToString(g_Replacements[client][i], defIndex, sizeof(defIndex));
+		
+		new String:replacement[140];
+		if (!GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement)))
+		{
+			continue;
+		}
+		new String:pieces[5][128];
+		
+		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
+
+		TrimString(pieces[Item_Classname]);
+		TrimString(pieces[Item_Index]);
+		TrimString(pieces[Item_Quality]);
+		TrimString(pieces[Item_Level]);
+		TrimString(pieces[Item_Attributes]);
+		
+		new index = StringToInt(pieces[Item_Index]);
+		new quality = StringToInt(pieces[Item_Quality]);
+		new level = StringToInt(pieces[Item_Level]);
+		TF2Items_SetClassname(weapon, pieces[Item_Classname]);
+		TF2Items_SetItemIndex(weapon, index);
+		TF2Items_SetQuality(weapon, quality);
+		TF2Items_SetLevel(weapon, level);
+		
+		new attribCount = 0;
+		if (strlen(pieces[Item_Attributes]) > 0)
+		{
+			new String:newAttribs[32][6];
+			new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
+			if (count % 2 > 0)
+			{
+				LogError("Error parsing replacement attributes for item definition index %d", g_Replacements[client][i]);
+				return;
+			}
+			
+			for (new j = 0; j < count && attribCount < 16; j += 2)
+			{
+				new attrib = StringToInt(newAttribs[i]);
+				new Float:value = StringToFloat(newAttribs[i+1]);
+				TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
+			}
+		}
+		
+		TF2Items_SetNumAttributes(weapon, attribCount);
+		
+		new item = TF2Items_GiveNamedItem(client, weapon);
+		EquipPlayerWeapon(client, item);
 	}
 }
 
@@ -2958,7 +3009,6 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	// 594 is Phlogistinator and already has airblast disabled
 	if (removeAirblast && (iItemDefinitionIndex != WEP_PHLOGISTINATOR || stripattribs))
 	{
-		TF2Items_SetNumAttributes(weapon, 1);
 		TF2Items_SetAttribute(weapon, attribCount++, 356, 1.0); // "airblast disabled"
 	}
 	
@@ -3019,8 +3069,10 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		LogError("Some attributes were truncated for item index %d ... items can only have 16 attributes", iItemDefinitionIndex);
 	}
 	
-	if (!(flags & PRESERVE_ATTRIBUTES) || attribCount > 1)
+	if (attribCount > 1 || (flags & PRESERVE_ATTRIBUTES) != PRESERVE_ATTRIBUTES)
 	{
+		TF2Items_SetNumAttributes(weapon, attribCount);
+		
 		hItem = weapon;
 		return Plugin_Changed;
 	}
