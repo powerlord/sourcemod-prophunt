@@ -2064,6 +2064,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 	g_RoundOver = true;
 	//g_inPreRound = true;
+	g_LastProp = false;
 	
 	if (!g_Enabled)
 		return;
@@ -2334,7 +2335,6 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
 	g_inPreRound = false;
-	g_LastProp = false;
 	
 	if (!g_Enabled)
 		return;
