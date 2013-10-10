@@ -249,6 +249,8 @@ new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
 
+new Handle:g_hBonusRoundTime;
+
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
 
@@ -370,6 +372,8 @@ public OnPluginStart()
 	g_hShowVoiceIcons = FindConVar("mp_show_voice_icons");
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
+	
+	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
 	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
@@ -1034,6 +1038,11 @@ public OnEntityCreated(entity, const String:classname[])
 	}
 	else
 	*/
+	if (strcmp(classname, "obj_sentrygun") == 0)
+	{
+		SDKHook(entity, SDKHook_Spawn, OnBullshitEntitySpawned);
+	}
+	else
 	if(strcmp(classname, "prop_dynamic") == 0 || strcmp(classname, "prop_static") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnCPEntitySpawned);
@@ -1043,7 +1052,11 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 	}
-	
+	else
+	if(strcmp(classname, "tf_weapon_builder") == 0)
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
+	}
 }
 
 public Action:OnBullshitEntitySpawned(entity)
@@ -1051,6 +1064,17 @@ public Action:OnBullshitEntitySpawned(entity)
 	if(IsValidEntity(entity))
 		AcceptEntityInput(entity, "Kill");
 	
+	return Plugin_Continue;
+}
+
+// This doesn't actually work, sadly.
+// It SHOULD work, but doesn't
+public Action:OnBuilderSpawned(entity)
+{
+	if(IsValidEntity(entity))
+	{
+		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, _:TFObject_Sentry);
+	}
 	return Plugin_Continue;
 }
 
@@ -1233,6 +1257,16 @@ public OnMapStart()
 	g_MapStarted = true;
 
 	loadGlobalConfig();
+	
+	// Clear the replacement weapon list
+	for (new i = 1; i <= MaxClients; ++i)
+	{
+		for (new j = 0; j < sizeof(g_Replacements[]); ++j)
+		{
+			g_Replacements[i][j] = -1;
+		}
+		g_ReplacementCount[i] = 0;
+	}
 }
 
 /*
@@ -1433,7 +1467,6 @@ public Action:Command_propmenu(client, args)
 	return Plugin_Handled;
 }
 
-
 public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 {
 	switch (action)
@@ -1468,7 +1501,7 @@ public OnClientPutInServer(client)
 	if (!g_Enabled)
 		return;
 	
-	SendConVarValue(client, FindConVar("tf_arena_round_time"), "600");
+	SendConVarValue(client, g_hArenaRoundTime, "600");
 	ResetPlayer(client);
 }
 
@@ -1873,7 +1906,7 @@ public PreThinkHook(client)
 public SetupRoundTime(time)
 {
 	g_RoundTimer = CreateTimer(float(time-1), Timer_TimeUp, _, TIMER_FLAG_NO_MAPCHANGE);
-	SetConVarInt(FindConVar("tf_arena_round_time"), time, true, false);
+	SetConVarInt(g_hArenaRoundTime, time, true, false);
 }
 */
 
@@ -2042,9 +2075,9 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 	if (GetEventInt(event, "winreason") == 2)
 	{
-		CreateTimer(GetConVarInt(FindConVar("mp_bonusroundtime")) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(GetConVarInt(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	}
-	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), 0, true);
+	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
 //	new team, client;
 	new client;
@@ -2102,8 +2135,8 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #endif
 */
 
-	SetConVarFlags(FindConVar("mp_teams_unbalance_limit"), GetConVarFlags(FindConVar("mp_teams_unbalance_limit")) & ~(FCVAR_NOTIFY));
-	SetConVarInt(FindConVar("mp_teams_unbalance_limit"), UNBALANCE_LIMIT, true);
+	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
+	SetConVarInt(g_hTeamsUnbalanceLimit, UNBALANCE_LIMIT, true);
 
 	//StopPreroundTimers(false);
 }
@@ -2170,65 +2203,70 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (g_ReplacementCount[client] == 0)
+	if (g_ReplacementCount[client] > 0)
 	{
-		return;
-	}
 	
-	new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL);
-	
-	for (new i = 0; i < g_ReplacementCount[client]; ++i)
-	{
-		new String:defIndex[7];
-		IntToString(g_Replacements[client][i], defIndex, sizeof(defIndex));
-		
-		new String:replacement[140];
-		if (!GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement)))
+		for (new i = 0; i < g_ReplacementCount[client]; ++i)
 		{
-			continue;
-		}
-		new String:pieces[5][128];
-		
-		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
-
-		TrimString(pieces[Item_Classname]);
-		TrimString(pieces[Item_Index]);
-		TrimString(pieces[Item_Quality]);
-		TrimString(pieces[Item_Level]);
-		TrimString(pieces[Item_Attributes]);
-		
-		new index = StringToInt(pieces[Item_Index]);
-		new quality = StringToInt(pieces[Item_Quality]);
-		new level = StringToInt(pieces[Item_Level]);
-		TF2Items_SetClassname(weapon, pieces[Item_Classname]);
-		TF2Items_SetItemIndex(weapon, index);
-		TF2Items_SetQuality(weapon, quality);
-		TF2Items_SetLevel(weapon, level);
-		
-		new attribCount = 0;
-		if (strlen(pieces[Item_Attributes]) > 0)
-		{
-			new String:newAttribs[32][6];
-			new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
-			if (count % 2 > 0)
+			// DON'T require FORCE_GENERATION here, since they could pass back tf_weapon_shotgun 
+			new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL);
+			
+			new String:defIndex[7];
+			IntToString(g_Replacements[client][i], defIndex, sizeof(defIndex));
+			
+			new String:replacement[140];
+			if (!GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement)))
 			{
-				LogError("Error parsing replacement attributes for item definition index %d", g_Replacements[client][i]);
-				return;
+				continue;
+			}
+			new String:pieces[5][128];
+			
+			ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
+
+			TrimString(pieces[Item_Classname]);
+			TrimString(pieces[Item_Index]);
+			TrimString(pieces[Item_Quality]);
+			TrimString(pieces[Item_Level]);
+			TrimString(pieces[Item_Attributes]);
+			
+			new index = StringToInt(pieces[Item_Index]);
+			new quality = StringToInt(pieces[Item_Quality]);
+			new level = StringToInt(pieces[Item_Level]);
+			TF2Items_SetClassname(weapon, pieces[Item_Classname]);
+			TF2Items_SetItemIndex(weapon, index);
+			TF2Items_SetQuality(weapon, quality);
+			TF2Items_SetLevel(weapon, level);
+			
+			new attribCount = 0;
+			if (strlen(pieces[Item_Attributes]) > 0)
+			{
+				new String:newAttribs[32][6];
+				new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
+				if (count % 2 > 0)
+				{
+					LogError("Error parsing replacement attributes for item definition index %d", g_Replacements[client][i]);
+					return;
+				}
+				
+				for (new j = 0; j < count && attribCount < 16; j += 2)
+				{
+					new attrib = StringToInt(newAttribs[i]);
+					new Float:value = StringToFloat(newAttribs[i+1]);
+					TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
+				}
 			}
 			
-			for (new j = 0; j < count && attribCount < 16; j += 2)
-			{
-				new attrib = StringToInt(newAttribs[i]);
-				new Float:value = StringToFloat(newAttribs[i+1]);
-				TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
-			}
+			TF2Items_SetNumAttributes(weapon, attribCount);
+			
+			new item = TF2Items_GiveNamedItem(client, weapon);
+			EquipPlayerWeapon(client, item);
+			g_Replacements[client][i] = -1;
+			CloseHandle(weapon);
 		}
 		
-		TF2Items_SetNumAttributes(weapon, attribCount);
-		
-		new item = TF2Items_GiveNamedItem(client, weapon);
-		EquipPlayerWeapon(client, item);
+		g_ReplacementCount[client] = 0;
 	}
+
 }
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
@@ -2659,13 +2697,15 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		#if defined LOG
 				LogMessage("[PH] do equip %N", client);
 		#endif
+		// Lets comment this out since we don't block RED weapons with TF2Items
 		// slot commands fix "remember last weapon" glitch, despite their client console spam
+		/*
 		FakeClientCommand(client, "slot0");
 		FakeClientCommand(client, "slot3");
 		TF2_RemoveAllWeapons(client);
 		FakeClientCommand(client, "slot3");
 		FakeClientCommand(client, "slot0");
-		
+		*/
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
 		DispatchKeyValue(client, "targetname", pname);
@@ -2998,6 +3038,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		}
 		
 		flags |= OVERRIDE_ALL;
+		flags &= ~OVERRIDE_CLASSNAME; // This hasn't worked for a while
 	}
 
 	if (FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
