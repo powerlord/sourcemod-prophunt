@@ -2761,9 +2761,14 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		#if defined LOG
 				LogMessage("[PH] do equip_4 %N", client);
 		#endif
+		// This is to kill the particle effects from the Harvest Ghost prop and the like
+		SetVariantString("ParticleEffectStop");
+		AcceptEntityInput(client, "DispatchEffect");
+		
 		g_PlayerModel[client] = model;
 		SetVariantString(model);
 		AcceptEntityInput(client, "SetCustomModel");
+
 		SetVariantString(offset);
 		AcceptEntityInput(client, "SetCustomModelOffset");
 		if (StrEqual(rotation, "0 0 0"))
