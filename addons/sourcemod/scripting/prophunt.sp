@@ -23,7 +23,7 @@
 #include <optin_multimod>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 alpha 3"
+#define PL_VERSION "3.0.0 alpha 4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -117,6 +117,13 @@ enum ScReason
 	ScReason_Friendly
 };
 
+enum PropData
+{
+	String:PropData_Name[MAXMODELNAME],
+	String:PropData_Offset[32], // 3 digits, plus 2 spaces, plus a null terminator
+	String:PropData_Rotation[32], // 3 digits, plus 2 spaces, plus a null terminator
+}
+
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
 
@@ -177,7 +184,8 @@ new Float:g_currentSpeed[MAXPLAYERS+1];
 //new g_oFOV;
 //new g_oDefFOV;
 
-new Handle:g_PropNames = INVALID_HANDLE;
+new Handle:g_PropData = INVALID_HANDLE;
+
 new Handle:g_ConfigKeyValues = INVALID_HANDLE;
 new Handle:g_ModelName = INVALID_HANDLE;
 new Handle:g_ModelOffset = INVALID_HANDLE;
@@ -448,11 +456,53 @@ public OnPluginStart()
 	}
 	decl String:Path[256];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_names.txt");
-	g_PropNames = CreateKeyValues("g_PropNames");
-	if (!FileToKeyValues(g_PropNames, Path))
-	LogError("Could not load the g_PropNames file!");
+	
+	g_PropData = CreateTrie();
+	ReadCommonPropData();
 	
 	AutoExecConfig(true, "prophunt_redux");
+}
+
+ReadCommonPropData()
+{
+	ClearTrie(g_PropData);
+	
+	decl String:Path[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_common.txt");
+	new Handle:propCommon = CreateKeyValues("propcommon");
+	if (!FileToKeyValues(propCommon, Path))
+	{
+		LogError("Could not load the g_PropData file!");
+		return;
+	}
+	
+	if (!KvGotoFirstSubKey(propCommon))
+	{
+		LogError("Prop Common file is empty!");
+		return;
+	}		
+	
+	new counter = 0;
+	do
+	{
+		counter++;
+		decl String:modelPath[PLATFORM_MAX_PATH];
+		
+		new propData[PropData];
+		
+		KvGetSectionName(propCommon, modelPath, PLATFORM_MAX_PATH);
+		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), "");
+		KvGetString(propCommon, "offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
+		KvGetString(propCommon, "rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
+		
+		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData)))
+		{
+			LogError("Error saving prop data for %s", modelPath);
+		}
+		
+	} while (KvGotoNextKey(propCommon));
+	
+	LogMessage("Loaded %d props from props_common.txt", counter);
 }
 
 public OnAllPluginsLoaded()
@@ -1162,6 +1212,8 @@ public OnMapStart()
 	g_RoundOver = true;
 	//g_inPreRound = true;
 	
+	ReadCommonPropData();
+	
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
 
 	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
@@ -1288,8 +1340,6 @@ public OnPluginEnd()
 	Stats_Uninit();
 #endif
 	ResetCVars();
-	if (g_PropNames != INVALID_HANDLE)
-		CloseHandle(g_PropNames);
 	if (g_SteamTools)
 	{
 		Steam_SetGameDescription("Team Fortress");
@@ -2712,8 +2762,13 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		#if defined LOG
 				LogMessage("[PH] do equip_2 %N", client);
 		#endif
+		
+		new propData[PropData];
+		
 		// fire in a nice random model
-		decl String:model[MAXMODELNAME], String:offset[32], String:rotation[32];
+		decl String:model[MAXMODELNAME];
+		new String:offset[32] = "0 0 0";
+		new String:rotation[32] = "0 0 0";
 		new modelIndex = -1;
 		if(strlen(g_PlayerModel[client]) > 1)
 		{
@@ -2725,39 +2780,38 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			modelIndex = GetRandomInt(0, GetArraySize(g_ModelName)-1);
 			GetArrayString(g_ModelName, modelIndex, model, sizeof(model));
 		}
+		
+		// This wackiness with [0] is required when dealing with enums containing strings
+		if (GetTrieArray(g_PropData, model, propData[0], sizeof(propData)))
+		{
+			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
+			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
+			PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
+		}
+		
 		if (modelIndex > -1)
 		{
-			GetArrayString(g_ModelOffset, modelIndex, offset, sizeof(offset));
-			GetArrayString(g_ModelRotation, modelIndex, rotation, sizeof(rotation));
+			new String:tempOffset[32];
+			new String:tempRotation[32];
+			GetArrayString(g_ModelOffset, modelIndex, tempOffset, sizeof(tempOffset));
+			GetArrayString(g_ModelRotation, modelIndex, tempRotation, sizeof(tempRotation));
+			TrimString(tempOffset);
+			TrimString(tempRotation);
+			// We don't want to override the default value unless it's set to something other than "0 0 0"
+			if (!StrEqual(tempOffset, "0 0 0"))
+			{
+				strcopy(offset, sizeof(offset), tempOffset);
+			}
+			if (!StrEqual(tempRotation, "0 0 0"))
+			{
+				strcopy(rotation, sizeof(rotation), tempRotation);
+			}
 		}
-		else
-		{
-			strcopy(offset, sizeof(offset), "0 0 0");
-			strcopy(rotation, sizeof(rotation), "0 0 0");
-		}
+		
 		#if defined LOG
 				LogMessage("[PH] do equip_3 %N", client);
 		#endif
-		if(strlen(g_PlayerModel[client]) < 1)
-		{
-			decl String:nicemodel[MAXMODELNAME], String:nicemodel2[MAXMODELNAME];
-			
-			//new lastslash = FindCharInString(model, '/', true)+1;
-			//strcopy(nicemodel, sizeof(nicemodel), model[lastslash]);
-			
-			strcopy(nicemodel, sizeof(nicemodel), model);
-			ReplaceString(nicemodel, sizeof(nicemodel), "models/", "");
-			
-			ReplaceString(nicemodel, sizeof(nicemodel), ".mdl", "");
-			ReplaceString(nicemodel, sizeof(nicemodel), "/", "-");
-			
-			KvGotoFirstSubKey(g_PropNames);
-			KvJumpToKey(g_PropNames, "names", false);
-			KvGetString(g_PropNames, nicemodel, nicemodel2, sizeof(nicemodel2));
-			if (strlen(nicemodel2) > 0)
-				strcopy(nicemodel, sizeof(nicemodel), nicemodel2);
-			PrintToChat(client, "%t", "#TF_PH_NowDisguised", nicemodel);
-		}
+
 		#if defined LOG
 				LogMessage("[PH] do equip_4 %N", client);
 		#endif
