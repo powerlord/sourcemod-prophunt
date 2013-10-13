@@ -3161,6 +3161,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		flags &= ~OVERRIDE_CLASSNAME; // This hasn't worked for a while
 	}
 
+	// If we're supposed to remove it, just block it here
 	if (FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
 	{
 		return Plugin_Stop;
@@ -3171,7 +3172,13 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Continue;
 	}
 	
-	if (!stripattribs)
+	new bool:weaponChanged = false;
+	
+	if (stripattribs)
+	{
+		weaponChanged = true;
+	}
+	else
 	{
 		flags |= PRESERVE_ATTRIBUTES;
 	}
@@ -3185,6 +3192,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (removeAirblast && (iItemDefinitionIndex != WEP_PHLOGISTINATOR || stripattribs))
 	{
 		TF2Items_SetAttribute(weapon, attribCount++, 356, 1.0); // "airblast disabled"
+		weaponChanged = true;
 	}
 	
 	if (replace)
@@ -3218,6 +3226,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 				TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
 			}
 		}
+		weaponChanged = true;
 	}
 	
 	if (addattribs)
@@ -3239,19 +3248,18 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		}
 	}
 	
-	if (attribCount >= 16)
-	{
-		LogError("Some attributes were truncated for item index %d ... items can only have 16 attributes", iItemDefinitionIndex);
-	}
-	
-	if (attribCount > 0 || (flags & PRESERVE_ATTRIBUTES) != PRESERVE_ATTRIBUTES)
+	if (attribCount > 0)
 	{
 		TF2Items_SetNumAttributes(weapon, attribCount);
+		weaponChanged = true;
+	}
 		
+	if (weaponChanged)
+	{
 		hItem = weapon;
 		return Plugin_Changed;
 	}
-	
+
 	return Plugin_Continue;
 }
 
