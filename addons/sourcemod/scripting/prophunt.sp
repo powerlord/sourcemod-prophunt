@@ -458,9 +458,6 @@ public OnPluginStart()
 #endif
 		}
 	}
-	decl String:Path[256];
-	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_names.txt");
-	
 	g_PropData = CreateTrie();
 	ReadCommonPropData();
 	
