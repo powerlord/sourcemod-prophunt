@@ -23,7 +23,7 @@
 #include <optin_multimod>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 alpha 4"
+#define PL_VERSION "3.0.0"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -206,6 +206,7 @@ new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
 new Handle:g_PHGameDescription = INVALID_HANDLE;
 new Handle:g_PHAirblast = INVALID_HANDLE;
 new Handle:g_PHAntiHack = INVALID_HANDLE;
+new Handle:g_PHReroll = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -261,6 +262,7 @@ new Handle:g_hBonusRoundTime;
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
+new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 
 public Plugin:myinfo =
 {
@@ -359,8 +361,9 @@ public OnPluginStart()
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
-	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change.", _, true, 0.0, true, 1.0);
+	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
+	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admin only (use propreroll override), 1 = all players");
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -414,6 +417,7 @@ public OnPluginStart()
 	RegConsoleCmd("help", Command_motd);
 	//RegConsoleCmd("motd", Command_motd);
 	RegConsoleCmd("propmenu", Command_propmenu);
+	RegConsoleCmd("propreroll", Command_propreroll);
 
 	AddFileToDownloadsTable("sound/prophunt/found.mp3");
 	AddFileToDownloadsTable("sound/prophunt/snaaake.mp3");
@@ -1489,7 +1493,7 @@ public Action:Command_propmenu(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 1 || (CheckCommandAccess(client, "propmenu", ADMFLAG_KICK) && GetConVarInt(g_PHPropMenu) == 0))
+	if(GetConVarInt(g_PHPropMenu) == 1 || (GetConVarInt(g_PHPropMenu) == 0) && CheckCommandAccess(client, "propmenu", ADMFLAG_KICK, true))
 	{
 		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
 		{
@@ -1507,12 +1511,49 @@ public Action:Command_propmenu(client, args)
 		}
 		else
 		{
-			PrintToChat(client, "You must be alive on RED to access the prop menu.");
+			PrintToChat(client, "%t", "#TF_PH_PropMenuNotRedOrAlive");
 		}
 	}
 	else
 	{
-		PrintToChat(client, "You do not have access to the prop menu.");
+		PrintToChat(client, "%t", "#TF_PH_PropMenuNoAccess");
+	}
+	return Plugin_Handled;
+}
+
+public Action:Command_propreroll(client, args)
+{
+	if (!g_Enabled)
+		return Plugin_Continue;
+	
+	if (client <= 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	if(GetConVarInt(g_PHReroll) == 1 || (GetConVarInt(g_PHReroll) == 0) && CheckCommandAccess(client, "propreroll", ADMFLAG_KICK, true))
+	{
+		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
+		{
+			if (!g_Rerolled[client])
+			{
+				g_Rerolled[client] = true;
+				g_PlayerModel[client] = "";
+				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+			}
+			else
+			{
+				PrintToChat(client, "%t", "#TF_PH_PropRerollLimit");
+			}
+		}
+		else
+		{
+			PrintToChat(client, "%t", "#TF_PH_PropRerollNotRedOrAlive");
+		}
+	}
+	else
+	{
+		PrintToChat(client, "%t", "#TF_PH_PropRerollNoAccess");
 	}
 	return Plugin_Handled;
 }
@@ -1534,12 +1575,12 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					}
 					else
 					{
-						PrintToChat(param1, "You must be alive on RED to access the prop menu.");
+						PrintToChat(param1, "%t", "#TF_PH_PropMenuNotRedOrAlive");
 					}
 				}
 				else
 				{
-					PrintToChat(param1, "You do not have access to the prop menu.");
+					PrintToChat(param1, "%t", "#TF_PH_PropMenuNoAccess");
 				}
 			}
 		}
@@ -2334,6 +2375,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 			// For some reason, this has to be set every round or the player GUI messes up
 			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
 		}
+		g_Rerolled[i] = false;
 	}
 	// Delay freeze by a frame
 	CreateTimer(0.0, Timer_teamplay_round_start);
@@ -2871,6 +2913,11 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
 			{
+				if (!IsFakeClient(client))
+				{
+					QueryClientConVar(client, "r_staticpropinfo", QueryStaticProp);
+				}
+				
 				if(GetClientTeam(client) == _:TFTeam_Red && TF2_GetPlayerClass(client) == g_defaultClass[red])
 				{
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
@@ -2881,13 +2928,27 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
-						TF2_RemoveAllWeapons(client);
 					}
 				}
 			}
 		}
 	}
 	return Plugin_Continue;
+}
+
+public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+{
+	if (result == ConVarQuery_Okay)
+	{
+		new value = StringToInt(cvarValue);
+		if (value == 0)
+		{
+			return;
+		}
+		KickClient(client, "r_staticinfo was enabled");
+		return;
+	}
+	KickClient(client, "r_staticinfo detection was blocked");
 }
 
 public Action:Timer_Ragdoll(Handle:timer, any:client)

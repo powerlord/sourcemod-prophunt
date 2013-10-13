@@ -137,4 +137,24 @@
 	{
 		"en"		"PropHunt Redux"
 	}
+	"#TF_PH_PropMenuNotRedOrAlive"
+	{
+		"en"		"You must be alive on RED to access the prop menu."
+	}
+	"#TF_PH_PropMenuNoAccess"
+	{
+		"en"		"You do not have access to the prop menu."
+	}
+	"#TF_PH_PropRerollNotRedOrAlive"
+	{
+		"en"		"You must be alive on RED to reroll your prop."
+	}
+	"#TF_PH_PropRerollNoAccess"
+	{
+		"en"		"You do not have access to prop reroll."
+	}
+	"#TF_PH_PropRerollLimit"
+	{
+		"en"		"You already rerolled this round."
+	}
 }
