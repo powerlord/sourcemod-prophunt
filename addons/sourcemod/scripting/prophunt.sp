@@ -23,7 +23,7 @@
 #include <optin_multimod>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 1"
+#define PL_VERSION "3.0.0 beta 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -3244,7 +3244,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		LogError("Some attributes were truncated for item index %d ... items can only have 16 attributes", iItemDefinitionIndex);
 	}
 	
-	if (attribCount > 1 || (flags & PRESERVE_ATTRIBUTES) != PRESERVE_ATTRIBUTES)
+	if (attribCount > 0 || (flags & PRESERVE_ATTRIBUTES) != PRESERVE_ATTRIBUTES)
 	{
 		TF2Items_SetNumAttributes(weapon, attribCount);
 		
