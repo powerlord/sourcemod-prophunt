@@ -2945,10 +2945,10 @@ public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, con
 		{
 			return;
 		}
-		KickClient(client, "r_staticinfo was enabled");
+		KickClient(client, "r_staticpropinfo was enabled");
 		return;
 	}
-	KickClient(client, "r_staticinfo detection was blocked");
+	KickClient(client, "r_staticpropinfo detection was blocked");
 }
 
 public Action:Timer_Ragdoll(Handle:timer, any:client)
