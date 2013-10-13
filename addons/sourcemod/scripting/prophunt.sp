@@ -270,7 +270,7 @@ public Plugin:myinfo =
 	author = "Darkimmortal and Powerlord",
 	description = "Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum",
 	version = PL_VERSION,
-	url = "https://forums.alliedmods.net/showthread.php?t=107104"
+	url = "https://forums.alliedmods.net/showthread.php?t=228086"
 }
 
 // Updated in Prophunt Redux from Source SDK 2013's const.h
