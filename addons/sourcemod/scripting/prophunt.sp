@@ -20,7 +20,6 @@
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
-#include <optin_multimod>
 #include <readgamesounds>
 
 #define PL_VERSION "3.0.0 beta 3"
@@ -36,6 +35,10 @@
 #define SELECTOR_PORTS "27019"
 #include <selector>
 #endif
+
+// Include support for Opt-In MultiMod
+// Default: OFF
+//#define OIMM
 
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
@@ -61,13 +64,18 @@
 // Default: 2
 #define SHOTGUN_MAX_AMMO 2
 
+// Deprecated and switched to ph_antihack cvar
 // Anti-exploit system
 // Default: ON
-#define ANTIHACK
+//#define ANTIHACK
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
+
+#if defined OIMM
+#include <optin_multimod>
+#endif 
 
 #define FLAMETHROWER "models/weapons/w_models/w_flamethrower.mdl"
 
@@ -214,7 +222,9 @@ new String:g_AdText[128] = "";
 new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
+#if defined OIMM
 new bool:g_OptinMultiMod = false;
+#endif
 
 new bool:g_Enabled = true;
 
@@ -512,15 +522,17 @@ ReadCommonPropData()
 public OnAllPluginsLoaded()
 {
 	g_SteamTools = LibraryExists("SteamTools");
-	g_OptinMultiMod = LibraryExists("optin_multimod");
 	if (g_SteamTools)
 	{
 		UpdateGameDescription();
 	}
+#if defined OIMM
+	g_OptinMultiMod = LibraryExists("optin_multimod");
 	if (g_OptinMultiMod)
 	{
 		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
 	}
+#endif
 }
 
 loadGlobalConfig()
@@ -545,11 +557,13 @@ public OnLibraryAdded(const String:name[])
 		g_SteamTools = true;
 		UpdateGameDescription();
 	}
+#if defined OIMM	
 	else
 	if (StrEqual(name, "optin_multimod", false))
 	{
 		g_OptinMultiMod = true;
 	}
+#endif
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -558,11 +572,13 @@ public OnLibraryRemoved(const String:name[])
 	{
 		g_SteamTools = false;
 	}
+#if defined OIMM
 	else
 	if (StrEqual(name, "optin_multimod", false))
 	{
 		g_OptinMultiMod = false;
 	}
+#endif
 }
 
 public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -1347,10 +1363,12 @@ public OnPluginEnd()
 	{
 		Steam_SetGameDescription("Team Fortress");
 	}
+#if defined OIMM
 	if (g_OptinMultiMod)
 	{
 		OptInMultiMod_Unregister("Prop Hunt");
 	}
+#endif
 }
 
 public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3], damagecustom)
@@ -3267,10 +3285,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	return Plugin_Continue;
 }
 
+#if defined OIMM
 public MultiMod_Status(bool:enabled)
 {
 	SetConVarBool(g_PHEnable, enabled);
 }
+#endif
 
 public bool:ValidateMap(const String:map[])
 {
