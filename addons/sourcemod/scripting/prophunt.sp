@@ -979,14 +979,14 @@ public OnConfigsExecuted()
 	UpdateGameDescription(true);
 }
 
-StartTimers()
+StartTimers(bool:noScoreTimer = false)
 {
 	if (g_hLocked == INVALID_HANDLE)
 	{
 		g_hLocked = CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
 	}
 		
-	if (g_hScore == INVALID_HANDLE)
+	if (!noScoreTimer && g_hScore == INVALID_HANDLE)
 	{
 		g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
 	}
@@ -2443,7 +2443,7 @@ public Action:Timer_teamplay_round_start(Handle:timer)
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	
-	StartTimers();
+	StartTimers(true);
 	
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
@@ -3005,6 +3005,13 @@ public Action:Timer_Score(Handle:timer, any:entity)
 //public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
 public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 {
+	if (g_hScore != INVALID_HANDLE)
+	{
+		CloseHandle(g_hScore);
+	}
+	g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+	TriggerTimer(g_hScore);
+	
 #if defined LOG
 	LogMessage("[PH] Timer_Start");
 #endif
