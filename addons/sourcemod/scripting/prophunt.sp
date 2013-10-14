@@ -207,6 +207,7 @@ new Handle:g_PHGameDescription = INVALID_HANDLE;
 new Handle:g_PHAirblast = INVALID_HANDLE;
 new Handle:g_PHAntiHack = INVALID_HANDLE;
 new Handle:g_PHReroll = INVALID_HANDLE;
+new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -364,6 +365,7 @@ public OnPluginStart()
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
+	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -390,6 +392,7 @@ public OnPluginStart()
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
 	HookConVarChange(g_PHAntiHack, OnAntiHackChanged);
+	HookConVarChange(g_PHStaticPropInfo, OnAntiHackChanged);
 	HookConVarChange(g_PHAirblast, OnAirblastChanged);
 	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
 
@@ -569,11 +572,11 @@ public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const St
 
 public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	if (GetConVarBool(g_PHAntiHack) && g_hAntiHack == INVALID_HANDLE)
+	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
 	}
-	else if (!GetConVarBool(g_PHAntiHack) && g_hAntiHack != INVALID_HANDLE)
+	else if (!GetConVarBool(g_PHAntiHack) && !GetConVarBool(g_PHStaticPropInfo) && g_hAntiHack != INVALID_HANDLE)
 	{
 		CloseHandle(g_hAntiHack);
 		g_hAntiHack = INVALID_HANDLE;
@@ -956,7 +959,6 @@ public OnConfigsExecuted()
 	if (g_Enabled)
 	{
 		SetCVars();
-		StartTimers();
 	}
 	UpdateGameDescription(true);
 }
@@ -973,7 +975,7 @@ StartTimers()
 		g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
 	}
 
-	if (GetConVarBool(g_PHAntiHack) && g_hAntiHack == INVALID_HANDLE)
+	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
 	}
@@ -2146,6 +2148,7 @@ public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	StopTimers();
 #if defined LOG
 	LogMessage("[PH] round end");
 #endif
@@ -2360,6 +2363,7 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	StopTimers();
 	g_inPreRound = true;
 	
 	if (!g_Enabled)
@@ -2420,6 +2424,9 @@ public Action:Timer_teamplay_round_start(Handle:timer)
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	
+	StartTimers();
+	
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
@@ -2910,12 +2917,12 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
 			{
-				if (!IsFakeClient(client))
+				if (GetConVarBool(g_PHStaticPropInfo) && !IsFakeClient(client))
 				{
 					QueryClientConVar(client, "r_staticpropinfo", QueryStaticProp);
 				}
 				
-				if(GetClientTeam(client) == _:TFTeam_Red && TF2_GetPlayerClass(client) == g_defaultClass[red])
+				if(GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == _:TFTeam_Red && TF2_GetPlayerClass(client) == g_defaultClass[red])
 				{
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
