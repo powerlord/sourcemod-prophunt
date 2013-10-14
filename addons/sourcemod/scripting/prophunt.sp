@@ -23,7 +23,7 @@
 #include <optin_multimod>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 2"
+#define PL_VERSION "3.0.0 beta 3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -357,13 +357,13 @@ public OnPluginStart()
 
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
-	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admin only (use propmenu override), 1 = all players");
+	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
-	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admin only (use propreroll override), 1 = all players");
+	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -416,8 +416,8 @@ public OnPluginStart()
 
 	RegConsoleCmd("help", Command_motd);
 	//RegConsoleCmd("motd", Command_motd);
-	RegConsoleCmd("propmenu", Command_propmenu);
-	RegConsoleCmd("propreroll", Command_propreroll);
+	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
+	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
 
 	AddFileToDownloadsTable("sound/prophunt/found.mp3");
 	AddFileToDownloadsTable("sound/prophunt/snaaake.mp3");
@@ -1490,7 +1490,7 @@ public Action:Command_propmenu(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 1 || (GetConVarInt(g_PHPropMenu) == 0) && CheckCommandAccess(client, "propmenu", ADMFLAG_KICK, true))
+	if(GetConVarInt(g_PHPropMenu) == 0)
 	{
 		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
 		{
@@ -1528,7 +1528,7 @@ public Action:Command_propreroll(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHReroll) == 1 || (GetConVarInt(g_PHReroll) == 0) && CheckCommandAccess(client, "propreroll", ADMFLAG_KICK, true))
+	if(GetConVarInt(g_PHReroll) == 0)
 	{
 		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
 		{
