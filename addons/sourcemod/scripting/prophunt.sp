@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 3"
+#define PL_VERSION "3.0.0 beta 4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1031,9 +1031,12 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 	}
 	else
 	{
-		ResetCVars();
+		if (g_Enabled)
+		{
+			ResetCVars();
+			g_Enabled = false;
+		}
 		StopTimers();
-		g_Enabled = false;
 	}
 	UpdateGameDescription();
 }
@@ -1221,7 +1224,10 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
-	ResetCVars();
+	if (g_Enabled)
+	{
+		ResetCVars();
+	}
 	StopTimers();
 }
 
@@ -1358,7 +1364,10 @@ public OnPluginEnd()
 #if defined STATS
 	Stats_Uninit();
 #endif
-	ResetCVars();
+	if (g_Enabled)
+	{
+		ResetCVars();
+	}
 	if (g_SteamTools)
 	{
 		Steam_SetGameDescription("Team Fortress");
