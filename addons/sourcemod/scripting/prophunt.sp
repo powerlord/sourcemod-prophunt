@@ -275,6 +275,8 @@ new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
 new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 
+new bool:g_CvarsSet;
+
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
@@ -939,10 +941,15 @@ SetCVars(){
 
 	g_SolidObjects = GetConVarInt(g_hSolidObjects);
 	SetConVarInt(g_hSolidObjects, 0, true);
+	
+	g_CvarsSet = true;
 }
 
 ResetCVars()
 {
+	if (!g_CvarsSet)
+		return;
+	
 	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
@@ -966,6 +973,8 @@ ResetCVars()
 	SetConVarInt(g_hWaitingForPlayerTime, g_WaitingForPlayerTime, true);
 	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
 	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
+	
+	g_CvarsSet = false;
 }
 
 public OnConfigsExecuted()
@@ -1026,17 +1035,14 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 		if (g_Enabled)
 		{
 			SetCVars();
+			StartTimers();
 		}
-		StartTimers();
 	}
 	else
 	{
-		if (g_Enabled)
-		{
-			ResetCVars();
-			g_Enabled = false;
-		}
+		ResetCVars();
 		StopTimers();
+		g_Enabled = false;
 	}
 	UpdateGameDescription();
 }
@@ -1224,10 +1230,8 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
-	if (g_Enabled)
-	{
-		ResetCVars();
-	}
+	
+	ResetCVars();
 	StopTimers();
 }
 
@@ -1364,10 +1368,7 @@ public OnPluginEnd()
 #if defined STATS
 	Stats_Uninit();
 #endif
-	if (g_Enabled)
-	{
-		ResetCVars();
-	}
+	ResetCVars();
 	if (g_SteamTools)
 	{
 		Steam_SetGameDescription("Team Fortress");
