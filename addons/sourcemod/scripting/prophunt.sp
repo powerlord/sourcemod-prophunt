@@ -1233,6 +1233,7 @@ public OnMapEnd()
 	
 	ResetCVars();
 	StopTimers();
+	g_Enabled = false;
 }
 
 public OnMapStart()
