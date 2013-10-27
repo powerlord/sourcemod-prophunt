@@ -1618,7 +1618,10 @@ public OnClientPutInServer(client)
 	if (!g_Enabled)
 		return;
 	
-	SendConVarValue(client, g_hArenaRoundTime, "600");
+	if (!IsFakeClient(client))
+	{
+		SendConVarValue(client, g_hArenaRoundTime, "600");
+	}
 	ResetPlayer(client);
 }
 
