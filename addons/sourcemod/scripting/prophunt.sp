@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 4"
+#define PL_VERSION "3.0.0 beta 5"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -130,6 +130,13 @@ enum PropData
 	String:PropData_Name[MAXMODELNAME],
 	String:PropData_Offset[32], // 3 digits, plus 2 spaces, plus a null terminator
 	String:PropData_Rotation[32], // 3 digits, plus 2 spaces, plus a null terminator
+}
+
+enum RoundChange
+{
+	RoundChange_NoChange,
+	RoundChange_Enable,
+	RoundChange_Disable,
 }
 
 new bool:g_RoundOver = true;
@@ -276,6 +283,8 @@ new g_ReplacementCount[MAXPLAYERS+1];
 new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 
 new bool:g_CvarsSet;
+
+new RoundChange:g_RoundChange;
 
 public Plugin:myinfo =
 {
@@ -1031,20 +1040,39 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 {
 	if (GetConVarBool(g_PHEnable))
 	{
-		g_Enabled = IsPropHuntMap();
 		if (g_Enabled)
 		{
-			SetCVars();
-			StartTimers();
+			g_RoundChange = RoundChange_NoChange; // Reset in case it was RoundChange_Disable
+		}
+		else
+		{
+			new bool:enabled = IsPropHuntMap();
+			if (enabled)
+			{
+				g_RoundChange = RoundChange_Enable;
+			}
+			else
+			{
+				g_RoundChange = RoundChange_NoChange;
+			}
 		}
 	}
 	else
 	{
+		if (g_Enabled)
+		{
+			g_RoundChange = RoundChange_Disable;
+		}
+		else
+		{
+			g_RoundChange = RoundChange_NoChange;
+		}
+		
+
 		ResetCVars();
 		StopTimers();
 		g_Enabled = false;
 	}
-	UpdateGameDescription();
 }
 
 public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -2396,11 +2424,29 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	StopTimers();
-	g_inPreRound = true;
+
+	switch (g_RoundChange)
+	{
+		case RoundChange_Enable:
+		{
+			g_Enabled = true;
+			SetCVars();
+			UpdateGameDescription();			
+		}
+		
+		case RoundChange_Disable:
+		{
+			g_Enabled = false;
+			ResetCVars();
+			UpdateGameDescription();
+		}
+	}
 	
 	if (!g_Enabled)
 		return;
 
+	g_inPreRound = true;
+	
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsFakeClient(i))
@@ -2457,8 +2503,6 @@ public Action:Timer_teamplay_round_start(Handle:timer)
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	
-	StartTimers(true);
-	
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
@@ -2466,6 +2510,8 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	
 	if (!g_Enabled)
 		return;
+	
+	StartTimers(true);
 	
 	if(g_RoundOver)
 	{
