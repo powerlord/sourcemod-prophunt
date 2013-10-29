@@ -2431,7 +2431,8 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = true;
 			SetCVars();
-			UpdateGameDescription();			
+			UpdateGameDescription();
+			g_RoundChange = RoundChange_NoChange;
 		}
 		
 		case RoundChange_Disable:
@@ -2439,6 +2440,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 			g_Enabled = false;
 			ResetCVars();
 			UpdateGameDescription();
+			g_RoundChange = RoundChange_NoChange;			
 		}
 	}
 	
