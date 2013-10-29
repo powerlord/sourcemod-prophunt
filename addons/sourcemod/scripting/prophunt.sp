@@ -1067,11 +1067,6 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 		{
 			g_RoundChange = RoundChange_NoChange;
 		}
-		
-
-		ResetCVars();
-		StopTimers();
-		g_Enabled = false;
 	}
 }
 
