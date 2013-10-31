@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 5"
+#define PL_VERSION "3.0.0 beta 6"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1206,7 +1206,7 @@ public Action:OnCPMasterSpawned(entity)
 		return Plugin_Continue;
 	}
 	
-	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 1);
+	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
 
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
@@ -2220,10 +2220,8 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	DbRound(winner);
 #endif
 
-	if (GetEventInt(event, "winreason") == 2)
-	{
-		CreateTimer(GetConVarInt(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
-	}
+	CreateTimer(GetConVarInt(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
 //	new team, client;
@@ -2304,6 +2302,8 @@ public Action:Timer_ChangeTeam(Handle:timer)
 		else
 		if (GetClientTeam(i) == _:TFTeam_Red)
 		{
+			SetVariantString("");
+			AcceptEntityInput(i, "SetCustomModel");
 			ChangeClientTeamAlive(i, _:TFTeam_Blue);
 		}
 		
@@ -2570,11 +2570,11 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new blue = _:TFTeam_Blue - 2;
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (IsValidClient(client, false)){			
+	if (IsValidClient(client, false)){
 		SetVariantString("");
 		AcceptEntityInput(client, "SetCustomModel");
 	}
-		
+	
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client))
