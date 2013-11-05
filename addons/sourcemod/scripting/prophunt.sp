@@ -3210,14 +3210,14 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		// If they're not the last prop, don't give them anything
 		if (!g_LastProp)
 		{
-			return Plugin_Handled;
+			return Plugin_Stop;
 		}
 		
 		// Block wearables, action items, and canteens for Props
 		// From testing, Action items still work even if you block them
 		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle"))
 		{
-			return Plugin_Handled;
+			return Plugin_Stop;
 		}
 	}
 
