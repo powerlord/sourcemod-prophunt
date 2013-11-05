@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 6"
+#define PL_VERSION "3.0.0 beta 7"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -3215,7 +3215,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		
 		// Block wearables, action items, and canteens for Props
 		// From testing, Action items still work even if you block them
-		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle"))
+		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle") || StrEqual(classname, "tf_weapon_spellbook"))
 		{
 			return Plugin_Stop;
 		}
