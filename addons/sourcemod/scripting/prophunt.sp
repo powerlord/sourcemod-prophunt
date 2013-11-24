@@ -3215,7 +3215,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		
 		// Block wearables, action items, and canteens for Props
 		// From testing, Action items still work even if you block them
-		if (StrEqual(classname, "tf_wearable") || StrEqual(classname, "tf_powerup_bottle") || StrEqual(classname, "tf_weapon_spellbook"))
+		if (StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
 		{
 			return Plugin_Stop;
 		}
