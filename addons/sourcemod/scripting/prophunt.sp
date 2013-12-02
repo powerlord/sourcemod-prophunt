@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 7"
+#define PL_VERSION "3.0.0 beta 8"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -3236,15 +3236,15 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 
 	if (replace)
 	{
-		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
-		if (!StrEqual(classname, pieces[Item_Classname], false))
-		{
+//		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
+//		if (!StrEqual(classname, pieces[Item_Classname], false))
+//		{
 			g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
 			return Plugin_Stop;
-		}
+//		}
 		
-		flags |= OVERRIDE_ALL;
-		flags &= ~OVERRIDE_CLASSNAME; // This hasn't worked for a while
+//		flags |= OVERRIDE_ALL;
+//		flags &= ~OVERRIDE_CLASSNAME; // This hasn't worked for a while
 	}
 
 	// If we're supposed to remove it, just block it here
