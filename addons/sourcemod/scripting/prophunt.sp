@@ -3214,6 +3214,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
+	// Spectators shouldn't have their items
+	if (IsClientObserver(client) || !IsPlayerAlive(client))
+	{
+		return Plugin_Stop;
+	}
+	
 	if (GetClientTeam(client) == _:TFTeam_Red)
 	{
 		// If they're not the last prop, don't give them anything
