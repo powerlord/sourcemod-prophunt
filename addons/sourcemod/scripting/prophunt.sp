@@ -22,7 +22,7 @@
 #include <tf2attributes>
 #include <readgamesounds>
 
-#define PL_VERSION "3.0.0 beta 8"
+#define PL_VERSION "3.0.0 beta 9"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -285,6 +285,7 @@ new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 new bool:g_CvarsSet;
 
 new RoundChange:g_RoundChange;
+new bool:g_MapRunning = false;
 
 public Plugin:myinfo =
 {
@@ -990,6 +991,8 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && IsPropHuntMap();
 	
+	g_MapRunning = true;
+
 	if (g_Enabled)
 	{
 		SetCVars();
@@ -1038,6 +1041,11 @@ StopTimers()
 
 public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
+	if (!g_MapRunning)
+	{
+		return;
+	}
+	
 	if (GetConVarBool(g_PHEnable))
 	{
 		if (g_Enabled)
@@ -1253,6 +1261,7 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
+	g_MapRunning = false;
 	
 	ResetCVars();
 	StopTimers();
