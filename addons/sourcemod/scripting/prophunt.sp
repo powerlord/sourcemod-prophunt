@@ -17,10 +17,10 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
+#include <readgamesounds>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
-#include <readgamesounds>
 
 #define PL_VERSION "3.0.0 beta 9"
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -286,6 +286,8 @@ new bool:g_CvarsSet;
 
 new RoundChange:g_RoundChange;
 new bool:g_MapRunning = false;
+
+new bool:g_CurrentlyFlying[MAXPLAYERS+1];
 
 public Plugin:myinfo =
 {
@@ -1266,6 +1268,8 @@ public OnMapEnd()
 	ResetCVars();
 	StopTimers();
 	g_Enabled = false;
+	for (new client = 1; client<=MaxClients; client++)
+		g_CurrentlyFlying[client] = false;
 }
 
 public OnMapStart()
@@ -1868,24 +1872,52 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
 	{
-		new Float:damage;
-		
-		new String:weaponIndex[10];
-		IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
-		
-		if (!GetTrieValue(g_hWeaponSelfDamage, weaponIndex, damage))
-		{
-			damage = 10.0;
-		}
-		
-		SDKHooks_TakeDamage(client, client, weapon, damage, DMG_PREVENT_PHYSICS_FORCE);
-		
-		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0) AddVelocity(client, 1.0);
+		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0)
+			g_CurrentlyFlying[client] = true;
+		else
+			DoSelfDamage(client, weapon);
 		
 		result = false;
 		return Plugin_Handled;
 	}
 	return Plugin_Continue;
+}
+
+public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
+{
+	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlying[client])
+	{
+		return Plugin_Continue;
+	}
+	
+	if (buttons & IN_ATTACK != IN_ATTACK)
+	{
+		g_CurrentlyFlying[client] = false;
+		return Plugin_Continue;
+	}
+
+	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
+	{
+		DoSelfDamage(client, weapon);
+
+		AddVelocity(client, 1.0);
+	}	
+	return Plugin_Continue;
+}
+
+stock DoSelfDamage(client, weapon)
+{
+	new Float:damage;
+	
+	new String:weaponIndex[10];
+	IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
+	
+	if (!GetTrieValue(g_hWeaponSelfDamage, weaponIndex, damage))
+	{
+		damage = 10.0;
+	}
+	
+	SDKHooks_TakeDamage(client, client, weapon, damage, DMG_PREVENT_PHYSICS_FORCE);
 }
 
 stock AddVelocity (client, Float:speed){
@@ -2237,6 +2269,8 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	new client;
 	for(client=1; client <= MaxClients; client++)
 	{
+		g_CurrentlyFlying[client] = false;
+		
 		if(IsClientInGame(client))
 		{
 #if defined STATS
