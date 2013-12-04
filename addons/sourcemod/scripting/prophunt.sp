@@ -2708,6 +2708,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	}
 	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	g_CurrentlyFlying[client] = false;
 
 	if(IsClientInGame(client) && GetClientTeam(client) == _:TFTeam_Red)
 	{
