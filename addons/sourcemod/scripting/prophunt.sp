@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.0.0 beta 9"
+#define PL_VERSION "3.0.0 beta 10"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -288,6 +288,9 @@ new RoundChange:g_RoundChange;
 new bool:g_MapRunning = false;
 
 new bool:g_CurrentlyFlying[MAXPLAYERS+1];
+new g_FlyCount[MAXPLAYERS+1];
+
+#define FLY_COUNT 3
 
 public Plugin:myinfo =
 {
@@ -1269,7 +1272,10 @@ public OnMapEnd()
 	StopTimers();
 	g_Enabled = false;
 	for (new client = 1; client<=MaxClients; client++)
+	{
 		g_CurrentlyFlying[client] = false;
+		g_FlyCount[client] = 0;
+	}
 }
 
 public OnMapStart()
@@ -1653,6 +1659,8 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 
 public OnClientPutInServer(client)
 {
+	SDKHook(client, SDKHook_WeaponSwitchPost, WeaponSwitch);
+	
 	if (!g_Enabled)
 		return;
 	
@@ -1873,7 +1881,10 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
 	{
 		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0)
+		{
 			g_CurrentlyFlying[client] = true;
+			g_FlyCount[client] = 0;
+		}
 		else
 			DoSelfDamage(client, weapon);
 		
@@ -1890,19 +1901,39 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		return Plugin_Continue;
 	}
 	
+	// Thanks to SM/Valve returning 0 for the weapon arg...
+	new realWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if (buttons & IN_ATTACK != IN_ATTACK)
 	{
 		g_CurrentlyFlying[client] = false;
+		g_FlyCount[client] = 0;
 		return Plugin_Continue;
 	}
 
-	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
+	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(realWeapon) && g_FlyCount[client]++ % FLY_COUNT == 0)
 	{
-		DoSelfDamage(client, weapon);
+		DoSelfDamage(client, realWeapon);
 
 		AddVelocity(client, 1.0);
 	}	
 	return Plugin_Continue;
+}
+
+public WeaponSwitch(client, weapon)
+{
+	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlying[client])
+	{
+		return;
+	}
+	
+	new String:weaponname[64];
+	GetEntityClassname(weapon, weaponname, sizeof(weaponname));
+	
+	if(strcmp(weaponname, "tf_weapon_flamethrower") != 0)
+	{
+		g_CurrentlyFlying[client] = false;
+		g_FlyCount[client] = 0;
+	}
 }
 
 stock DoSelfDamage(client, weapon)
@@ -2270,6 +2301,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	for(client=1; client <= MaxClients; client++)
 	{
 		g_CurrentlyFlying[client] = false;
+		g_FlyCount[client] = 0;
 		
 		if(IsClientInGame(client))
 		{
@@ -2709,7 +2741,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_CurrentlyFlying[client] = false;
-
+	g_FlyCount[client] = 0;
+	
 	if(IsClientInGame(client) && GetClientTeam(client) == _:TFTeam_Red)
 	{
 #if defined LOG
