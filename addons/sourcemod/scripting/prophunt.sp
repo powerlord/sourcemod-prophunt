@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.0.0 beta 10"
+#define PL_VERSION "3.0.0 beta 11"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -239,6 +239,7 @@ new bool:g_Enabled = true;
 new Handle:g_hAntiHack;
 new Handle:g_hLocked;
 new Handle:g_hScore;
+new Handle:g_hFlyTimer;
 
 // Valve CVars we're going to save and adjust
 new Handle:g_hArenaRoundTime;
@@ -290,7 +291,7 @@ new bool:g_MapRunning = false;
 new bool:g_CurrentlyFlying[MAXPLAYERS+1];
 new g_FlyCount[MAXPLAYERS+1];
 
-#define FLY_COUNT 3
+#define FLY_COUNT 4
 
 public Plugin:myinfo =
 {
@@ -1021,6 +1022,11 @@ StartTimers(bool:noScoreTimer = false)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
 	}
+	
+	if (g_hFlyTimer == INVALID_HANDLE)
+	{
+		g_hFlyTimer = CreateTimer(0.1, Timer_Fly, 0, TIMER_REPEAT);
+	}
 }
 
 StopTimers()
@@ -1041,6 +1047,12 @@ StopTimers()
 	{
 		CloseHandle(g_hScore);
 		g_hScore = INVALID_HANDLE;
+	}
+	
+	if (g_hFlyTimer != INVALID_HANDLE)
+	{
+		CloseHandle(g_hFlyTimer);
+		g_hFlyTimer = INVALID_HANDLE;
 	}
 }
 
@@ -1901,8 +1913,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		return Plugin_Continue;
 	}
 	
-	// Thanks to SM/Valve returning 0 for the weapon arg...
-	new realWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if (buttons & IN_ATTACK != IN_ATTACK)
 	{
 		g_CurrentlyFlying[client] = false;
@@ -1910,12 +1920,33 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 		return Plugin_Continue;
 	}
 
-	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(realWeapon) && g_FlyCount[client]++ % FLY_COUNT == 0)
-	{
-		DoSelfDamage(client, realWeapon);
+	return Plugin_Continue;
+}
 
-		AddVelocity(client, 1.0);
-	}	
+public Action:Timer_Fly(Handle:timer)
+{
+	if (!g_Enabled || g_RoundOver)
+	{
+		return Plugin_Continue;
+	}
+	
+	for (new client = 1; client <= MaxClients; client++)
+	{
+		// Originally this did a team check, but assume their team is correct if g_CurrentlyFlying is set
+		if (!IsClientInGame(client) || !g_CurrentlyFlying[client] || GetClientTeam(client) != _:TFTeam_Red || !IsPlayerAlive(client))
+		{
+			continue;
+		}
+		
+		new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		
+		if (IsValidEntity(weapon))
+		{
+			DoSelfDamage(client, weapon);
+			AddVelocity(client, 1.0);
+		}
+	}
+	
 	return Plugin_Continue;
 }
 
