@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.0.0 beta 12"
+#define PL_VERSION "3.0.0 beta 13"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2830,7 +2830,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 	}
 
-	if(playas == 2 && !g_RoundOver && GetClientTeam(client) == _:TFTeam_Red)
+	if(!g_LastProp && playas == 2 && !g_RoundOver && GetClientTeam(client) == _:TFTeam_Red)
 	{
 		g_LastProp = true;
 		PH_EmitSoundToAll("OneAndOnly", _, _, SNDLEVEL_AIRCRAFT);
