@@ -289,8 +289,11 @@ new bool:g_MapRunning = false;
 
 new bool:g_CurrentlyFlying[MAXPLAYERS+1];
 new g_FlyCount[MAXPLAYERS+1];
-
 #define FLY_COUNT 3
+
+#define PROP_DAMAGE_TIME 3
+new g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
+new g_LastPropPlayer = 0;
 
 public Plugin:myinfo =
 {
@@ -554,7 +557,7 @@ public OnAllPluginsLoaded()
 
 loadGlobalConfig()
 {
-	decl String:Path[256];
+	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prophunt_config.cfg");
 	g_ConfigKeyValues = CreateKeyValues("prophunt_config");
 	if (!FileToKeyValues(g_ConfigKeyValues, Path))
@@ -1281,6 +1284,12 @@ public OnMapEnd()
 public OnMapStart()
 {
 	// workaround no win panel event - admin changes, rtv, etc.
+	g_LastProp = false;
+	for (new client = 1; client <= MaxClients; client++)
+	{
+		g_LastPropDamageTime[client] = -1;
+	}
+	g_LastPropPlayer = 0;
 	g_RoundOver = true;
 	//g_inPreRound = true;
 	
@@ -1311,7 +1320,7 @@ public OnMapStart()
 	AddMenuItem(g_PropMenu, "models/player/pyro.mdl", "models/player/pyro.mdl");
 	AddMenuItem(g_PropMenu, "models/props_halloween/ghost.mdl", "models/props_halloween/ghost.mdl");
 
-	decl String:confil[192], String:buffer[256], String:offset[32], String:rotation[32], String:tidyname[2][32], String:maptidyname[128];
+	decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32], String:tidyname[2][32], String:maptidyname[128];
 	ExplodeString(g_Mapname, "_", tidyname, 2, 32);
 	Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
@@ -1431,17 +1440,19 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 		return Plugin_Continue;
 	}
 	
-	if(victim > 0 && attacker > 0 && victim < MaxClients && attacker < MaxClients && IsClientInGame(victim) && IsPlayerAlive(victim) && GetClientTeam(victim) == _:TFTeam_Red
-			&& IsClientInGame(attacker) && GetClientTeam(attacker) == _:TFTeam_Blue)
+	if(victim > 0 && attacker > 0 && victim <= MaxClients && attacker <= MaxClients && IsClientInGame(victim) && IsClientInGame(attacker))
 	{
-
-		if(!g_Hit[victim])
+		if (IsPlayerAlive(victim) && GetClientTeam(victim) == _:TFTeam_Red && GetClientTeam(attacker) == _:TFTeam_Blue && !g_Hit[victim])
 		{
 			new Float:pos[3];
 			GetClientAbsOrigin(victim, pos);
 			PH_EmitSoundToClient(victim, "PropFound", _, SNDCHAN_WEAPON, _, _, 0.8, _, victim, pos);
 			PH_EmitSoundToClient(attacker, "PropFound", _, SNDCHAN_WEAPON, _, _, 0.8, _, victim, pos);
 			g_Hit[victim] = true;
+		}
+		else if (g_LastProp && IsPlayerAlive(attacker) && GetClientTeam(victim) == _:TFTeam_Blue && GetClientTeam(attacker) == _:TFTeam_Red)
+		{
+			g_LastPropDamageTime[victim] = GetTime();
 		}
 	}
 	
@@ -1465,7 +1476,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 		return Plugin_Changed;
 	}
 
-	if(GetConVarBool(g_PHPreventFallDamage) && damagetype & DMG_FALL && victim > 0 && victim < MaxClients && IsClientInGame(victim) && attacker == 0)
+	if(GetConVarBool(g_PHPreventFallDamage) && damagetype & DMG_FALL && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -2318,6 +2329,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	{
 		g_CurrentlyFlying[client] = false;
 		g_FlyCount[client] = 0;
+		g_LastPropDamageTime[client] = -1;
 		
 		if(IsClientInGame(client))
 		{
@@ -2754,6 +2766,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	{
 		return Plugin_Continue;
 	}
+	new bool:changed = false;
 	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_CurrentlyFlying[client] = false;
@@ -2774,10 +2787,10 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
+	new assisterID = GetEventInt(event, "assister");
 	
 #if defined STATS
 	decl String:weapon[64];
-	new assisterID = GetEventInt(event, "assister");
 	new attackerID = GetEventInt(event, "attacker");
 	new clientID = GetEventInt(event, "userid");
 	new weaponid = GetEventInt(event, "weaponid");
@@ -2785,10 +2798,11 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 #endif
 
 	if(!g_RoundOver)
-	g_Spawned[client] = false;
+		g_Spawned[client] = false;
 
 	g_Hit[client] = false;
-
+	
+	// I would move this, but I'm not sure if it's used by STATS
 	new playas = 0;
 	for(new i=1; i <= MaxClients; i++)
 	{
@@ -2797,14 +2811,31 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 			playas++;
 		}
 	}
-
-
-	if(!g_RoundOver && GetClientTeam(client) == _:TFTeam_Red)
+	
+	if (GetClientTeam(client) == _:TFTeam_Blue)
 	{
-
-		PH_EmitSoundToClient(client, "PropDeath");
+		if (!g_RoundOver && g_LastProp && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime())
+		{
+			assister = g_LastPropPlayer;
+			assisterID = GetClientUserId(g_LastPropPlayer);
+			
+			SetEventInt(event, "assister", assisterID);
+			changed = true;
+		}
 	}
-
+	else if (GetClientTeam(client) == _:TFTeam_Red)
+	{
+		if(!g_RoundOver)
+		{
+			PH_EmitSoundToClient(client, "PropDeath");
+		}
+		
+		// This is to kill the particle effects from the Harvest Ghost prop and the like
+		// Moved to RED-only section so we don't kill unusual effects.
+		SetVariantString("ParticleEffectStop");
+		AcceptEntityInput(client, "DispatchEffect");
+	}
+	
 	if(!g_RoundOver)
 	{
 		if(client > 0 && attacker > 0 && IsClientInGame(client) && IsClientInGame(attacker) && client != attacker)
@@ -2841,6 +2872,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 			{
 				if(GetClientTeam(client2) == _:TFTeam_Red)
 				{
+					g_LastPropPlayer = client2;
 					TF2_RegeneratePlayer(client2);
 					CreateTimer(0.1, Timer_WeaponAlpha, client2);
 				}
@@ -2853,9 +2885,10 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 #endif
 	}
-	// This is to kill the particle effects from the Harvest Ghost prop and the like
-	SetVariantString("ParticleEffectStop");
-	AcceptEntityInput(client, "DispatchEffect");
+	
+	if (changed)
+		return Plugin_Changed;
+		
 	return Plugin_Continue;
 }
 
@@ -3312,7 +3345,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			return Plugin_Stop;
 		}
 		
-		// Block wearables, action items, and canteens for Props
+		// Block wearables, action items, canteens, and spellbooks for Props
 		// From testing, Action items still work even if you block them
 		if (StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
 		{
