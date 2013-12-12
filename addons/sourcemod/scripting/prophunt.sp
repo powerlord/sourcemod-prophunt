@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.0.0 beta 13"
+#define PL_VERSION "3.0.0 beta 14"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2814,7 +2814,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	
 	if (GetClientTeam(client) == _:TFTeam_Blue)
 	{
-		if (!g_RoundOver && g_LastProp && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime())
+		if (!g_RoundOver && g_LastProp && (attacker == client || attacker < 1) && assister < 1 && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime())
 		{
 			assister = g_LastPropPlayer;
 			assisterID = GetClientUserId(g_LastPropPlayer);
