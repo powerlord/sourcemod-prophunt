@@ -69,6 +69,8 @@
 // Default: ON
 //#define ANTIHACK
 
+#define PROP_DAMAGE_TIME 5
+
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -137,6 +139,30 @@ enum RoundChange
 	RoundChange_NoChange,
 	RoundChange_Enable,
 	RoundChange_Disable,
+}
+
+enum
+{
+	ScoreData_Captures,
+	ScoreData_Defenses,
+	ScoreData_Kills,
+	ScoreData_Deaths,
+	ScoreData_Suicides,
+	ScoreData_Dominations,
+	ScoreData_Revenge,
+	ScoreData_BuildingsBuilt,
+	ScoreData_BuildingsDestroyed,
+	ScoreData_Headshots,
+	ScoreData_Backstabs,
+	ScoreData_HealPoints,
+	ScoreData_Invulns,
+	ScoreData_Teleports,
+	ScoreData_DamageDone,
+	ScoreData_Crits,
+	ScoreData_ResupplyPoints,
+	ScoreData_KillAssists,
+	ScoreData_BonusPoints,
+	ScoreData_Points
 }
 
 new bool:g_RoundOver = true;
@@ -291,7 +317,6 @@ new bool:g_CurrentlyFlying[MAXPLAYERS+1];
 new g_FlyCount[MAXPLAYERS+1];
 #define FLY_COUNT 3
 
-#define PROP_DAMAGE_TIME 3
 new g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
 new g_LastPropPlayer = 0;
 
@@ -1966,16 +1991,27 @@ public WeaponSwitch(client, weapon)
 stock DoSelfDamage(client, weapon)
 {
 	new Float:damage;
+	new attacker = client;
 	
 	new String:weaponIndex[10];
 	IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
+	
+	new String:weaponname[64];
+	GetEntityClassname(weapon, weaponname, sizeof(weaponname));
 	
 	if (!GetTrieValue(g_hWeaponSelfDamage, weaponIndex, damage))
 	{
 		damage = 10.0;
 	}
 	
-	SDKHooks_TakeDamage(client, client, weapon, damage, DMG_PREVENT_PHYSICS_FORCE);
+	if (g_LastProp && strcmp(weaponname, "tf_weapon_flamethrower") == 0 && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime() && damage >= GetEntProp(client, Prop_Send, "m_iHealth"))
+	{
+		attacker = g_LastPropPlayer;
+		weapon = 0;
+	}
+	
+	// Attacker shouldn't be the weapon, it should be the player
+	SDKHooks_TakeDamage(client, client, attacker, damage, DMG_PREVENT_PHYSICS_FORCE, weapon);
 }
 
 stock AddVelocity (client, Float:speed){
@@ -2766,7 +2802,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	{
 		return Plugin_Continue;
 	}
-	new bool:changed = false;
+	//new bool:changed = false;
 	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	g_CurrentlyFlying[client] = false;
@@ -2787,11 +2823,11 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
-	new assisterID = GetEventInt(event, "assister");
 	
 #if defined STATS
 	decl String:weapon[64];
 	new attackerID = GetEventInt(event, "attacker");
+	new assisterID = GetEventInt(event, "assister");
 	new clientID = GetEventInt(event, "userid");
 	new weaponid = GetEventInt(event, "weaponid");
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
@@ -2812,18 +2848,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 	}
 	
-	if (GetClientTeam(client) == _:TFTeam_Blue)
-	{
-		if (!g_RoundOver && g_LastProp && (attacker == client || attacker < 1) && assister < 1 && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime())
-		{
-			assister = g_LastPropPlayer;
-			assisterID = GetClientUserId(g_LastPropPlayer);
-			
-			SetEventInt(event, "assister", assisterID);
-			changed = true;
-		}
-	}
-	else if (GetClientTeam(client) == _:TFTeam_Red)
+	if (GetClientTeam(client) == _:TFTeam_Red)
 	{
 		if(!g_RoundOver)
 		{
@@ -2885,10 +2910,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 #endif
 	}
-	
-	if (changed)
-		return Plugin_Changed;
-		
+
 	return Plugin_Continue;
 }
 
