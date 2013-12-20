@@ -2,5 +2,4 @@
 {
 	"models/player/pyro.mdl" {}
 	"models/props_halloween/ghost.mdl" {}
-	"models/props_gameplay/cap_point_base.mdl" {}
 }
