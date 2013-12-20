@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.0.0"
+#define PL_VERSION "3.0.2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -518,6 +518,11 @@ public OnPluginStart()
 	}
 	g_PropData = CreateTrie();
 	ReadCommonPropData();
+	
+	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
+	g_ModelName = CreateArray(arraySize);
+	g_ModelOffset = CreateArray(arraySize);
+	g_ModelRotation = CreateArray(arraySize);
 	
 	AutoExecConfig(true, "prophunt_redux");
 }
@@ -1304,6 +1309,10 @@ public OnMapEnd()
 		g_CurrentlyFlying[client] = false;
 		g_FlyCount[client] = 0;
 	}
+	
+	ClearArray(g_ModelName);
+	ClearArray(g_ModelOffset);
+	ClearArray(g_ModelRotation);
 }
 
 public OnMapStart()
@@ -1322,10 +1331,6 @@ public OnMapStart()
 	
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
 
-	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
-	g_ModelName = CreateArray(arraySize);
-	g_ModelOffset = CreateArray(arraySize);
-	g_ModelRotation = CreateArray(arraySize);
 	PushArrayString(g_ModelName, "models/props_gameplay/cap_point_base.mdl");
 	PushArrayString(g_ModelOffset, "0 0 -2");
 	PushArrayString(g_ModelRotation, "0 0 0");
