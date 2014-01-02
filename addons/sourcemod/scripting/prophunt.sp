@@ -22,7 +22,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.1.0 alpha 1"
+#define PL_VERSION "3.0.2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -490,8 +490,7 @@ public OnPluginStart()
 	g_Sounds = CreateTrie();
 	g_BroadcastSounds = CreateTrie();
 	
-	// Don't do this at plugin start, but on configs executed
-	//loadGlobalConfig();
+	loadGlobalConfig();
 	
 	RegAdminCmd("ph_respawn", Command_respawn, ADMFLAG_ROOT, "Respawns you");
 	RegAdminCmd("ph_switch", Command_switch, ADMFLAG_BAN, "Switches to RED");
@@ -518,7 +517,8 @@ public OnPluginStart()
 		}
 	}
 	g_PropData = CreateTrie();
-
+	ReadCommonPropData();
+	
 	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
 	g_ModelName = CreateArray(arraySize);
 	g_ModelOffset = CreateArray(arraySize);
@@ -529,6 +529,8 @@ public OnPluginStart()
 
 ReadCommonPropData()
 {
+	ClearTrie(g_PropData);
+	
 	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_common.txt");
 	new Handle:propCommon = CreateKeyValues("propcommon");
@@ -596,9 +598,6 @@ loadGlobalConfig()
 	config_parseWeapons();
 	config_parseClasses();
 	config_parseSounds();
-	
-	ClearTrie(g_PropData);
-	ReadCommonPropData();
 }
 
 public OnLibraryAdded(const String:name[])
@@ -1028,152 +1027,14 @@ ResetCVars()
 
 public OnConfigsExecuted()
 {
-	new bool:bIsPHMap = IsPropHuntMap();
-	g_Enabled = GetConVarBool(g_PHEnable) && bIsPHMap;
+	g_Enabled = GetConVarBool(g_PHEnable) && IsPropHuntMap();
 	
 	g_MapRunning = true;
 
-	if (bIsPHMap)
-	{
-		GetCurrentMap(g_Mapname, sizeof(g_Mapname));
-		
-		decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32];
-		
-		new Handle:fl;
-		
-		if (g_PropMenu != INVALID_HANDLE)
-		{
-			CloseHandle(g_PropMenu);
-			g_PropMenu = INVALID_HANDLE;
-		}
-		g_PropMenu = CreateMenu(Handler_PropMenu);
-		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
-		SetMenuExitButton(g_PropMenu, true);
-		
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/prop_menu.txt");
-		
-		fl = CreateKeyValues("propmenu");
-		if (FileToKeyValues(fl, confil))
-		{
-			new count = 0;
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				count++;
-			}
-			while (KvGotoNextKey(fl));
-			
-			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Added %i models to prop menu.", GetMenuItemCount(g_PropMenu));
-		}
-		CloseHandle(fl);
-		
-		new sharedCount = 0;
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/props_allmaps.txt");
-		
-		fl = CreateKeyValues("sharedprops");
-		if (FileToKeyValues(fl, confil))
-		{
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-			}
-			while (KvGotoNextKey(fl));
-			
-			PrintToServer("Successfully parsed %s", confil);
-			sharedCount = GetArraySize(g_ModelName);
-			PrintToServer("Loaded Added %i models to prop menu.", sharedCount);
-		}
-		CloseHandle(fl);
-		
-		decl String:tidyname[2][32], String:maptidyname[128];
-		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
-		Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
-		fl = CreateKeyValues("prophuntmapconfig");
-		
-		if(!FileToKeyValues(fl, confil))
-		{
-			LogMessage("[PH] Config file for map %s not found at %s. Disabling plugin.", maptidyname, confil);
-			CloseHandle(fl);
-			g_Enabled = false;
-			return;
-		}
-		else
-		{
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			KvJumpToKey(fl, "Props", false);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-			}
-			while (KvGotoNextKey(fl));
-			KvRewind(fl);
-			KvJumpToKey(fl, "Settings", false);
-			
-			g_Doors = bool:KvGetNum(fl, "doors", 0);
-			g_Relay = bool:KvGetNum(fl, "relay", 0);
-			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
-			g_RoundTime = KvGetNum(fl, "round", 175);
-			
-			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
-		}
-		CloseHandle(fl);
-		
-		decl String:model[100];
-		
-		for(new i = 0; i < GetArraySize(g_ModelName); i++)
-		{
-			GetArrayString(g_ModelName, i, model, sizeof(model));
-			if(PrecacheModel(model, true) == 0)
-			{
-				RemoveFromArray(g_ModelName, i);
-			}
-		}
-		
-		PrecacheModel(FLAMETHROWER, true);
-		
-		/*new ent = FindEntityByClassname(-1, "team_control_point_master");
-			if (ent == 1)
-			{
-			AcceptEntityInput(ent, "Kill");
-			}
-			ent = CreateEntityByName("team_control_point_master");
-			DispatchKeyValue(ent, "switch_teams", "1");
-			DispatchSpawn(ent);
-		AcceptEntityInput(ent, "Enable");*/
-		
-		// workaround for CreateEntityByNsme
-		g_MapStarted = true;
-		
-		loadGlobalConfig();
-	}
-	
 	if (g_Enabled)
 	{
 		SetCVars();
 	}
-	
 	UpdateGameDescription(true);
 }
 
@@ -1448,20 +1309,10 @@ public OnMapEnd()
 		g_CurrentlyFlying[client] = false;
 		g_FlyCount[client] = 0;
 	}
-
+	
 	ClearArray(g_ModelName);
 	ClearArray(g_ModelOffset);
 	ClearArray(g_ModelRotation);
-
-	ClearArray(g_hWeaponRemovals);
-	ClearTrie(g_hWeaponNerfs);
-	ClearTrie(g_hWeaponSelfDamage);
-	ClearArray(g_hWeaponStripAttribs);
-	ClearTrie(g_hWeaponAddAttribs);
-	ClearTrie(g_hWeaponReplacements);
-	
-	ClearTrie(g_Sounds);
-	ClearTrie(g_BroadcastSounds);
 }
 
 public OnMapStart()
@@ -1476,6 +1327,100 @@ public OnMapStart()
 	g_RoundOver = true;
 	//g_inPreRound = true;
 	
+	ReadCommonPropData();
+	
+	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
+
+	PushArrayString(g_ModelName, "models/props_gameplay/cap_point_base.mdl");
+	PushArrayString(g_ModelOffset, "0 0 -2");
+	PushArrayString(g_ModelRotation, "0 0 0");
+	
+#if defined STATS
+	g_MapChanging = false;
+#endif
+
+	if (g_PropMenu != INVALID_HANDLE)
+	{
+		CloseHandle(g_PropMenu);
+		g_PropMenu = INVALID_HANDLE;
+	}
+	g_PropMenu = CreateMenu(Handler_PropMenu);
+	SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
+	SetMenuExitButton(g_PropMenu, true);
+	AddMenuItem(g_PropMenu, "models/player/pyro.mdl", "models/player/pyro.mdl");
+	AddMenuItem(g_PropMenu, "models/props_halloween/ghost.mdl", "models/props_halloween/ghost.mdl");
+
+	decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32], String:tidyname[2][32], String:maptidyname[128];
+	ExplodeString(g_Mapname, "_", tidyname, 2, 32);
+	Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
+	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
+	new Handle:fl = CreateKeyValues("prophuntmapconfig");
+
+	if(!FileToKeyValues(fl, confil))
+	{
+		LogMessage("[PH] Config file for map %s not found at %s. Disabling plugin.", maptidyname, confil);
+		CloseHandle(fl);
+		g_Enabled = false;
+		return;
+	}
+	else
+	{
+		PrintToServer("Successfully loaded %s", confil);
+		KvGotoFirstSubKey(fl);
+		KvJumpToKey(fl, "Props", false);
+		KvGotoFirstSubKey(fl);
+		do
+		{
+			KvGetSectionName(fl, buffer, sizeof(buffer));
+			PushArrayString(g_ModelName, buffer);
+			AddMenuItem(g_PropMenu, buffer, buffer);
+			KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
+			PushArrayString(g_ModelOffset, offset);
+			KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
+			PushArrayString(g_ModelRotation, rotation);
+		}
+		while (KvGotoNextKey(fl));
+		KvRewind(fl);
+		KvJumpToKey(fl, "Settings", false);
+
+		g_Doors = bool:KvGetNum(fl, "doors", 0);
+		g_Relay = bool:KvGetNum(fl, "relay", 0);
+		g_Freeze = bool:KvGetNum(fl, "freeze", 1);
+		g_RoundTime = KvGetNum(fl, "round", 175);
+
+		PrintToServer("Successfully parsed %s", confil);
+		PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-1, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
+	}
+	CloseHandle(fl);
+
+	decl String:model[100];
+
+	for(new i = 0; i < GetArraySize(g_ModelName); i++)
+	{
+		GetArrayString(g_ModelName, i, model, sizeof(model));
+		if(PrecacheModel(model, true) == 0)
+		{
+			RemoveFromArray(g_ModelName, i);
+		}
+	}
+
+	PrecacheModel(FLAMETHROWER, true);
+	
+	/*new ent = FindEntityByClassname(-1, "team_control_point_master");
+	if (ent == 1)
+	{
+		AcceptEntityInput(ent, "Kill");
+	}
+	ent = CreateEntityByName("team_control_point_master");
+	DispatchKeyValue(ent, "switch_teams", "1");
+	DispatchSpawn(ent);
+	AcceptEntityInput(ent, "Enable");*/
+	
+	// workaround for CreateEntityByNsme
+	g_MapStarted = true;
+
+	loadGlobalConfig();
+	
 	// Clear the replacement weapon list
 	for (new i = 1; i <= MaxClients; ++i)
 	{
@@ -1485,11 +1430,6 @@ public OnMapStart()
 		}
 		g_ReplacementCount[i] = 0;
 	}
-	
-#if defined STATS
-	g_MapChanging = false;
-#endif
-
 }
 
 /*
