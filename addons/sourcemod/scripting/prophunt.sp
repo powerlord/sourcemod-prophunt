@@ -241,6 +241,7 @@ new Handle:g_PropMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
+new Handle:g_PHPropMenuRestrict = INVALID_HANDLE;
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
@@ -414,6 +415,7 @@ public OnPluginStart()
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
+	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "1", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 1 (yes). Not available in the Ranked version.", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
@@ -1093,7 +1095,7 @@ public OnConfigsExecuted()
 			
 			PrintToServer("Successfully parsed %s", confil);
 			sharedCount = GetArraySize(g_ModelName);
-			PrintToServer("Loaded Added %i models to prop menu.", sharedCount);
+			PrintToServer("Loaded %i shared models.", sharedCount);
 		}
 		CloseHandle(fl);
 		
@@ -1672,6 +1674,34 @@ public Action:Command_propmenu(client, args)
 			{
 				decl String:model[MAXMODELNAME];
 				GetCmdArg(1, model, MAXMODELNAME);
+				
+				new bool:restrict = true;
+				
+#if !defined STATS
+				restrict = GetConVarBool(g_PHPropMenuRestrict);
+#endif
+				if (restrict)
+				{
+					new found = false;
+					
+					new count = GetMenuItemCount(g_PropMenu);
+					for (new i = 0; i < count; i++)
+					{
+						decl String:otherModel[MAXMODELNAME];
+						GetMenuItem(g_PropMenu, i, otherModel, sizeof(otherModel));
+						if (strcmp(model, otherModel, false) == 0)
+						{
+							found = true;
+							break;
+						}
+					}
+					
+					if (!found)
+					{
+						PrintToChat(client, "%t", "#TF_PH_PropMenuNotFound");
+						return Plugin_Handled;
+					}
+				}
 				strcopy(g_PlayerModel[client], MAXMODELNAME, model); 
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}

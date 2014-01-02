@@ -145,6 +145,10 @@
 	{
 		"en"		"You do not have access to the prop menu."
 	}
+	"#TF_PH_PropMenuNotFound"
+	{
+		"en"		"This prop is not on the prop menu."
+	}
 	"#TF_PH_PropRerollNotRedOrAlive"
 	{
 		"en"		"You must be alive on RED to reroll your prop."
