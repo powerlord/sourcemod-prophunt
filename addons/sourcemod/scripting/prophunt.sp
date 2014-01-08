@@ -328,6 +328,8 @@ new g_LastPropPlayer = 0;
 
 new bool:g_PHMap;
 
+new bool:g_DisguisedAs[MAXPLAYERS+1];
+
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
@@ -1745,7 +1747,8 @@ public Action:Command_propmenu(client, args)
 						return Plugin_Handled;
 					}
 				}
-				strcopy(g_PlayerModel[client], MAXMODELNAME, model); 
+				g_DisguisedAs[client] = false;
+				strcopy(g_PlayerModel[client], MAXMODELNAME, model);
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}
 			else
@@ -1783,6 +1786,7 @@ public Action:Command_propreroll(client, args)
 			{
 				g_Rerolled[client] = true;
 				g_PlayerModel[client] = "";
+				g_DisguisedAs[client] = false;
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}
 			else
@@ -1815,6 +1819,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					if(GetClientTeam(param1) == _:TFTeam_Red && IsPlayerAlive(param1))
 					{
 						GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
+						g_DisguisedAs[client] = false;
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
 					}
 					else
@@ -1861,7 +1866,8 @@ public ResetPlayer(client)
 	g_Rerolled[client] = false;
 	g_CurrentlyFlying[client] = false;
 	g_FlyCount[client] = 0;
-	g_LastPropDamageTime[client] = -1;	
+	g_LastPropDamageTime[client] = -1;
+	g_DisguisedAs[client] = false;
 }
 
 public Action: Command_respawn(client, args)
@@ -3219,7 +3225,11 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
-			PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
+			if (!g_DisguisedAs[client)
+			{
+				PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
+				g_DisguisedAs[client] = true;
+			}
 		}
 		
 		if (modelIndex > -1)
