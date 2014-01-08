@@ -236,6 +236,7 @@ new Handle:g_ConfigKeyValues = INVALID_HANDLE;
 new Handle:g_ModelName = INVALID_HANDLE;
 new Handle:g_ModelOffset = INVALID_HANDLE;
 new Handle:g_ModelRotation = INVALID_HANDLE;
+new Handle:g_ModelSkin = INVALID_HANDLE;
 new Handle:g_Text1 = INVALID_HANDLE;
 new Handle:g_Text2 = INVALID_HANDLE;
 new Handle:g_Text3 = INVALID_HANDLE;
@@ -545,6 +546,7 @@ public OnPluginStart()
 	g_ModelName = CreateArray(arraySize);
 	g_ModelOffset = CreateArray(arraySize);
 	g_ModelRotation = CreateArray(arraySize);
+	g_ModelSkin = CreateArray();
 	
 	AutoExecConfig(true, "prophunt_redux");
 }
@@ -1349,6 +1351,7 @@ public OnMapEnd()
 	ClearArray(g_ModelName);
 	ClearArray(g_ModelOffset);
 	ClearArray(g_ModelRotation);
+	ClearArray(g_ModelSkin);
 
 	ClearArray(g_hWeaponRemovals);
 	ClearTrie(g_hWeaponNerfs);
@@ -1420,6 +1423,7 @@ public OnMapStart()
 				PushArrayString(g_ModelOffset, offset);
 				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
 				PushArrayString(g_ModelRotation, rotation);
+				PushArrayCell(g_ModelSkin, KvGetNum(fl, "skin", 0));
 			}
 			while (KvGotoNextKey(fl));
 			
@@ -1457,6 +1461,7 @@ public OnMapStart()
 				PushArrayString(g_ModelOffset, offset);
 				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
 				PushArrayString(g_ModelRotation, rotation);
+				PushArrayCell(g_ModelSkin, KvGetNum(fl, "skin", 0));
 			}
 			while (KvGotoNextKey(fl));
 			KvRewind(fl);
@@ -1819,7 +1824,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					if(GetClientTeam(param1) == _:TFTeam_Red && IsPlayerAlive(param1))
 					{
 						GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
-						g_DisguisedAs[client] = false;
+						g_DisguisedAs[param1] = false;
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
 					}
 					else
@@ -3208,6 +3213,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		decl String:model[MAXMODELNAME];
 		new String:offset[32] = "0 0 0";
 		new String:rotation[32] = "0 0 0";
+		new skin = 0;		
 		new modelIndex = -1;
 		if(strlen(g_PlayerModel[client]) > 1)
 		{
@@ -3225,7 +3231,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
-			if (!g_DisguisedAs[client)
+			if (!g_DisguisedAs[client])
 			{
 				PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
 				g_DisguisedAs[client] = true;
@@ -3249,6 +3255,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			{
 				strcopy(rotation, sizeof(rotation), tempRotation);
 			}
+			skin = GetArrayCell(g_ModelSkin, modelIndex);
 		}
 		
 		#if defined LOG
@@ -3279,6 +3286,11 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		}
 		SetVariantInt(1);
 		AcceptEntityInput(client, "SetCustomModelRotates");
+		if (skin > 0)
+		{
+			SetEntProp(client, Prop_Send, "m_bForcedSkin", true);
+			SetEntProp(client, Prop_Send, "m_nForcedSkin", skin);
+		}
 		SwitchView(client, true, false);
 		#if defined LOG
 				LogMessage("[PH] do equip_5 %N", client);
