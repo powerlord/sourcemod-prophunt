@@ -1628,6 +1628,9 @@ stock RemoveAnimeModel (client){
 		
 		SetVariantString("");
 		AcceptEntityInput(client, "SetCustomModel");
+		
+		SetEntProp(client, Prop_Send, "m_bForcedSkin", false);
+		SetEntProp(client, Prop_Send, "m_nForcedSkin", 0);
 	}
 }
 
@@ -2593,23 +2596,22 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 public Action:Timer_ChangeTeam(Handle:timer)
 {
-	for (new i = 1; i <= MaxClients; ++i)
+	for (new client = 1; client <= MaxClients; ++client)
 	{
-		if (!IsClientInGame(i))
+		if (!IsClientInGame(client))
 		{
 			continue;
 		}
 		
-		if (GetClientTeam(i) == _:TFTeam_Blue)
+		if (GetClientTeam(client) == _:TFTeam_Blue)
 		{
-			ChangeClientTeamAlive(i, _:TFTeam_Red);
+			ChangeClientTeamAlive(client, _:TFTeam_Red);
 		}
 		else
-		if (GetClientTeam(i) == _:TFTeam_Red)
+		if (GetClientTeam(client) == _:TFTeam_Red)
 		{
-			SetVariantString("");
-			AcceptEntityInput(i, "SetCustomModel");
-			ChangeClientTeamAlive(i, _:TFTeam_Blue);
+			RemoveAnimeModel(client);
+			ChangeClientTeamAlive(client, _:TFTeam_Blue);
 		}
 		
 	}
@@ -2880,11 +2882,13 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new blue = _:TFTeam_Blue - 2;
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	if (IsValidClient(client, false)){
-		SetVariantString("");
-		AcceptEntityInput(client, "SetCustomModel");
+	// Lets remove this since we wipe their model later anyway
+	/*
+	if (IsValidClient(client)){
+		RemoveAnimeModel(client);
 	}
-	
+	*/
+
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client))
@@ -2969,6 +2973,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
+	// This should be a separate event now, but we're leaving this in just in case
 	if (GetEventInt(event, "weaponid") == TF_WEAPON_BAT_FISH && GetEventInt(event, "customkill") == TF_CUSTOM_FISH_KILL)
 	{
 		return Plugin_Continue;
