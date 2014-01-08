@@ -321,6 +321,8 @@ new g_FlyCount[MAXPLAYERS+1];
 new g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
 new g_LastPropPlayer = 0;
 
+new bool:g_PHMap;
+
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
@@ -1030,15 +1032,12 @@ ResetCVars()
 
 public OnConfigsExecuted()
 {
-	new bool:bIsPHMap = IsPropHuntMap();
-	g_Enabled = GetConVarBool(g_PHEnable) && bIsPHMap;
+	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
 	g_MapRunning = true;
 
-	if (bIsPHMap)
+	if (g_PHMap)
 	{
-		GetCurrentMap(g_Mapname, sizeof(g_Mapname));
-		
 		decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32];
 		
 		new Handle:fl;
@@ -1468,6 +1467,10 @@ public OnMapEnd()
 
 public OnMapStart()
 {
+	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
+	
+	g_PHMap = IsPropHuntMap();
+	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_LastProp = false;
 	for (new client = 1; client <= MaxClients; client++)
