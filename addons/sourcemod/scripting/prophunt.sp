@@ -1815,6 +1815,10 @@ public ResetPlayer(client)
 	g_First[client] = false;
 	g_PlayerModel[client] = "";
 	g_SetClass[client] = false;
+	g_Rerolled[client] = false;
+	g_CurrentlyFlying[client] = false;
+	g_FlyCount[client] = 0;
+	g_LastPropDamageTime[client] = -1;	
 }
 
 public Action: Command_respawn(client, args)
@@ -2454,14 +2458,8 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
-//	new team, client;
-	new client;
-	for(client=1; client <= MaxClients; client++)
+	for(new client=1; client <= MaxClients; client++)
 	{
-		g_CurrentlyFlying[client] = false;
-		g_FlyCount[client] = 0;
-		g_LastPropDamageTime[client] = -1;
-		
 		if(IsClientInGame(client))
 		{
 #if defined STATS
@@ -2678,14 +2676,14 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	g_inPreRound = true;
 	
-	for (new i = 1; i <= MaxClients; i++)
+	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (IsClientInGame(i) && !IsFakeClient(i))
+		ResetPlayer(client);	
+		if (IsClientInGame(client) && !IsFakeClient(client))
 		{
 			// For some reason, this has to be set every round or the player GUI messes up
-			SendConVarValue(i, FindConVar("tf_arena_round_time"), "600");
+			SendConVarValue(client, FindConVar("tf_arena_round_time"), "600");
 		}
-		g_Rerolled[i] = false;
 	}
 	// Delay freeze by a frame
 	CreateTimer(0.0, Timer_teamplay_round_start);
@@ -2702,7 +2700,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	//GameMode Explanation
 	decl String:message[256];
-	ent=FindEntityByClassname(-1, "tf_gamerules");
+	ent = FindEntityByClassname(-1, "tf_gamerules"); // Can't use sdktools_gamerules for this
 
 	//BLU
 	Format(message, sizeof(message), "%T", "#TF_PH_BluHelp", LANG_SERVER);
