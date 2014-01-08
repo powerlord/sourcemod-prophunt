@@ -1,7 +1,8 @@
+// PropHunt Redux by Powerlord
+// - reddit.com/r/RUGC_Midwest -
+//         Based on
 //  PropHunt by Darkimmortal
 //   - GamingMasters.org -
-//    Updated by Powerlord
-// - reddit.com/r/RUGC_Midwest -
 
 #pragma semicolon 1
 #include <sourcemod>
@@ -30,6 +31,10 @@
 // Enable for global stats support (.inc file available on request due to potential for cheating and database abuse)
 // Default: OFF
 //#define STATS
+
+// Enable for local stats support
+// Default: OFF
+//#define LOCALSTATS
 
 #if defined STATS
 #define SELECTOR_PORTS "27019"
@@ -193,7 +198,7 @@ new g_RoundTime = 175;
 new g_Message_bit = 0;
 //new g_iVelocity = -1;
 
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 new bool:g_MapChanging = false;
 new g_StartTime;
 #endif
@@ -384,6 +389,12 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 */
 #endif
 
+#if defined LOCALSTATS
+
+#include "prophunt\localstats2.inc"
+
+#endif
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	MarkNativeAsOptional("Steam_SetGameDescription");
@@ -400,7 +411,7 @@ public OnPluginStart()
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
 	new bool:statsbool = false;
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 	statsbool = true;
 #endif
 
@@ -470,10 +481,14 @@ public OnPluginStart()
 	HookEvent("post_inventory_application", Event_post_inventory_application);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
-	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished);
+	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished); // No longer used since 2.0.3 or so because of issues with certain maps
 
 #if defined STATS
 	Stats_Init();
+#endif
+
+#if defined LOCALSTATS
+	LocalStats_Init();
 #endif
 
 	RegConsoleCmd("help", Command_motd);
@@ -481,9 +496,10 @@ public OnPluginStart()
 	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
 	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
 
-	AddFileToDownloadsTable("sound/prophunt/found.mp3");
-	AddFileToDownloadsTable("sound/prophunt/snaaake.mp3");
-	AddFileToDownloadsTable("sound/prophunt/oneandonly.mp3");
+	// These are now parsed from the config file itself.
+	//AddFileToDownloadsTable("sound/prophunt/found.mp3");
+	//AddFileToDownloadsTable("sound/prophunt/snaaake.mp3");
+	//AddFileToDownloadsTable("sound/prophunt/oneandonly.mp3");
 	
 	LoadTranslations("prophunt.phrases");
 	LoadTranslations("common.phrases");
@@ -516,7 +532,7 @@ public OnPluginStart()
 		if(IsClientInGame(client))
 		{
 			ForcePlayerSuicide(client);
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 			OnClientPostAdminCheck(client);
 #endif
 		}
@@ -529,6 +545,14 @@ public OnPluginStart()
 	g_ModelRotation = CreateArray(arraySize);
 	
 	AutoExecConfig(true, "prophunt_redux");
+}
+
+// Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
+public OnClientPostAdminCheck(client)
+{
+#if defined LOCALSTATS
+	LocalStats_OnClientPostAdminCheck(client);
+#endif
 }
 
 ReadCommonPropData()
@@ -900,11 +924,15 @@ config_parseSounds()
 			KvGetSectionName(g_ConfigKeyValues, SectionName, sizeof(SectionName));
 			if(KvGetDataType(g_ConfigKeyValues, "sound") == KvData_String)
 			{
-				decl String:soundString[128];
+				decl String:soundString[PLATFORM_MAX_PATH];
 				KvGetString(g_ConfigKeyValues, "sound", soundString, sizeof(soundString));
 				
 				if(PrecacheSound(soundString))
 				{
+					decl String:downloadString[PLATFORM_MAX_PATH];
+					Format(downloadString, sizeof(downloadString), "sound/%s", soundString);
+					AddFileToDownloadsTable(downloadString);
+					
 					SetTrieString(g_Sounds, SectionName, soundString, true);
 				}
 			}
@@ -1035,140 +1063,6 @@ public OnConfigsExecuted()
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
 	g_MapRunning = true;
-
-	if (g_PHMap)
-	{
-		decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32];
-		
-		new Handle:fl;
-		
-		if (g_PropMenu != INVALID_HANDLE)
-		{
-			CloseHandle(g_PropMenu);
-			g_PropMenu = INVALID_HANDLE;
-		}
-		g_PropMenu = CreateMenu(Handler_PropMenu);
-		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
-		SetMenuExitButton(g_PropMenu, true);
-		
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/prop_menu.txt");
-		
-		fl = CreateKeyValues("propmenu");
-		if (FileToKeyValues(fl, confil))
-		{
-			new count = 0;
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				count++;
-			}
-			while (KvGotoNextKey(fl));
-			
-			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Added %i models to prop menu.", GetMenuItemCount(g_PropMenu));
-		}
-		CloseHandle(fl);
-		
-		new sharedCount = 0;
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/props_allmaps.txt");
-		
-		fl = CreateKeyValues("sharedprops");
-		if (FileToKeyValues(fl, confil))
-		{
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-			}
-			while (KvGotoNextKey(fl));
-			
-			PrintToServer("Successfully parsed %s", confil);
-			sharedCount = GetArraySize(g_ModelName);
-			PrintToServer("Loaded %i shared models.", sharedCount);
-		}
-		CloseHandle(fl);
-		
-		decl String:tidyname[2][32], String:maptidyname[128];
-		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
-		Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
-		fl = CreateKeyValues("prophuntmapconfig");
-		
-		if(!FileToKeyValues(fl, confil))
-		{
-			LogMessage("[PH] Config file for map %s not found at %s. Disabling plugin.", maptidyname, confil);
-			CloseHandle(fl);
-			g_Enabled = false;
-			return;
-		}
-		else
-		{
-			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			KvJumpToKey(fl, "Props", false);
-			KvGotoFirstSubKey(fl);
-			do
-			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-			}
-			while (KvGotoNextKey(fl));
-			KvRewind(fl);
-			KvJumpToKey(fl, "Settings", false);
-			
-			g_Doors = bool:KvGetNum(fl, "doors", 0);
-			g_Relay = bool:KvGetNum(fl, "relay", 0);
-			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
-			g_RoundTime = KvGetNum(fl, "round", 175);
-			
-			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
-		}
-		CloseHandle(fl);
-		
-		decl String:model[100];
-		
-		for(new i = 0; i < GetArraySize(g_ModelName); i++)
-		{
-			GetArrayString(g_ModelName, i, model, sizeof(model));
-			if(PrecacheModel(model, true) == 0)
-			{
-				RemoveFromArray(g_ModelName, i);
-			}
-		}
-		
-		PrecacheModel(FLAMETHROWER, true);
-		
-		/*new ent = FindEntityByClassname(-1, "team_control_point_master");
-			if (ent == 1)
-			{
-			AcceptEntityInput(ent, "Kill");
-			}
-			ent = CreateEntityByName("team_control_point_master");
-			DispatchKeyValue(ent, "switch_teams", "1");
-			DispatchSpawn(ent);
-		AcceptEntityInput(ent, "Enable");*/
-		
-		// workaround for CreateEntityByNsme
-		g_MapStarted = true;
-		
-		loadGlobalConfig();
-	}
 	
 	if (g_Enabled)
 	{
@@ -1433,7 +1327,7 @@ public Action:OnCPMasterSpawned(entity)
 
 public OnMapEnd()
 {
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 	g_MapChanging = true;
 #endif
 
@@ -1470,6 +1364,140 @@ public OnMapStart()
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
 	
 	g_PHMap = IsPropHuntMap();
+
+	if (g_PHMap)
+	{
+		decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32];
+		
+		new Handle:fl;
+		
+		if (g_PropMenu != INVALID_HANDLE)
+		{
+			CloseHandle(g_PropMenu);
+			g_PropMenu = INVALID_HANDLE;
+		}
+		g_PropMenu = CreateMenu(Handler_PropMenu);
+		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
+		SetMenuExitButton(g_PropMenu, true);
+		
+		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/prop_menu.txt");
+		
+		fl = CreateKeyValues("propmenu");
+		if (FileToKeyValues(fl, confil))
+		{
+			new count = 0;
+			PrintToServer("Successfully loaded %s", confil);
+			KvGotoFirstSubKey(fl);
+			do
+			{
+				KvGetSectionName(fl, buffer, sizeof(buffer));
+				AddMenuItem(g_PropMenu, buffer, buffer);
+				count++;
+			}
+			while (KvGotoNextKey(fl));
+			
+			PrintToServer("Successfully parsed %s", confil);
+			PrintToServer("Added %i models to prop menu.", GetMenuItemCount(g_PropMenu));
+		}
+		CloseHandle(fl);
+		
+		new sharedCount = 0;
+		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/props_allmaps.txt");
+		
+		fl = CreateKeyValues("sharedprops");
+		if (FileToKeyValues(fl, confil))
+		{
+			PrintToServer("Successfully loaded %s", confil);
+			KvGotoFirstSubKey(fl);
+			do
+			{
+				KvGetSectionName(fl, buffer, sizeof(buffer));
+				PushArrayString(g_ModelName, buffer);
+				AddMenuItem(g_PropMenu, buffer, buffer);
+				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
+				PushArrayString(g_ModelOffset, offset);
+				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
+				PushArrayString(g_ModelRotation, rotation);
+			}
+			while (KvGotoNextKey(fl));
+			
+			PrintToServer("Successfully parsed %s", confil);
+			sharedCount = GetArraySize(g_ModelName);
+			PrintToServer("Loaded %i shared models.", sharedCount);
+		}
+		CloseHandle(fl);
+		
+		decl String:tidyname[2][32], String:maptidyname[128];
+		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
+		Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
+		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
+		fl = CreateKeyValues("prophuntmapconfig");
+		
+		if(!FileToKeyValues(fl, confil))
+		{
+			LogMessage("[PH] Config file for map %s not found at %s. Disabling plugin.", maptidyname, confil);
+			CloseHandle(fl);
+			g_Enabled = false;
+			return;
+		}
+		else
+		{
+			PrintToServer("Successfully loaded %s", confil);
+			KvGotoFirstSubKey(fl);
+			KvJumpToKey(fl, "Props", false);
+			KvGotoFirstSubKey(fl);
+			do
+			{
+				KvGetSectionName(fl, buffer, sizeof(buffer));
+				PushArrayString(g_ModelName, buffer);
+				AddMenuItem(g_PropMenu, buffer, buffer);
+				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
+				PushArrayString(g_ModelOffset, offset);
+				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
+				PushArrayString(g_ModelRotation, rotation);
+			}
+			while (KvGotoNextKey(fl));
+			KvRewind(fl);
+			KvJumpToKey(fl, "Settings", false);
+			
+			g_Doors = bool:KvGetNum(fl, "doors", 0);
+			g_Relay = bool:KvGetNum(fl, "relay", 0);
+			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
+			g_RoundTime = KvGetNum(fl, "round", 175);
+			
+			PrintToServer("Successfully parsed %s", confil);
+			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
+		}
+		CloseHandle(fl);
+		
+		decl String:model[100];
+		
+		for(new i = 0; i < GetArraySize(g_ModelName); i++)
+		{
+			GetArrayString(g_ModelName, i, model, sizeof(model));
+			if(PrecacheModel(model, true) == 0)
+			{
+				RemoveFromArray(g_ModelName, i);
+			}
+		}
+		
+		PrecacheModel(FLAMETHROWER, true);
+		
+		/*new ent = FindEntityByClassname(-1, "team_control_point_master");
+			if (ent == 1)
+			{
+			AcceptEntityInput(ent, "Kill");
+			}
+			ent = CreateEntityByName("team_control_point_master");
+			DispatchKeyValue(ent, "switch_teams", "1");
+			DispatchSpawn(ent);
+		AcceptEntityInput(ent, "Enable");*/
+		
+		// workaround for CreateEntityByNsme
+		g_MapStarted = true;
+		
+		loadGlobalConfig();
+	}
 	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_LastProp = false;
@@ -1491,7 +1519,7 @@ public OnMapStart()
 		g_ReplacementCount[i] = 0;
 	}
 	
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 	g_MapChanging = false;
 #endif
 
@@ -1515,6 +1543,10 @@ public OnPluginEnd()
 #if defined STATS
 	Stats_Uninit();
 #endif
+#if defined LOCALSTATS
+	LocalStats_Uninit();
+#endif
+	
 	ResetCVars();
 	if (g_SteamTools)
 	{
@@ -1597,6 +1629,10 @@ public OnClientDisconnect(client)
 #if defined STATS
 	OCD(client);
 #endif
+
+#if defined LOCALSTATS
+	LocalStats_OnClientDisconnect(client);
+#endif
 }
 
 public OnClientDisconnect_Post(client)
@@ -1604,6 +1640,10 @@ public OnClientDisconnect_Post(client)
 	ResetPlayer(client);
 #if defined STATS
 	OCD_Post(client);
+#endif
+
+#if defined LOCALSTATS
+	LocalStats_OnClientDisconnect_Post(client);
 #endif
 }
 
@@ -2452,11 +2492,18 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	if (!g_Enabled)
 		return;
 
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 	new winner = GetEventInt(event, "winning_team");
+#if defined STATS
 	DbRound(winner);
 #endif
+	
+#if defined LOCALSTATS
+	LocalStats_DbRound(winner);
+#endif
 
+#endif
+	
 	CreateTimer(GetConVarInt(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
@@ -2465,15 +2512,27 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	{
 		if(IsClientInGame(client))
 		{
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 			if(GetClientTeam(client) == winner)
 			{
+#if defined STATS
 				AlterScore(client, 3, ScReason_TeamWin, 0);
+#endif
+	
+#if defined LOCALSTATS
+				LocalStats_AlterScore(client, 3, ScReason_TeamWin, 0);
+#endif
 			}
 			else
 			if(GetClientTeam(client) != TEAM_SPEC)
 			{
+#if defined STATS
 				AlterScore(client, -1, ScReason_TeamLose, 0);
+#endif
+
+#if defined LOCALSTATS
+				LocalStats_AlterScore(client, -1, ScReason_TeamLose, 0);
+#endif
 			}
 #endif
 			// bit annoying when testing the plugin and/or maps on a listen server
@@ -2489,7 +2548,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 			}
 			*/
 		}
-		ResetPlayer(client);
+		//ResetPlayer(client); // Players are now reset on round start instead of round end
 	}
 /*
 #if defined LOG
@@ -2679,6 +2738,11 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	g_inPreRound = true;
 	
+	// This is now in round start after an issue was reported with last prop not resetting in 3.0.2
+	g_LastProp = false;
+	g_LastPropPlayer = 0;
+	g_RoundOver = true;
+
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		ResetPlayer(client);	
@@ -2754,7 +2818,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 		
 		CreateTimer(0.1, Timer_Info);
 
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 		g_StartTime = GetTime();
 #endif
 	}
@@ -2920,7 +2984,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
 	
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 	decl String:weapon[64];
 	new attackerID = GetEventInt(event, "attacker");
 	new assisterID = GetEventInt(event, "assister");
@@ -2964,6 +3028,10 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 #if defined STATS
 			PlayerKilled(clientID, attackerID, assisterID, weaponid, weapon);
 #endif
+
+#if defined LOCALSTATS
+			LocalStats_PlayerKilled(clientID, attackerID, assisterID, weaponid, weapon);
+#endif			
 			if(IsPlayerAlive(attacker))
 			{
 				Speedup(attacker);
@@ -3291,10 +3359,16 @@ public Action:Timer_Score(Handle:timer, any:entity)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
-#if defined STATS
+#if defined STATS || defined LOCALSTATS
 		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Red)
 		{
+		#if defined STATS
 			AlterScore(client, 2, ScReason_Time, 0);
+		#endif
+		
+		#if defined LOCALSTATS
+			LocalStats_AlterScore(client, 2, ScReason_Time, 0);
+		#endif
 		}
 #endif
 		g_TouchingCP[client] = false;
