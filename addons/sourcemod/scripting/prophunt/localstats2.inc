@@ -1,8 +1,9 @@
 // PropHunt Redux Local Stats by Powerlord
-// - reddit.com/r/RUGC_Midwest -
+//     - reddit.com/r/RUGC_Midwest -
 
 // This is based heavily on the SourceMod SQLAdmins code because I'm lazy.
 
+// Don't use this code yet, it's not finished
 /*
  * NOTE: Queries used when connecting to the DB are non-threaded because we want them to complete before
  * any threaded queries would run
@@ -58,17 +59,16 @@ public Action:LocalStats_CreateTables(args)
 
 static LocalStats_CreateMySQL(client, Handle:db)
 {
-	new String:queries[7][] = 
-	{
-		"CREATE TABLE sm_admins (id int(10) unsigned NOT NULL auto_increment, authtype enum('steam','name','ip') NOT NULL, identity varchar(65) NOT NULL, password varchar(65), flags varchar(30) NOT NULL, name varchar(65) NOT NULL, immunity int(10) unsigned NOT NULL, PRIMARY KEY (id))",
-		"CREATE TABLE sm_groups (id int(10) unsigned NOT NULL auto_increment, flags varchar(30) NOT NULL, name varchar(120) NOT NULL, immunity_level int(1) unsigned NOT NULL, PRIMARY KEY (id))",
-		"CREATE TABLE sm_group_immunity (group_id int(10) unsigned NOT NULL, other_id int(10) unsigned NOT NULL,  PRIMARY KEY (group_id, other_id))",
-		"CREATE TABLE sm_group_overrides (group_id int(10) unsigned NOT NULL, type enum('command','group') NOT NULL, name varchar(32) NOT NULL, access enum('allow','deny') NOT NULL, PRIMARY KEY (group_id, type, name))",
-		"CREATE TABLE sm_overrides (type enum('command','group') NOT NULL, name varchar(32) NOT NULL, flags varchar(30) NOT NULL, PRIMARY KEY (type,name))",
-		"CREATE TABLE sm_admins_groups (admin_id int(10) unsigned NOT NULL, group_id int(10) unsigned NOT NULL, inherit_order int(10) NOT NULL, PRIMARY KEY (admin_id, group_id))",
-		"CREATE TABLE IF NOT EXISTS prophunt_config (cfg_key varchar(32) NOT NULL, cfg_value varchar(255) NOT NULL, PRIMARY KEY (cfg_key))"
-	};
-
+	new String:queries[6][1024];
+	
+	Format(queries[0], sizeof(queries[]), "CREATE TABLE ph_servers (id int(10) unsigned NOT NULL auto_increment, ip varchar(65), points int(10), time int(10), PRIMARY KEY(id) )");
+	Format(queries[1], sizeof(queries[]), "CREATE TABLE ph_players (steamid varchar(25), name varchar(%d), points int(10), wins int(10), losses int(10), time int(10), PRIMARY KEY(steamid) )", MAX_NAME_LENGTH);
+	Format(queries[2], sizeof(queries[]), "CREATE TABLE ph_deaths (id int(10) unsigned NOT NULL auto_increment, victimid varchar(25), killerid varchar(20), killerteam int(1), weapon varchar(64), assisterid varchar(25), ip varchar(65), map varchar(%d), prop varchar(%d), victim_position_x float, victim_position_y float, victim_position_z float, killer_position_x float, killer_position_y float, killer_position_z float, victim_class int(1), killer_class int(1), survival_time int(4), PRIMARY KEY(id) )", PLATFORM_MAX_PATH, PLATFORM_MAX_PATH);
+	Format(queries[3], sizeof(queries[]), "CREATE TABLE ph_survivals (id int(10) unsigned NOT NULL auto_increment, steamid varchar(25), prop varchar(%d), ip varchar(65), map varchar(%d), position_x float, position_y float, position_z float, class int(1), team int(1), survival_time int(4), PRIMARY KEY(id) )", PLATFORM_MAX_PATH, PLATFORM_MAX_PATH);
+	Format(queries[4], sizeof(queries[]), "CREATE TABLE ph_rounds (id int(10) unsigned NOT NULL auto_increment, team char(3), map varchar(%d), ip varchar(65), PRIMARY KEY(id) )", PLATFORM_MAX_PATH);
+	Format(queries[5], sizeof(queries[]), "CREATE TABLE ph_props (id int(10) unsigned NOT NULL auto_increment, name varchar(%d), deaths int(10), survivals int(10))", PLATFORM_MAX_PATH;
+	
+	
 	for (new i = 0; i < 7; i++)
 	{
 		if (!DoQuery(client, db, queries[i]))
@@ -80,7 +80,7 @@ static LocalStats_CreateMySQL(client, Handle:db)
 	decl String:query[256];
 	Format(query, 
 		sizeof(query), 
-		"INSERT INTO prophunt_config (cfg_key, cfg_value) VALUES ('schema_version', '%d') ON DUPLICATE KEY UPDATE cfg_value = '%d'",
+		"INSERT INTO ph_config (cfg_key, cfg_value) VALUES ('schema_version', '%d') ON DUPLICATE KEY UPDATE cfg_value = '%d'",
 		CURRENT_SCHEMA_VERSION,
 		CURRENT_SCHEMA_VERSION);
 
