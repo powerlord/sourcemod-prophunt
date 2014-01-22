@@ -23,7 +23,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
-#define PL_VERSION "3.1.0 alpha 1"
+#define PL_VERSION "3.1.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -36,8 +36,11 @@
 // Default: OFF
 //#define LOCALSTATS
 
-#if defined STATS
-#define SELECTOR_PORTS "27019"
+// GM only stuff
+//#define GM
+ 
+#if defined GM
+#define SELECTOR_PORTS "27019,27301"
 #include <selector>
 #endif
 
@@ -2563,7 +2566,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #endif
 			}
 			else
-			if(GetClientTeam(client) != TEAM_SPEC)
+			if(GetClientTeam(client) != _:TFTeam_Spectator)
 			{
 #if defined STATS
 				AlterScore(client, -1, ScReason_TeamLose, 0);
