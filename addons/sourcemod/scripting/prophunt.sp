@@ -170,6 +170,20 @@ enum
 	ScoreData_Points
 }
 
+enum
+{
+	TFClassBits_None = 0,
+	TFClassBits_Scout = (1 << 0), // 1
+	TFClassBits_Sniper = (1 << 1), // 2
+	TFClassBits_Soldier = (1 << 2), // 4
+	TFClassBits_DemoMan = (1 << 3), // 8
+	TFClassBits_Medic = (1 << 4), // 16
+	TFClassBits_Heavy = (1 << 5), // 32
+	TFClassBits_Pyro = (1 << 6), // 64
+	TFClassBits_Spy = (1 << 7), // 128
+	TFClassBits_Engineer = (1 << 8) // 256
+}
+
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
 
@@ -221,6 +235,7 @@ new Handle:g_hWeaponSelfDamage;
 new Handle:g_hWeaponStripAttribs;
 new Handle:g_hWeaponAddAttribs;
 new Handle:g_hWeaponReplacements;
+new Handle:g_hWeaponReplacementPlayerClasses;
 
 new g_classLimits[2][10];
 new TFClassType:g_defaultClass[2];
@@ -424,6 +439,7 @@ public OnPluginStart()
 	g_hWeaponStripAttribs = CreateArray();
 	g_hWeaponAddAttribs = CreateTrie();
 	g_hWeaponReplacements = CreateTrie();
+	g_hWeaponReplacementPlayerClasses = CreateTrie();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
@@ -764,6 +780,7 @@ config_parseWeapons()
 	ClearArray(g_hWeaponStripAttribs);
 	ClearTrie(g_hWeaponAddAttribs);
 	ClearTrie(g_hWeaponReplacements);
+	ClearTrie(g_hWeaponReplacementPlayerClasses);
 	
 	if (g_ConfigKeyValues == INVALID_HANDLE)
 	{
@@ -819,9 +836,16 @@ config_parseWeapons()
 				new String:attribs[128];
 				KvGetString(g_ConfigKeyValues, "replace", attribs, sizeof(attribs));
 				
+				new class = KvGetNum(g_ConfigKeyValues, "replace_onlyclasses", TFClassBits_None);
+				
 				if (attribs[0] != '\0')
 				{
 					SetTrieString(g_hWeaponReplacements, SectionName, attribs);
+				}
+				
+				if (class != TFClassBits_None)
+				{
+					SetTrieValue(g_hWeaponReplacementPlayerClasses, SectionName, class);
 				}
 			}
 		}
@@ -1359,6 +1383,7 @@ public OnMapEnd()
 	ClearArray(g_hWeaponStripAttribs);
 	ClearTrie(g_hWeaponAddAttribs);
 	ClearTrie(g_hWeaponReplacements);
+	ClearTrie(g_hWeaponReplacementPlayerClasses);
 	
 	ClearTrie(g_Sounds);
 	ClearTrie(g_BroadcastSounds);
@@ -2673,6 +2698,7 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 			{
 				continue;
 			}
+			
 			new String:pieces[5][128];
 			
 			ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
@@ -3583,19 +3609,27 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
 	new bool:addattribs = GetTrieString(g_hWeaponAddAttribs, defIndex, addAttributes, sizeof(addAttributes));
 	new bool:removeAirblast = !GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower");
-	new String:pieces[5][128];
+//	new String:pieces[5][128];
 
 	if (replace)
 	{
-//		ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
-//		if (!StrEqual(classname, pieces[Item_Classname], false))
-//		{
+		new classBits;
+		
+		if (!GetTrieValue(g_hWeaponReplacementPlayerClasses, defIndex, classBits))
+		{
 			g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
 			return Plugin_Stop;
-//		}
-		
-//		flags |= OVERRIDE_ALL;
-//		flags &= ~OVERRIDE_CLASSNAME; // This hasn't worked for a while
+		}
+		else
+		{
+			new class = _:TF2_GetPlayerClass(client) - 1;
+			if (classBits & (1 << class))
+			{
+				g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
+				return Plugin_Stop;
+			}
+		}
+		replace = false;
 	}
 
 	// If we're supposed to remove it, just block it here
@@ -3632,6 +3666,8 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		weaponChanged = true;
 	}
 	
+	// This block isn't used as all weapon replacements are now done on spawn.
+	/*
 	if (replace)
 	{
 		TrimString(pieces[Item_Index]);
@@ -3665,6 +3701,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		}
 		weaponChanged = true;
 	}
+	*/
 	
 	if (addattribs)
 	{
