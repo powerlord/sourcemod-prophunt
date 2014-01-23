@@ -23,6 +23,7 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
+
 #define PL_VERSION "3.1.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
@@ -86,6 +87,12 @@
 #if defined OIMM
 #include <optin_multimod>
 #endif 
+
+// Needed for stats2.inc compatibility
+#define TEAM_BLUE 3
+#define TEAM_RED 2
+#define TEAM_SPEC 1
+#define TEAM_UNASSIGNED 0
 
 #define FLAMETHROWER "models/weapons/w_models/w_flamethrower.mdl"
 
@@ -265,7 +272,9 @@ new Handle:g_PropMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
+#if !defined STATS
 new Handle:g_PHPropMenuRestrict = INVALID_HANDLE;
+#endif
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
@@ -450,7 +459,9 @@ public OnPluginStart()
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
+#if !defined STATS
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "1", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 1 (yes). Not available in the Ranked version.", _, true, 0.0, true, 1.0);
+#endif
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
@@ -571,12 +582,14 @@ public OnPluginStart()
 }
 
 // Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
+/*
 public OnClientPostAdminCheck(client)
 {
 #if defined LOCALSTATS
 	LocalStats_OnClientPostAdminCheck(client);
 #endif
 }
+*/
 
 ReadCommonPropData()
 {
