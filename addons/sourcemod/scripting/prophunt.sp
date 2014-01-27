@@ -1999,7 +1999,6 @@ public Action:Command_switch(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	g_RoundStartMessageSent[client] = false;
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, _:TFTeam_Red);
 	TF2_RespawnPlayer(client);
@@ -2017,7 +2016,6 @@ public Action:Command_pyro(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	g_RoundStartMessageSent[client] = false;
 	g_PlayerModel[client] = "";
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, _:TFTeam_Blue);
@@ -2533,6 +2531,7 @@ public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		g_Spec[client] = false;
 	}
+	g_PlayerModel[client] = "";
 	g_RoundStartMessageSent[client] = false;
 }
 
