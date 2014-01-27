@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.1.0 beta 1"
+#define PL_VERSION "3.1.0 beta 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -356,7 +356,7 @@ new g_LastPropPlayer = 0;
 
 new bool:g_PHMap;
 
-new bool:g_DisguisedAs[MAXPLAYERS+1];
+new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
 
 public Plugin:myinfo =
 {
@@ -1796,7 +1796,7 @@ public Action:Command_propmenu(client, args)
 						return Plugin_Handled;
 					}
 				}
-				g_DisguisedAs[client] = false;
+				g_RoundStartMessageSent[client] = false;
 				strcopy(g_PlayerModel[client], MAXMODELNAME, model);
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}
@@ -1835,7 +1835,7 @@ public Action:Command_propreroll(client, args)
 			{
 				g_Rerolled[client] = true;
 				g_PlayerModel[client] = "";
-				g_DisguisedAs[client] = false;
+				g_RoundStartMessageSent[client] = false;
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 			}
 			else
@@ -1868,7 +1868,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					if(GetClientTeam(param1) == _:TFTeam_Red && IsPlayerAlive(param1))
 					{
 						GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
-						g_DisguisedAs[param1] = false;
+						g_RoundStartMessageSent[param1] = false;
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
 					}
 					else
@@ -1916,7 +1916,7 @@ public ResetPlayer(client)
 	g_CurrentlyFlying[client] = false;
 	g_FlyCount[client] = 0;
 	g_LastPropDamageTime[client] = -1;
-	g_DisguisedAs[client] = false;
+	g_RoundStartMessageSent[client] = false;
 }
 
 public Action: Command_respawn(client, args)
@@ -1999,6 +1999,7 @@ public Action:Command_switch(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
+	g_RoundStartMessageSent[client] = false;
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, _:TFTeam_Red);
 	TF2_RespawnPlayer(client);
@@ -2016,6 +2017,7 @@ public Action:Command_pyro(client, args)
 		ReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
+	g_RoundStartMessageSent[client] = false;
 	g_PlayerModel[client] = "";
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, _:TFTeam_Blue);
@@ -2951,8 +2953,11 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 		if(GetClientTeam(client) == _:TFTeam_Blue)
 		{
-
-			PrintToChat(client, "%t", "#TF_PH_WaitingPeriodStarted");
+			if (!g_RoundStartMessageSent[client])
+			{
+				PrintToChat(client, "%t", "#TF_PH_WaitingPeriodStarted");
+				g_RoundStartMessageSent[client] = true;
+			}
 #if defined SHINX
 
 			new TFClassType:clientClass = TF2_GetPlayerClass(client);
@@ -3278,10 +3283,10 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
-			if (!g_DisguisedAs[client])
+			if (!g_RoundStartMessageSent[client])
 			{
 				PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
-				g_DisguisedAs[client] = true;
+				g_RoundStartMessageSent[client] = true;
 			}
 		}
 		
@@ -3638,6 +3643,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		}
 		else
 		{
+			// We subtract 1 here because we're left shifting a 1, so 1 is intrinsically added to the class.
 			new class = _:TF2_GetPlayerClass(client) - 1;
 			if (classBits & (1 << class))
 			{
