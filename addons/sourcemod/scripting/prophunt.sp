@@ -2531,7 +2531,6 @@ public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		g_Spec[client] = false;
 	}
-	g_PlayerModel[client] = "";
 	g_RoundStartMessageSent[client] = false;
 }
 
