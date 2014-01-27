@@ -2533,6 +2533,7 @@ public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
 	{
 		g_Spec[client] = false;
 	}
+	g_RoundStartMessageSent[client] = false;
 }
 
 public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadcast)
