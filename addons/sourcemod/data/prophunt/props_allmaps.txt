@@ -1,0 +1,4 @@
+"sharedprops"
+{
+	"models/props_gameplay/cap_point_base.mdl" {}
+}
