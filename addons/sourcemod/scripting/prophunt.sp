@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.1.0"
+#define PL_VERSION "3.1.1"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1382,6 +1382,7 @@ public OnMapEnd()
 	ResetCVars();
 	StopTimers();
 	g_Enabled = false;
+	UpdateGameDescription();
 	for (new client = 1; client<=MaxClients; client++)
 	{
 		g_CurrentlyFlying[client] = false;
