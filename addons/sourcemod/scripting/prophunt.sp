@@ -1381,8 +1381,13 @@ public OnMapEnd()
 	
 	ResetCVars();
 	StopTimers();
+	new bool:remove = g_Enabled; // Save the enabled value
 	g_Enabled = false;
-	UpdateGameDescription();
+	if (remove)
+	{
+		UpdateGameDescription();
+	}
+	
 	for (new client = 1; client<=MaxClients; client++)
 	{
 		g_CurrentlyFlying[client] = false;
