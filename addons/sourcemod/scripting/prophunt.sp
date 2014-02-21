@@ -1355,7 +1355,7 @@ public Action:OnCPMasterSpawned(entity)
 	DispatchSpawn(timer);
 
     #if defined LOG
-	LogMessage("[PH] setting up cpmaster \"%s\" with team round timer \"%s\"", name, TIMER_NAME);
+	LogMessage("[PH] setting up cpmaster \"%s\" (%d) with team round timer \"%s\" (%d) ", name, entity, TIMER_NAME, timer);
     #endif
     
 	decl String:finishedCommand[256];
