@@ -1319,6 +1319,10 @@ public OnCPEntitySpawned(entity)
 
 public Action:OnCPMasterSpawned(entity)
 {
+    #if defined LOG
+	LogMessage("[PH] cpmaster spawned");
+    #endif
+    
 	if (!g_MapStarted)
 	{
 		return Plugin_Continue;
@@ -1350,6 +1354,10 @@ public Action:OnCPMasterSpawned(entity)
 	DispatchKeyValue(timer, "timer_length", time);
 	DispatchSpawn(timer);
 
+    #if defined LOG
+	LogMessage("[PH] setting up cpmaster \"%s\" with team round timer \"%s\"", name, TIMER_NAME);
+    #endif
+    
 	decl String:finishedCommand[256];
 	
 	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinner:%d:0:-1", name, _:TFTeam_Red);
@@ -3467,7 +3475,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	TriggerTimer(g_hScore);
 	
 #if defined LOG
-	LogMessage("[PH] Timer_Start");
+	LogMessage("[PH] Setup_Finish");
 #endif
 	g_RoundOver = false;
 
