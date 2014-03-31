@@ -2574,7 +2574,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 	
-	CreateTimer(GetConVarInt(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
