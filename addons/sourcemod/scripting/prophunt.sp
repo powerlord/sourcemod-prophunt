@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.1.1"
+#define PL_VERSION "3.1.2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -78,7 +78,16 @@
 // Default: ON
 //#define ANTIHACK
 
+// How long after a prop damages a Pyro should the they be credited for damaging them?
+// Only applies during Last Prop mode and if a pyro kills themselves
+// Default: 5
 #define PROP_DAMAGE_TIME 5
+
+// How many seconds before the round changes should teams be switched?
+// Lowest possible setting is 0.1 due to how SourceMod timers work internally.
+// Setting this lower than 0.2 may cause issues with some servers for the same issue as above.
+// Default: 0.2
+#define TEAM_CHANGE_TIME 0.2
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2574,7 +2583,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 	
-	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - 0.1, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
