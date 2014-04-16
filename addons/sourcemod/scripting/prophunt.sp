@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.1.2"
+#define PL_VERSION "3.1.3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -292,6 +292,7 @@ new Handle:g_PHAirblast = INVALID_HANDLE;
 new Handle:g_PHAntiHack = INVALID_HANDLE;
 new Handle:g_PHReroll = INVALID_HANDLE;
 new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
+//new Handle:g_PHSetupLength = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -478,6 +479,7 @@ public OnPluginStart()
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
+	//g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time", _, true, 30.0, true, 120.00);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -1262,11 +1264,11 @@ public OnEntityCreated(entity, const String:classname[])
 	}
 	/*
 	if(strcmp(classname, "team_control_point") == 0 ||
-			strcmp(classname, "team_control_point_round") == 0 ||
-			strcmp(classname, "trigger_capture_area") == 0 ||
-			strcmp(classname, "func_respawnroom") == 0 ||
-			strcmp(classname, "func_respawnroomvisualizer") == 0 ||
-			strcmp(classname, "obj_sentrygun") == 0)
+		strcmp(classname, "team_control_point_round") == 0 ||
+		strcmp(classname, "trigger_capture_area") == 0 ||
+		strcmp(classname, "func_respawnroom") == 0 ||
+		strcmp(classname, "func_respawnroomvisualizer") == 0 ||
+		strcmp(classname, "obj_sentrygun") == 0)
 	{
 		SDKHook(entity, SDKHook_Spawn, OnBullshitEntitySpawned);
 	}
@@ -1291,6 +1293,12 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
 	}
+	else
+	if (strcmp(classname, "tf_powerup_bottle") == 0 ||
+		strcmp(classname, "tf_weapon_spellbook") == 0)
+	{
+		SDKHook(entity, SDKHook_Spawn, OnBlockedPropItemSpawned);
+	}
 }
 
 public Action:OnBullshitEntitySpawned(entity)
@@ -1309,6 +1317,25 @@ public Action:OnBuilderSpawned(entity)
 	{
 		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, _:TFObject_Sentry);
 	}
+	return Plugin_Continue;
+}
+
+public Action:OnBlockedPropItemSpawned(entity)
+{
+	if (!IsValidEntity(entity))
+		return Plugin_Continue;
+	
+	new owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	if (owner < 1 || owner > MaxClients)
+		return Plugin_Continue;
+	
+	if (!IsClientInGame(entity))
+		return Plugin_Continue;
+	
+	new team = GetClientTeam(owner);
+	if (team == _:TFTeam_Red)
+		return Plugin_Stop;
+	
 	return Plugin_Continue;
 }
 
@@ -1357,6 +1384,9 @@ public Action:OnCPMasterSpawned(entity)
 	
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
+	// new String:setupLength[5];
+	// GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));
+	//DispatchKeyValue(timer, "setup_length", setupLength);
 	DispatchKeyValue(timer, "setup_length", "30");
 	DispatchKeyValue(timer, "reset_time", "1");
 	DispatchKeyValue(timer, "auto_countdown", "1");
