@@ -2261,7 +2261,7 @@ stock DoSelfDamage(client, weapon)
 	}
 	
 	// Attacker shouldn't be the weapon, it should be the player
-	SDKHooks_TakeDamage(client, client, attacker, damage, DMG_PREVENT_PHYSICS_FORCE, weapon);
+	SDKHooks_TakeDamage(client, client, attacker, damage, DMG_PREVENT_PHYSICS_FORCE);
 }
 
 stock AddVelocity (client, Float:speed){
@@ -3444,6 +3444,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
+						TF2_RemoveAllWeapons(client);
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 					}
 				}
