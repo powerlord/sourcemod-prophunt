@@ -1329,7 +1329,7 @@ public Action:OnBlockedPropItemSpawned(entity)
 	if (owner < 1 || owner > MaxClients)
 		return Plugin_Continue;
 	
-	if (!IsClientInGame(entity))
+	if (!IsClientInGame(owner))
 		return Plugin_Continue;
 	
 	new team = GetClientTeam(owner);
