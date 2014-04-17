@@ -1326,10 +1326,7 @@ public Action:OnBlockedPropItemSpawned(entity)
 		return Plugin_Continue;
 	
 	new owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	if (owner < 1 || owner > MaxClients)
-		return Plugin_Continue;
-	
-	if (!IsClientInGame(owner))
+	if (owner < 1 || owner > MaxClients || !IsClientInGame(owner))
 		return Plugin_Continue;
 	
 	new team = GetClientTeam(owner);
