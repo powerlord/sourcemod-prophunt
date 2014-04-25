@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.1.3"
+#define PL_VERSION "3.1.4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -299,6 +299,7 @@ new String:g_AdText[128] = "";
 new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
+new bool:g_TF2Attribs = false;
 #if defined OIMM
 new bool:g_OptinMultiMod = false;
 #endif
@@ -656,6 +657,8 @@ public OnAllPluginsLoaded()
 		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
 	}
 #endif
+
+	g_TF2Attribs = LibraryExists("tf2attributes");
 }
 
 loadGlobalConfig()
@@ -690,6 +693,11 @@ public OnLibraryAdded(const String:name[])
 		g_OptinMultiMod = true;
 	}
 #endif
+	else
+	if (StrEqual(name, "tf2attributes", false))
+	{
+		g_TF2Attribs = true;
+	}
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -705,6 +713,11 @@ public OnLibraryRemoved(const String:name[])
 		g_OptinMultiMod = false;
 	}
 #endif
+	else
+	if (StrEqual(name, "tf2attributes", false))
+	{
+		g_TF2Attribs = false;
+	}
 }
 
 public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -714,6 +727,9 @@ public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const St
 
 public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
+	if (!g_Enabled)
+		return;
+	
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
@@ -727,6 +743,9 @@ public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:ne
 
 public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
+	if (!g_Enabled || !g_TF2Attribs)
+		return;
+	
 	new bool:airblast = GetConVarBool(g_PHAirblast);
 
 	new flamethrower = -1;
@@ -750,6 +769,9 @@ public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:ne
 
 public OnFallDamageChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
+	if (!g_Enabled || !g_TF2Attribs)
+		return;
+	
 	new Float:fall = GetConVarFloat(g_PHPreventFallDamage);
 	
 	for (new i = 1; i <= MaxClients; ++i)
