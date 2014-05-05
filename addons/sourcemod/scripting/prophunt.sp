@@ -776,7 +776,10 @@ public OnFallDamageChanged(Handle:convar, const String:oldValue[], const String:
 	
 	for (new i = 1; i <= MaxClients; ++i)
 	{
-		TF2Attrib_SetByName(i, "cancel falling damage", fall);
+		if (IsClientInGame(i))
+		{
+			TF2Attrib_SetByName(i, "cancel falling damage", fall);
+		}
 	}
 }
 
@@ -2836,6 +2839,24 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 		g_ReplacementCount[client] = 0;
 	}
 
+	TF2Attrib_ChangeBoolAttrib(client, "cancel falling damage", GetConVarBool(g_PHPreventFallDamage));
+}
+
+TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
+{
+	if (!g_TF2Attribs)
+	{
+		return;
+	}
+	
+	if (value)
+	{
+		TF2Attrib_SetByName(entity, attribute, 1.0);
+	}
+	else if (TF2Attrib_GetByName(entity, attribute) != Address_Null)
+	{
+		TF2Attrib_RemoveByName(entity, attribute);
+	}
 }
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
