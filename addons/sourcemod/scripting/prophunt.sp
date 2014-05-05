@@ -358,8 +358,8 @@ new bool:g_CvarsSet;
 new RoundChange:g_RoundChange;
 new bool:g_MapRunning = false;
 
-new bool:g_CurrentlyFlying[MAXPLAYERS+1];
-new g_FlyCount[MAXPLAYERS+1];
+new bool:g_CurrentlyFlaming[MAXPLAYERS+1];
+new g_FlameCount[MAXPLAYERS+1];
 #define FLY_COUNT 3
 
 new g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
@@ -1459,8 +1459,8 @@ public OnMapEnd()
 	
 	for (new client = 1; client<=MaxClients; client++)
 	{
-		g_CurrentlyFlying[client] = false;
-		g_FlyCount[client] = 0;
+		g_CurrentlyFlaming[client] = false;
+		g_FlameCount[client] = 0;
 	}
 
 	ClearArray(g_ModelName);
@@ -1988,8 +1988,8 @@ public ResetPlayer(client)
 	g_PlayerModel[client] = "";
 	g_SetClass[client] = false;
 	g_Rerolled[client] = false;
-	g_CurrentlyFlying[client] = false;
-	g_FlyCount[client] = 0;
+	g_CurrentlyFlaming[client] = false;
+	g_FlameCount[client] = 0;
 	g_LastPropDamageTime[client] = -1;
 	g_RoundStartMessageSent[client] = false;
 }
@@ -2190,8 +2190,8 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 	{
 		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0)
 		{
-			g_CurrentlyFlying[client] = true;
-			g_FlyCount[client] = 0;
+			g_CurrentlyFlaming[client] = true;
+			g_FlameCount[client] = 0;
 		}
 		else
 			DoSelfDamage(client, weapon);
@@ -2204,15 +2204,15 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
 {
-	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlying[client])
+	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlaming[client])
 	{
 		return Plugin_Continue;
 	}
 	
 	if (buttons & IN_ATTACK != IN_ATTACK)
 	{
-		g_CurrentlyFlying[client] = false;
-		g_FlyCount[client] = 0;
+		g_CurrentlyFlaming[client] = false;
+		g_FlameCount[client] = 0;
 		return Plugin_Continue;
 	}
 
@@ -2228,7 +2228,7 @@ public OnGameFrame()
 	
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (!IsClientInGame(client) || !g_CurrentlyFlying[client] || GetClientTeam(client) != _:TFTeam_Blue || !IsPlayerAlive(client) || g_FlyCount[client]++ % FLY_COUNT != 0)
+		if (!IsClientInGame(client) || !g_CurrentlyFlaming[client] || GetClientTeam(client) != _:TFTeam_Blue || !IsPlayerAlive(client) || g_FlameCount[client]++ % FLY_COUNT != 0)
 		{
 			continue;
 		}
@@ -2245,7 +2245,7 @@ public OnGameFrame()
 
 public WeaponSwitch(client, weapon)
 {
-	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlying[client])
+	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlaming[client])
 	{
 		return;
 	}
@@ -2255,8 +2255,8 @@ public WeaponSwitch(client, weapon)
 	
 	if(strcmp(weaponname, "tf_weapon_flamethrower") != 0)
 	{
-		g_CurrentlyFlying[client] = false;
-		g_FlyCount[client] = 0;
+		g_CurrentlyFlaming[client] = false;
+		g_FlameCount[client] = 0;
 	}
 }
 
@@ -2276,13 +2276,15 @@ stock DoSelfDamage(client, weapon)
 		damage = 10.0;
 	}
 	
-	if (g_LastProp && strcmp(weaponname, "tf_weapon_flamethrower") == 0 && g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime() && damage >= GetEntProp(client, Prop_Send, "m_iHealth"))
+	if (g_LastProp && strcmp(weaponname, "tf_weapon_flamethrower") == 0 && g_LastPropPlayer > 0 && IsClientInGame(g_LastPropPlayer) && IsPlayerAlive(g_LastPropPlayer) && 
+		g_LastPropDamageTime[client] > -1 && g_LastPropDamageTime[client] + PROP_DAMAGE_TIME >= GetTime() && damage >= GetEntProp(client, Prop_Send, "m_iHealth"))
 	{
 		attacker = g_LastPropPlayer;
-		weapon = 0;
+		//weapon = 0;
 	}
 	
 	// Attacker shouldn't be the weapon, it should be the player
+	// weapon is no longer used as it caused bugs in bleed damage
 	SDKHooks_TakeDamage(client, client, attacker, damage, DMG_PREVENT_PHYSICS_FORCE);
 }
 
@@ -3120,8 +3122,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	//new bool:changed = false;
 	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	g_CurrentlyFlying[client] = false;
-	g_FlyCount[client] = 0;
+	g_CurrentlyFlaming[client] = false;
+	g_FlameCount[client] = 0;
 	
 	if(IsClientInGame(client) && GetClientTeam(client) == _:TFTeam_Red)
 	{
