@@ -24,7 +24,7 @@
 #include <tf2attributes>
 
 
-#define PL_VERSION "3.2.0 alpha 1"
+#define PL_VERSION "3.2.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -292,7 +292,7 @@ new Handle:g_PHAirblast = INVALID_HANDLE;
 new Handle:g_PHAntiHack = INVALID_HANDLE;
 new Handle:g_PHReroll = INVALID_HANDLE;
 new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
-//new Handle:g_PHSetupLength = INVALID_HANDLE;
+new Handle:g_PHSetupLength = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -480,7 +480,7 @@ public OnPluginStart()
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
-	//g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time", _, true, 30.0, true, 120.00);
+	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time", _, true, 30.0, true, 120.00);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -1394,6 +1394,7 @@ public Action:OnCPMasterSpawned(entity)
 	
 	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
 
+	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
 	
@@ -1406,10 +1407,10 @@ public Action:OnCPMasterSpawned(entity)
 	
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
-	// new String:setupLength[5];
-	// GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));
-	//DispatchKeyValue(timer, "setup_length", setupLength);
-	DispatchKeyValue(timer, "setup_length", "30");
+	new String:setupLength[5];
+	GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));
+	DispatchKeyValue(timer, "setup_length", setupLength);
+	//DispatchKeyValue(timer, "setup_length", "30");
 	DispatchKeyValue(timer, "reset_time", "1");
 	DispatchKeyValue(timer, "auto_countdown", "1");
 	DispatchKeyValue(timer, "timer_length", time);
