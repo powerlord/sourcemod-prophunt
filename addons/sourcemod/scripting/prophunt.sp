@@ -205,6 +205,7 @@ enum
 
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
+new bool:g_RemoveRedWeps = false;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -347,7 +348,7 @@ new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
 
-new Handle:g_hBonusRoundTime;
+//new Handle:g_hBonusRoundTime;
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
@@ -501,7 +502,7 @@ public OnPluginStart()
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
 	
-	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
+//	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
 	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
@@ -1312,6 +1313,7 @@ public OnEntityCreated(entity, const String:classname[])
 	if(strcmp(classname, "team_control_point_master") == 0)
 	{
 		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
+		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawnedPost);
 	}
 	else
 	if(strcmp(classname, "tf_weapon_builder") == 0)
@@ -1323,6 +1325,11 @@ public OnEntityCreated(entity, const String:classname[])
 		strcmp(classname, "tf_weapon_spellbook") == 0)
 	{
 		SDKHook(entity, SDKHook_Spawn, OnBlockedPropItemSpawned);
+	}
+	else
+	if (strcmp(classname, "team_round_timer") == 0)
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
 	}
 }
 
@@ -1375,25 +1382,51 @@ public OnCPEntitySpawned(entity)
 	}
 }
 
+public Action:OnTimerSpawned(entity)
+{
+	// Attempt to shut the pre-round timer up at start, unless 5 secs or less are left
+	decl String:name[64];
+	GetEntPropString(entity, Prop_Send, "m_iName", name, sizeof(name));
+	
+	if (!StrEqual(name, TIMER_NAME))
+	{
+		DispatchKeyValue(entity, "auto_countdown", "0");
+		
+		SetVariantString("On10SecRemain !self:AutoCountdown:1:0:-1");
+		AcceptEntityInput(entity, "AddOutput");
+
+		SetVariantString("On1SecRemain !self:AutoCountdown:0:0:-1");
+		AcceptEntityInput(entity, "AddOutput");
+	}
+}
+
 public Action:OnCPMasterSpawned(entity)
 {
     #if defined LOG
 	LogMessage("[PH] cpmaster spawned");
     #endif
     
+	// According to Source SDK 2013, SetWinnerAndForceCaps is called when stalemate/arena ends
+	// Changed back in 3.2.0 alpha 3 for testing 
+	DispatchKeyValue(entity, "switch_teams", "1");
+	//SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
+	
+	return Plugin_Continue;
+}
+
+public OnCPMasterSpawnedPost(entity)
+{
 	if (!g_MapStarted)
 	{
-		return Plugin_Continue;
+		return;
 	}
 	
 	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
 	if (arenaLogic == -1)
 	{
-		return Plugin_Continue;
+		return;
 	}
 	
-	SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
-
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
@@ -1405,6 +1438,7 @@ public Action:OnCPMasterSpawned(entity)
 		strcopy(name, sizeof(name), "master_control_point");
 	}
 	
+	// Create our timer.
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
 	new String:setupLength[5];
@@ -1415,28 +1449,30 @@ public Action:OnCPMasterSpawned(entity)
 	DispatchKeyValue(timer, "auto_countdown", "1");
 	DispatchKeyValue(timer, "timer_length", time);
 	DispatchSpawn(timer);
-
+	
     #if defined LOG
 	LogMessage("[PH] setting up cpmaster \"%s\" (%d) with team round timer \"%s\" (%d) ", name, entity, TIMER_NAME, timer);
     #endif
     
 	decl String:finishedCommand[256];
 	
-	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinner:%d:0:-1", name, _:TFTeam_Red);
+	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinnerAndForceCaps:%d:0:-1", name, _:TFTeam_Red);
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(timer, "AddOutput");
-
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
 	
 	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(arenaLogic, "AddOutput");
 	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(arenaLogic, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(arenaLogic, "AddOutput");
+	
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
-
-	return Plugin_Continue;
 }
 
 public OnMapEnd()
@@ -2638,7 +2674,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 	
-	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	//CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
@@ -2864,6 +2900,8 @@ TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	g_RemoveRedWeps = false;
+	
 	StopTimers();
 
 	switch (g_RoundChange)
@@ -2939,11 +2977,18 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 public Action:Timer_teamplay_round_start(Handle:timer)
 {
+	g_RemoveRedWeps = true;
+	
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsClientObserver(i))
 		{
 			SetEntityMoveType(i, MOVETYPE_NONE);
+			
+			if (GetClientTeam(i) == _:TFTeam_Red)
+			{
+				TF2_RegeneratePlayer(i);
+			}
 		}
 	}
 }
@@ -3546,6 +3591,13 @@ public Action:Timer_Score(Handle:timer, any:entity)
 	PrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
 }
 
+public OnSetupStart(const String:output[], caller, activator, Float:delay)
+{
+	new Handle:event = CreateEvent("teamplay_update_timer");
+	if (event != INVALID_HANDLE)
+	FireEvent(event);
+}
+
 // This used to hook the teamplay_setup_finished event, but ph_kakariko messes with that
 //public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
 public OnSetupFinished(const String:output[], caller, activator, Float:delay)
@@ -3702,7 +3754,8 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (GetClientTeam(client) == _:TFTeam_Red)
 	{
 		// If they're not the last prop, don't give them anything
-		if (!g_LastProp)
+		// If g_RemoveRedWeps is set that is (which it is most of the time)
+		if (!g_LastProp && g_RemoveRedWeps)
 		{
 			return Plugin_Stop;
 		}
