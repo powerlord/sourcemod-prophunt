@@ -11,10 +11,7 @@
 #include <tf2_stocks>
 #include <sdkhooks>
 #include <tf2items>
-
-#if !defined SNDCHAN_VOICE2
-#define SNDCHAN_VOICE2 7
-#endif
+#include "morecolors.inc"
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
@@ -23,6 +20,9 @@
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
 
+#if !defined SNDCHAN_VOICE2
+#define SNDCHAN_VOICE2 7
+#endif
 
 #define PL_VERSION "3.2.0 alpha 3"
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1239,7 +1239,7 @@ public StartTouchHook(entity, other)
 	{
 		FillHealth(other);
 		ExtinguishPlayer(other);
-		PrintToChat(other, "%t", "#TF_PH_CPBonus");
+		CPrintToChat(other, "%t", "#TF_PH_CPBonus");
 		PH_EmitSoundToClient(other, "CPBonus", _, _, SNDLEVEL_AIRCRAFT);
 		g_TouchingCP[other] = true;
 	}
@@ -1880,7 +1880,7 @@ public Action:Command_propmenu(client, args)
 				
 				if (!FileExists(model, true))
 				{
-					PrintToChat(client, "%t", "#TF_PH_PropModelNotFound");
+					CPrintToChat(client, "%t", "#TF_PH_PropModelNotFound");
 					return Plugin_Handled;
 				}
 				
@@ -1905,7 +1905,7 @@ public Action:Command_propmenu(client, args)
 					
 					if (!found)
 					{
-						PrintToChat(client, "%t", "#TF_PH_PropMenuNotFound");
+						CPrintToChat(client, "%t", "#TF_PH_PropMenuNotFound");
 						return Plugin_Handled;
 					}
 				}
@@ -1920,12 +1920,12 @@ public Action:Command_propmenu(client, args)
 		}
 		else
 		{
-			PrintToChat(client, "%t", "#TF_PH_PropMenuNotRedOrAlive");
+			CPrintToChat(client, "%t", "#TF_PH_PropMenuNotRedOrAlive");
 		}
 	}
 	else
 	{
-		PrintToChat(client, "%t", "#TF_PH_PropMenuNoAccess");
+		CPrintToChat(client, "%t", "#TF_PH_PropMenuNoAccess");
 	}
 	return Plugin_Handled;
 }
@@ -1953,17 +1953,17 @@ public Action:Command_propreroll(client, args)
 			}
 			else
 			{
-				PrintToChat(client, "%t", "#TF_PH_PropRerollLimit");
+				CPrintToChat(client, "%t", "#TF_PH_PropRerollLimit");
 			}
 		}
 		else
 		{
-			PrintToChat(client, "%t", "#TF_PH_PropRerollNotRedOrAlive");
+			CPrintToChat(client, "%t", "#TF_PH_PropRerollNotRedOrAlive");
 		}
 	}
 	else
 	{
-		PrintToChat(client, "%t", "#TF_PH_PropRerollNoAccess");
+		CPrintToChat(client, "%t", "#TF_PH_PropRerollNoAccess");
 	}
 	return Plugin_Handled;
 }
@@ -1986,12 +1986,12 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					}
 					else
 					{
-						PrintToChat(param1, "%t", "#TF_PH_PropMenuNotRedOrAlive");
+						CPrintToChat(param1, "%t", "#TF_PH_PropMenuNotRedOrAlive");
 					}
 				}
 				else
 				{
-					PrintToChat(param1, "%t", "#TF_PH_PropMenuNoAccess");
+					CPrintToChat(param1, "%t", "#TF_PH_PropMenuNoAccess");
 				}
 			}
 		}
@@ -2730,14 +2730,14 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	{
 		client = GetRandomPlayer(_:TFTeam_Red);
 		GetClientName(client, cname, sizeof(cname));
-		PrintToChatAll("%t", "#TF_PH_BalanceBlu", cname);
+		CPrintToChatAll("%t", "#TF_PH_BalanceBlu", cname);
 		ChangeClientTeamAlive(client, _:TFTeam_Blue);
 	}
 	while(GetTeamClientCount(_:TFTeam_Blue) > GetTeamClientCount(_:TFTeam_Red) +1 )
 	{
 		client = GetRandomPlayer(_:TFTeam_Blue);
 		GetClientName(client, cname, sizeof(cname));
-		PrintToChatAll("%t", "#TF_PH_BalanceRed", cname);
+		CPrintToChatAll("%t", "#TF_PH_BalanceRed", cname);
 		ChangeClientTeamAlive(client, _:TFTeam_Red);
 	}
 #if defined LOG
@@ -3101,7 +3101,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		{
 			if (!g_RoundStartMessageSent[client])
 			{
-				PrintToChat(client, "%t", "#TF_PH_WaitingPeriodStarted");
+				CPrintToChat(client, "%t", "#TF_PH_WaitingPeriodStarted");
 				g_RoundStartMessageSent[client] = true;
 			}
 #if defined SHINX
@@ -3111,11 +3111,11 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			{
 				if(g_classLimits[blue][clientClass] == 0)
 				{
-					//PrintToChat(client, "%t", "#TF_PH_ClassBlocked");
+					//CPrintToChat(client, "%t", "#TF_PH_ClassBlocked");
 				}
 				else
 				{
-					PrintToChat(client, "%t", "#TF_PH_ClassFull");
+					CPrintToChat(client, "%t", "#TF_PH_ClassFull");
 				}
 				
 				TF2_SetPlayerClass(client, g_defaultClass[blue]);
@@ -3431,7 +3431,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
 			if (!g_RoundStartMessageSent[client])
 			{
-				PrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
+				CPrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
 				g_RoundStartMessageSent[client] = true;
 			}
 		}
@@ -3534,7 +3534,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
 						GetClientName(client, name, sizeof(name));
-						PrintToChatAll("\x04%t", "#TF_PH_WeaponPunish", name);
+						CPrintToChatAll("\x04%t", "#TF_PH_WeaponPunish", name);
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
@@ -3594,7 +3594,7 @@ public Action:Timer_Score(Handle:timer, any:entity)
 #endif
 		g_TouchingCP[client] = false;
 	}
-	PrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
+	CPrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
 }
 
 public OnSetupStart(const String:output[], caller, activator, Float:delay)
@@ -3627,7 +3627,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 			SetEntityMoveType(client2, MOVETYPE_WALK);
 		}
 	}
-	PrintToChatAll("%t", "#TF_PH_PyrosReleased");
+	CPrintToChatAll("%t", "#TF_PH_PyrosReleased");
 	PH_EmitSoundToAll("RoundStart", _, _, SNDLEVEL_AIRCRAFT);
 
 	new ent;
