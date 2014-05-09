@@ -282,9 +282,7 @@ new Handle:g_PropMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
-#if !defined STATS
 new Handle:g_PHPropMenuRestrict = INVALID_HANDLE;
-#endif
 //new Handle:g_PHAdmFlag = INVALID_HANDLE;
 new Handle:g_PHAdvertisements = INVALID_HANDLE;
 new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
@@ -471,9 +469,7 @@ public OnPluginStart()
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
-#if !defined STATS
-	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "1", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 1 (yes). Not available in the Ranked version.", _, true, 0.0, true, 1.0);
-#endif
+	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
@@ -527,6 +523,7 @@ public OnPluginStart()
 	HookEvent("post_inventory_application", Event_post_inventory_application);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
+	HookEvent("teamplay_restart_round", Event_teamplay_restart_round);
 	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished); // No longer used since 2.0.3 or so because of issues with certain maps
 
 #if defined STATS
@@ -1881,11 +1878,15 @@ public Action:Command_propmenu(client, args)
 				decl String:model[MAXMODELNAME];
 				GetCmdArg(1, model, MAXMODELNAME);
 				
+				if (!FileExists(model, true))
+				{
+					PrintToChat(client, "%t", "#TF_PH_PropModelNotFound");
+					return Plugin_Handled;
+				}
+				
 				new bool:restrict = true;
 				
-#if !defined STATS
 				restrict = GetConVarBool(g_PHPropMenuRestrict);
-#endif
 				if (restrict)
 				{
 					new found = false;
@@ -2991,6 +2992,11 @@ public Action:Timer_teamplay_round_start(Handle:timer)
 			}
 		}
 	}
+}
+
+public Event_teamplay_restart_round(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	// I'm not sure what needs to be here... does teamplay_round_start get called on round restart?
 }
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
