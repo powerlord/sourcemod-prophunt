@@ -24,7 +24,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.2.0 alpha 3"
+#define PL_VERSION "3.2.0 beta 1"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -535,6 +535,7 @@ public OnPluginStart()
 #endif
 
 	RegConsoleCmd("help", Command_motd);
+	RegConsoleCmd("phstats", Command_motd);
 	//RegConsoleCmd("motd", Command_motd);
 	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
 	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
@@ -1855,7 +1856,7 @@ public Action:Command_jointeam(client, args)
 public Action:Command_ReloadConfig(client, args)
 {
 	loadGlobalConfig();
-	ReplyToCommand(client, "PropHunt Config reloaded");
+	CReplyToCommand(client, "PropHunt Config reloaded");
 	return Plugin_Handled;
 }
 
@@ -1866,7 +1867,7 @@ public Action:Command_propmenu(client, args)
 	
 	if (client <= 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	if(GetConVarInt(g_PHPropMenu) == 0)
@@ -1880,7 +1881,7 @@ public Action:Command_propmenu(client, args)
 				
 				if (!FileExists(model, true))
 				{
-					CPrintToChat(client, "%t", "#TF_PH_PropModelNotFound");
+					CReplyToCommand(client, "%t", "#TF_PH_PropModelNotFound");
 					return Plugin_Handled;
 				}
 				
@@ -1905,7 +1906,7 @@ public Action:Command_propmenu(client, args)
 					
 					if (!found)
 					{
-						CPrintToChat(client, "%t", "#TF_PH_PropMenuNotFound");
+						CReplyToCommand(client, "%t", "#TF_PH_PropMenuNotFound");
 						return Plugin_Handled;
 					}
 				}
@@ -1920,12 +1921,12 @@ public Action:Command_propmenu(client, args)
 		}
 		else
 		{
-			CPrintToChat(client, "%t", "#TF_PH_PropMenuNotRedOrAlive");
+			CReplyToCommand(client, "%t", "#TF_PH_PropMenuNotRedOrAlive");
 		}
 	}
 	else
 	{
-		CPrintToChat(client, "%t", "#TF_PH_PropMenuNoAccess");
+		CReplyToCommand(client, "%t", "#TF_PH_PropMenuNoAccess");
 	}
 	return Plugin_Handled;
 }
@@ -1937,7 +1938,7 @@ public Action:Command_propreroll(client, args)
 	
 	if (client <= 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	if(GetConVarInt(g_PHReroll) == 0)
@@ -1953,17 +1954,17 @@ public Action:Command_propreroll(client, args)
 			}
 			else
 			{
-				CPrintToChat(client, "%t", "#TF_PH_PropRerollLimit");
+				CReplyToCommand(client, "%t", "#TF_PH_PropRerollLimit");
 			}
 		}
 		else
 		{
-			CPrintToChat(client, "%t", "#TF_PH_PropRerollNotRedOrAlive");
+			CReplyToCommand(client, "%t", "#TF_PH_PropRerollNotRedOrAlive");
 		}
 	}
 	else
 	{
-		CPrintToChat(client, "%t", "#TF_PH_PropRerollNoAccess");
+		CReplyToCommand(client, "%t", "#TF_PH_PropRerollNoAccess");
 	}
 	return Plugin_Handled;
 }
@@ -2039,7 +2040,7 @@ public Action: Command_respawn(client, args)
 	
 	if (client < 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	TF2_RespawnPlayer(client);
@@ -2109,7 +2110,7 @@ public Action:Command_switch(client, args)
 	
 	if (client < 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	g_AllowedSpawn[client] = true;
@@ -2126,7 +2127,7 @@ public Action:Command_pyro(client, args)
 	
 	if (client < 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	g_PlayerModel[client] = "";
@@ -2520,7 +2521,7 @@ public Action:Command_motd(client, args)
 {
 	if (client <= 0)
 	{
-		ReplyToCommand(client, "%t", "Command is in-game only");
+		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
 	if(IsClientInGame(client))
@@ -3534,7 +3535,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
 						GetClientName(client, name, sizeof(name));
-						CPrintToChatAll("\x04%t", "#TF_PH_WeaponPunish", name);
+						CPrintToChatAll("%t", "#TF_PH_WeaponPunish", name);
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
@@ -3594,7 +3595,7 @@ public Action:Timer_Score(Handle:timer, any:entity)
 #endif
 		g_TouchingCP[client] = false;
 	}
-	CPrintToChatAll("\x03%t", "#TF_PH_CPBonusRefreshed");
+	CPrintToChatAll("%t", "#TF_PH_CPBonusRefreshed");
 }
 
 public OnSetupStart(const String:output[], caller, activator, Float:delay)
