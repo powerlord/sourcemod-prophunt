@@ -346,7 +346,7 @@ new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
 
-//new Handle:g_hBonusRoundTime;
+new Handle:g_hBonusRoundTime;
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
@@ -498,7 +498,7 @@ public OnPluginStart()
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
 	
-//	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
+	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
 	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
@@ -1392,8 +1392,10 @@ public Action:OnTimerSpawned(entity)
 		SetVariantString("On10SecRemain !self:AutoCountdown:1:0:-1");
 		AcceptEntityInput(entity, "AddOutput");
 
-		SetVariantString("On1SecRemain !self:AutoCountdown:0:0:-1");
-		AcceptEntityInput(entity, "AddOutput");
+		// Client always plays the bell when the status changes from "setup" to "normal", 
+		// which is what the pregame timer apparently does
+		//SetVariantString("On1SecRemain !self:AutoCountdown:0:0:-1");
+		//AcceptEntityInput(entity, "AddOutput");
 	}
 }
 
@@ -1403,9 +1405,7 @@ public Action:OnCPMasterSpawned(entity)
 	LogMessage("[PH] cpmaster spawned");
     #endif
     
-	// According to Source SDK 2013, SetWinnerAndForceCaps is called when stalemate/arena ends
-	// Changed back in 3.2.0 alpha 3 for testing 
-	DispatchKeyValue(entity, "switch_teams", "1");
+	DispatchKeyValue(entity, "switch_teams", "0");
 	//SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
 	
 	return Plugin_Continue;
@@ -2675,7 +2675,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 	
-	//CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
