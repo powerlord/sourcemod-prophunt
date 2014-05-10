@@ -1383,7 +1383,7 @@ public Action:OnTimerSpawned(entity)
 {
 	// Attempt to shut the pre-round timer up at start, unless 5 secs or less are left
 	decl String:name[64];
-	GetEntPropString(entity, Prop_Send, "m_iName", name, sizeof(name));
+	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
 	
 	if (!StrEqual(name, TIMER_NAME))
 	{
