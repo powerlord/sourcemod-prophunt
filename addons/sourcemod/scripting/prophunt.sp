@@ -748,7 +748,6 @@ public OnLibraryAdded(const String:name[])
 		g_DHooks = true;
 		RegisterDHooks();
 	}
-	
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -768,6 +767,11 @@ public OnLibraryRemoved(const String:name[])
 	if (StrEqual(name, "tf2attributes", false))
 	{
 		g_TF2Attribs = false;
+	}
+	else
+	if (StrEqual(name, "dhooks", false))
+	{
+		g_DHooks = false;
 	}
 }
 
