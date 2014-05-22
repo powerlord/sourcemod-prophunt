@@ -693,9 +693,9 @@ RegisterDHooks()
 	
 	if (g_MapRunning)
 	{
-		#if defined LOG
-		LogMessage("[PH] hooking gamerules for team switch on map change - %i", g_RoundOver );
-		#endif
+#if defined LOG
+		LogMessage("[PH] hooking gamerules SetWinningTeam for team switch override on offset %d", g_SetWinningTeamOffset);
+#endif
 		
 		DHookGamerules(hWinning, false);
 	}
@@ -1719,9 +1719,9 @@ public OnMapStart()
 		{
 			
 			DHookGamerules(hWinning, false);
-			#if defined LOG
-				LogMessage("[PH] hooking gamerules for team switch on map change - %i", g_RoundOver );
-			#endif
+#if defined LOG
+			LogMessage("[PH] hooking gamerules SetWinningTeam for team switch override on offset %d", g_SetWinningTeamOffset);
+#endif
 			
 		}
 	}
