@@ -25,7 +25,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.2.0 beta 1"
+#define PL_VERSION "3.2.0 beta 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -693,6 +693,10 @@ RegisterDHooks()
 	
 	if (g_MapRunning)
 	{
+		#if defined LOG
+		LogMessage("[PH] hooking gamerules for team switch on map change - %i", g_RoundOver );
+		#endif
+		
 		DHookGamerules(hWinning, false);
 	}
 }
@@ -1713,7 +1717,12 @@ public OnMapStart()
 		loadGlobalConfig();
 		if (g_DHooks && g_SetWinningTeamOffset != -1)
 		{
+			
 			DHookGamerules(hWinning, false);
+			#if defined LOG
+				LogMessage("[PH] hooking gamerules for team switch on map change - %i", g_RoundOver );
+			#endif
+			
 		}
 	}
 	
