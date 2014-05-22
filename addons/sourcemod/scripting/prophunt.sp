@@ -16,6 +16,7 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 #include <readgamesounds>
+#include <dhooks>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
@@ -435,6 +436,11 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 #endif
 
+// Experimental DHooks things
+new Handle:hWinning;
+new bool:g_DHooks = false;
+new g_SetWinningTeamOffset = -1;
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	MarkNativeAsOptional("Steam_SetGameDescription");
@@ -443,6 +449,13 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
+	new Handle:gc = LoadGameConfigFile("tf2-roundend.games");
+	if (gc != INVALID_HANDLE)
+	{
+		g_SetWinningTeamOffset = GameConfGetOffset(gc, "SetWinningTeam");
+		CloseHandle(gc);
+	}
+	
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
 	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
@@ -658,6 +671,38 @@ public OnAllPluginsLoaded()
 #endif
 
 	g_TF2Attribs = LibraryExists("tf2attributes");
+	
+	g_DHooks = LibraryExists("dhooks");
+	if (g_DHooks)
+	{
+		RegisterDHooks();
+	}
+}
+
+RegisterDHooks()
+{
+	if (g_SetWinningTeamOffset == -1)
+		return;
+
+	hWinning = DHookCreate(g_SetWinningTeamOffset, HookType_GameRules, ReturnType_Void, ThisPointer_Ignore, ForceSwitchTeams);
+	DHookAddParam(hWinning, HookParamType_Int);
+	DHookAddParam(hWinning, HookParamType_Int);
+	DHookAddParam(hWinning, HookParamType_Bool);
+	DHookAddParam(hWinning, HookParamType_Bool);
+	DHookAddParam(hWinning, HookParamType_Bool);	
+	
+	if (g_MapRunning)
+	{
+		DHookGamerules(hWinning, false);
+	}
+}
+
+// virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
+public MRESReturn:ForceSwitchTeams(Handle:hParams)
+{
+	// params are 1-based
+	DHookSetParam(hParams, 4, true);
+	return MRES_ChangedHandled;
 }
 
 loadGlobalConfig()
@@ -697,6 +742,13 @@ public OnLibraryAdded(const String:name[])
 	{
 		g_TF2Attribs = true;
 	}
+	else
+	if (StrEqual(name, "dhooks", false))
+	{
+		g_DHooks = true;
+		RegisterDHooks();
+	}
+	
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -1655,6 +1707,10 @@ public OnMapStart()
 		g_MapStarted = true;
 		
 		loadGlobalConfig();
+		if (g_DHooks && g_SetWinningTeamOffset != -1)
+		{
+			DHookGamerules(hWinning, false);
+		}
 	}
 	
 	// workaround no win panel event - admin changes, rtv, etc.
@@ -2676,7 +2732,10 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 	
-	CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	if (!g_DHooks || g_SetWinningTeamOffset == -1)
+	{
+		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	}
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
