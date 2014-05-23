@@ -702,8 +702,10 @@ InitializeDHooks()
 {
 	if (g_SetWinningTeamOffset == -1)
 		return;
-		
+	
+#if defined LOG
 	LogMessage("[PH] Creating SetWinningTeam hook using offset %d", g_SetWinningTeamOffset);
+#endif
 	hWinning = DHookCreate(g_SetWinningTeamOffset, HookType_GameRules, ReturnType_Void, ThisPointer_Ignore, ForceSwitchTeams);
 	DHookAddParam(hWinning, HookParamType_Int);
 	DHookAddParam(hWinning, HookParamType_Int);
@@ -1522,9 +1524,9 @@ public Action:OnTimerSpawned(entity)
 
 public Action:OnCPMasterSpawned(entity)
 {
-    #if defined LOG
+#if defined LOG
 	LogMessage("[PH] cpmaster spawned");
-    #endif
+#endif
     
 	DispatchKeyValue(entity, "switch_teams", "0");
 	//SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
@@ -1568,9 +1570,9 @@ public OnCPMasterSpawnedPost(entity)
 	DispatchKeyValue(timer, "timer_length", time);
 	DispatchSpawn(timer);
 	
-    #if defined LOG
+#if defined LOG
 	LogMessage("[PH] setting up cpmaster \"%s\" (%d) with team round timer \"%s\" (%d) ", name, entity, TIMER_NAME, timer);
-    #endif
+#endif
     
 	decl String:finishedCommand[256];
 	
@@ -3514,9 +3516,9 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 	{
 		//TF2_RegeneratePlayer(client);
 		
-		#if defined LOG
-				LogMessage("[PH] do equip %N", client);
-		#endif
+#if defined LOG
+		LogMessage("[PH] do equip %N", client);
+#endif
 		// Lets comment this out since we don't block RED weapons with TF2Items
 		// slot commands fix "remember last weapon" glitch, despite their client console spam
 		/*
@@ -3529,9 +3531,9 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
 		DispatchKeyValue(client, "targetname", pname);
-		#if defined LOG
-				LogMessage("[PH] do equip_2 %N", client);
-		#endif
+#if defined LOG
+		LogMessage("[PH] do equip_2 %N", client);
+#endif
 		
 		new propData[PropData];
 		
@@ -3584,13 +3586,13 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			skin = GetArrayCell(g_ModelSkin, modelIndex);
 		}
 		
-		#if defined LOG
-				LogMessage("[PH] do equip_3 %N", client);
-		#endif
+#if defined LOG
+		LogMessage("[PH] do equip_3 %N", client);
+#endif
 
-		#if defined LOG
-				LogMessage("[PH] do equip_4 %N", client);
-		#endif
+#if defined LOG
+		LogMessage("[PH] do equip_4 %N", client);
+#endif
 		// This is to kill the particle effects from the Harvest Ghost prop and the like
 		SetVariantString("ParticleEffectStop");
 		AcceptEntityInput(client, "DispatchEffect");
@@ -3618,9 +3620,9 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			SetEntProp(client, Prop_Send, "m_nForcedSkin", skin);
 		}
 		SwitchView(client, true, false);
-		#if defined LOG
-				LogMessage("[PH] do equip_5 %N", client);
-		#endif
+#if defined LOG
+		LogMessage("[PH] do equip_5 %N", client);
+#endif
 		
 		if(!g_inPreRound)
 		{
