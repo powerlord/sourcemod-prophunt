@@ -700,7 +700,7 @@ public OnAllPluginsLoaded()
 #if defined DHOOKS
 InitializeDHooks()
 {
-	if (g_SetWinningTeamOffset == -1)
+	if (!g_DHooks || g_SetWinningTeamOffset == -1)
 		return;
 	
 #if defined LOG
@@ -716,7 +716,7 @@ InitializeDHooks()
 
 RegisterDHooks()
 {
-	if (g_SetWinningTeamHook > -1)
+	if (!g_DHooks || g_SetWinningTeamHook > -1)
 		return;
 	
 	g_SetWinningTeamHook = DHookGamerules(hWinning, false, UnloadForceSwitchTeamsHook);
@@ -728,7 +728,7 @@ RegisterDHooks()
 
 UnregisterDHooks()
 {
-	if (g_SetWinningTeamHook == -1)
+	if (!g_DHooks || g_SetWinningTeamHook == -1)
 		return;
 		
 	DHookRemoveHookID(g_SetWinningTeamHook);
