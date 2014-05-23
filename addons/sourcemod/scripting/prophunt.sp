@@ -16,7 +16,6 @@
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
 #include <readgamesounds>
-#include <dhooks>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
@@ -50,6 +49,12 @@
 // Default: OFF
 //#define OIMM
 
+// Include support for DHooks to switch teams on round end
+// You only really want to disable this if the SetWinningTeam offset breaks
+// and Powerlord (or someone else) hasn't fixed it yet
+// Default: ON
+#define DHOOKS
+
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
 #define SCATTERGUN
@@ -64,7 +69,7 @@
 
 // Event and query logging for debugging purposes
 // Default: OFF
-//#define LOG
+#define LOG
 
 // Allow props to Targe Charge with enemy collisions disabled by pressing reload - pretty shit tbh.
 // Default: OFF
@@ -90,9 +95,14 @@
 // Default: 0.2
 #define TEAM_CHANGE_TIME 0.2
 
+
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
+
+#if defined DHOOKS
+#include <dhooks>
+#endif
 
 #if defined OIMM
 #include <optin_multimod>
@@ -436,10 +446,13 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 #endif
 
-// Experimental DHooks things
-new Handle:hWinning;
+// DHooks stuff
+#if defined DHOOKS
+new Handle:hWinning = INVALID_HANDLE;
 new bool:g_DHooks = false;
 new g_SetWinningTeamOffset = -1;
+new g_SetWinningTeamHook = -1;
+#endif
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
@@ -449,13 +462,14 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
+#if defined DHOOKS
 	new Handle:gc = LoadGameConfigFile("tf2-roundend.games");
 	if (gc != INVALID_HANDLE)
 	{
 		g_SetWinningTeamOffset = GameConfGetOffset(gc, "SetWinningTeam");
 		CloseHandle(gc);
 	}
-	
+#endif	
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
 	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
@@ -672,33 +686,54 @@ public OnAllPluginsLoaded()
 
 	g_TF2Attribs = LibraryExists("tf2attributes");
 	
+#if defined DHOOKS
 	g_DHooks = LibraryExists("dhooks");
+	
 	if (g_DHooks)
 	{
-		RegisterDHooks();
+		InitializeDHooks();
 	}
+	
+#endif
 }
 
-RegisterDHooks()
+#if defined DHOOKS
+InitializeDHooks()
 {
 	if (g_SetWinningTeamOffset == -1)
 		return;
-
+		
+	LogMessage("[PH] Creating SetWinningTeam hook using offset %d", g_SetWinningTeamOffset);
 	hWinning = DHookCreate(g_SetWinningTeamOffset, HookType_GameRules, ReturnType_Void, ThisPointer_Ignore, ForceSwitchTeams);
 	DHookAddParam(hWinning, HookParamType_Int);
 	DHookAddParam(hWinning, HookParamType_Int);
 	DHookAddParam(hWinning, HookParamType_Bool);
 	DHookAddParam(hWinning, HookParamType_Bool);
 	DHookAddParam(hWinning, HookParamType_Bool);	
+}
+
+RegisterDHooks()
+{
+	if (g_SetWinningTeamHook > -1)
+		return;
 	
-	if (g_MapRunning)
-	{
+	g_SetWinningTeamHook = DHookGamerules(hWinning, false, UnloadForceSwitchTeamsHook);
+
 #if defined LOG
-		LogMessage("[PH] hooking gamerules SetWinningTeam for team switch override on offset %d", g_SetWinningTeamOffset);
-#endif
+	LogMessage("[PH] Hooking Gamerules SetWinningTeam team switch override using hookid %d", g_SetWinningTeamHook);
+#endif	
+}
+
+UnregisterDHooks()
+{
+	if (g_SetWinningTeamHook == -1)
+		return;
 		
-		DHookGamerules(hWinning, false);
-	}
+	DHookRemoveHookID(g_SetWinningTeamHook);
+#if defined LOG
+	LogMessage("[PH] Manually unhooking Gamerules SetWinningTeam team switch override from hookid %d", g_SetWinningTeamHook);
+#endif
+	g_SetWinningTeamHook = -1;
 }
 
 // virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
@@ -708,6 +743,15 @@ public MRESReturn:ForceSwitchTeams(Handle:hParams)
 	DHookSetParam(hParams, 4, true);
 	return MRES_ChangedHandled;
 }
+
+public UnloadForceSwitchTeamsHook(hookid)
+{
+	g_SetWinningTeamHook = -1;
+#if defined LOG
+	LogMessage("[PH] Automatically unhooking Gamerules SetWinningTeam team switch override from hookid %d", hookid);
+#endif
+}
+#endif
 
 loadGlobalConfig()
 {
@@ -734,7 +778,7 @@ public OnLibraryAdded(const String:name[])
 		g_SteamTools = true;
 		UpdateGameDescription();
 	}
-#if defined OIMM	
+#if defined OIMM
 	else
 	if (StrEqual(name, "optin_multimod", false))
 	{
@@ -746,12 +790,17 @@ public OnLibraryAdded(const String:name[])
 	{
 		g_TF2Attribs = true;
 	}
+#if defined DHOOKS
 	else
 	if (StrEqual(name, "dhooks", false))
 	{
 		g_DHooks = true;
-		RegisterDHooks();
+		InitializeDHooks();
+		
+		if (g_Enabled && g_MapRunning)
+			RegisterDHooks();
 	}
+#endif
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -772,11 +821,14 @@ public OnLibraryRemoved(const String:name[])
 	{
 		g_TF2Attribs = false;
 	}
+#if defined DHOOKS
 	else
 	if (StrEqual(name, "dhooks", false))
 	{
 		g_DHooks = false;
+		hWinning = INVALID_HANDLE;
 	}
+#endif
 }
 
 public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -1162,6 +1214,10 @@ SetCVars(){
 	g_SolidObjects = GetConVarInt(g_hSolidObjects);
 	SetConVarInt(g_hSolidObjects, 0, true);
 	
+#if defined DHOOKS
+	RegisterDHooks();
+#endif
+
 	g_CvarsSet = true;
 }
 
@@ -1194,6 +1250,10 @@ ResetCVars()
 	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
 	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
 	
+#if defined DHOOKS
+	UnregisterDHooks();
+#endif
+
 	g_CvarsSet = false;
 }
 
@@ -1715,15 +1775,6 @@ public OnMapStart()
 		g_MapStarted = true;
 		
 		loadGlobalConfig();
-		if (g_DHooks && g_SetWinningTeamOffset != -1)
-		{
-			
-			DHookGamerules(hWinning, false);
-#if defined LOG
-			LogMessage("[PH] hooking gamerules SetWinningTeam for team switch override on offset %d", g_SetWinningTeamOffset);
-#endif
-			
-		}
 	}
 	
 	// workaround no win panel event - admin changes, rtv, etc.
@@ -2744,11 +2795,15 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #endif
 
 #endif
-	
-	if (!g_DHooks || g_SetWinningTeamOffset == -1)
+
+#if defined DHOOKS
+	if (!g_DHooks || g_SetWinningTeamHook == -1)
 	{
+#endif		
 		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+#if defined DHOOKS
 	}
+#endif		
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
