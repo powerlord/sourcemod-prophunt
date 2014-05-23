@@ -69,7 +69,7 @@
 
 // Event and query logging for debugging purposes
 // Default: OFF
-#define LOG
+//#define LOG
 
 // Allow props to Targe Charge with enemy collisions disabled by pressing reload - pretty shit tbh.
 // Default: OFF
