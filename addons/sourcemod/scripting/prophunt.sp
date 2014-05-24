@@ -24,7 +24,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.2.0 beta 3"
+#define PL_VERSION "3.2.0 beta 4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1216,10 +1216,6 @@ SetCVars(){
 	g_SolidObjects = GetConVarInt(g_hSolidObjects);
 	SetConVarInt(g_hSolidObjects, 0, true);
 	
-#if defined DHOOKS
-	RegisterDHooks();
-#endif
-
 	g_CvarsSet = true;
 }
 
@@ -1252,10 +1248,6 @@ ResetCVars()
 	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
 	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
 	
-#if defined DHOOKS
-	UnregisterDHooks();
-#endif
-
 	g_CvarsSet = false;
 }
 
@@ -1268,6 +1260,10 @@ public OnConfigsExecuted()
 	if (g_Enabled)
 	{
 		SetCVars();
+#if defined DHOOKS
+		RegisterDHooks();
+#endif
+		
 	}
 	
 	UpdateGameDescription(true);
@@ -3041,6 +3037,10 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = true;
 			SetCVars();
+#if defined DHOOKS
+			RegisterDHooks();
+#endif
+			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
 		}
@@ -3049,6 +3049,10 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = false;
 			ResetCVars();
+#if defined DHOOKS
+			UnregisterDHooks();
+#endif
+			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;			
 		}
