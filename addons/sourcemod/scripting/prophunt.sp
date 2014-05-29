@@ -796,6 +796,9 @@ public OnLibraryAdded(const String:name[])
 	else
 	if (StrEqual(name, "dhooks", false))
 	{
+#if defined LOG
+		LogMessage("[PH] DHooks Loaded ");
+#endif
 		g_DHooks = true;
 		InitializeDHooks();
 		
@@ -827,8 +830,13 @@ public OnLibraryRemoved(const String:name[])
 	else
 	if (StrEqual(name, "dhooks", false))
 	{
+#if defined LOG
+		LogMessage("[PH] DHooks Unloaded ");
+#endif
+		
 		g_DHooks = false;
-		hWinning = INVALID_HANDLE;
+		g_SetWinningTeamHook = -1;
+		hWinning = INVALID_HANDLE; // Don't attempt to close this Handle as the extension unloader will have already done so
 	}
 #endif
 }
