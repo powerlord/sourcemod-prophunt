@@ -674,23 +674,39 @@ public OnAllPluginsLoaded()
 	g_SteamTools = LibraryExists("SteamTools");
 	if (g_SteamTools)
 	{
+#if defined LOG
+		LogMessage("[PH] Found SteamTools on startup.");
+#endif
 		UpdateGameDescription();
 	}
 #if defined OIMM
 	g_OptinMultiMod = LibraryExists("optin_multimod");
 	if (g_OptinMultiMod)
 	{
+#if defined LOG
+		LogMessage("[PH] Found Opt-In Multimod on startup.");
+#endif
 		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
 	}
 #endif
 
 	g_TF2Attribs = LibraryExists("tf2attributes");
 	
+#if defined LOG
+	if (g_TF2Attribs)
+	{
+		LogMessage("[PH] Found TF2Attributes on startup.");
+	}
+#endif
+	
 #if defined DHOOKS
 	g_DHooks = LibraryExists("dhooks");
 	
 	if (g_DHooks)
 	{
+#if defined LOG
+		LogMessage("[PH] Found DHooks on startup.");
+#endif
 		InitializeDHooks();
 	}
 	
@@ -777,6 +793,9 @@ public OnLibraryAdded(const String:name[])
 {
 	if (StrEqual(name, "SteamTools", false))
 	{
+#if defined LOG
+		LogMessage("[PH] SteamTools Loaded ");
+#endif
 		g_SteamTools = true;
 		UpdateGameDescription();
 	}
@@ -784,12 +803,18 @@ public OnLibraryAdded(const String:name[])
 	else
 	if (StrEqual(name, "optin_multimod", false))
 	{
+#if defined LOG
+		LogMessage("[PH] Opt-in MultiMod Loaded ");
+#endif
 		g_OptinMultiMod = true;
 	}
 #endif
 	else
 	if (StrEqual(name, "tf2attributes", false))
 	{
+#if defined LOG
+		LogMessage("[PH] TF2Attributes Loaded ");
+#endif
 		g_TF2Attribs = true;
 	}
 #if defined DHOOKS
@@ -812,18 +837,27 @@ public OnLibraryRemoved(const String:name[])
 {
 	if (StrEqual(name, "SteamTools", false))
 	{
+#if defined LOG
+		LogMessage("[PH] SteamTools Unloaded ");
+#endif
 		g_SteamTools = false;
 	}
 #if defined OIMM
 	else
 	if (StrEqual(name, "optin_multimod", false))
 	{
+#if defined LOG
+		LogMessage("[PH] Opt-In Multimod Unloaded ");
+#endif
 		g_OptinMultiMod = false;
 	}
 #endif
 	else
 	if (StrEqual(name, "tf2attributes", false))
 	{
+#if defined LOG
+		LogMessage("[PH] TF2Attributes Unloaded ");
+#endif
 		g_TF2Attribs = false;
 	}
 #if defined DHOOKS
