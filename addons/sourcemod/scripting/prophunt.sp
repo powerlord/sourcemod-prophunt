@@ -716,6 +716,9 @@ public OnAllPluginsLoaded()
 #if defined DHOOKS
 public Action:LateLoadDHooks(Handle:timer)
 {
+	if (!g_DHooks)
+		return Plugin_Stop;
+		
 	LogMessage("[PH] DHooks Loaded ");
 
 	g_DHooks = true;
@@ -724,7 +727,7 @@ public Action:LateLoadDHooks(Handle:timer)
 	if (g_Enabled && g_MapRunning)
 		RegisterDHooks();
 	
-	return Plugin_Handled;
+	return Plugin_Stop;
 }
 
 InitializeDHooks()
