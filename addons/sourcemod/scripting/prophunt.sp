@@ -714,6 +714,19 @@ public OnAllPluginsLoaded()
 }
 
 #if defined DHOOKS
+public Action:LateLoadDHooks(Handle:timer)
+{
+	LogMessage("[PH] DHooks Loaded ");
+
+	g_DHooks = true;
+	InitializeDHooks();
+	
+	if (g_Enabled && g_MapRunning)
+		RegisterDHooks();
+	
+	return Plugin_Handled;
+}
+
 InitializeDHooks()
 {
 	if (!g_DHooks || g_SetWinningTeamOffset == -1)
@@ -821,14 +834,7 @@ public OnLibraryAdded(const String:name[])
 	else
 	if (StrEqual(name, "dhooks", false))
 	{
-#if defined LOG
-		LogMessage("[PH] DHooks Loaded ");
-#endif
-		g_DHooks = true;
-		InitializeDHooks();
-		
-		if (g_Enabled && g_MapRunning)
-			RegisterDHooks();
+		CreateTimer(0.5, LateLoadDHooks);
 	}
 #endif
 }
