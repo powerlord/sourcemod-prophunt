@@ -1,5 +1,37 @@
+/**
+ * vim: set ts=4 :
+ * =============================================================================
+ * TF2 PropHunt Redux
+ * Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum
+ * 
+ * TF2 PropHunt (C)2007-2014 Darkimmortal.  All rights reserved.
+ * TF2 PropHunt Redux (C)2013-2014 Powerlord (Ross Bemrose).  All rights reserved.
+ * =============================================================================
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License, version 3.0, as published by the
+ * Free Software Foundation.
+ * 
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * As a special exception, AlliedModders LLC gives you permission to link the
+ * code of this program (as well as its derivative works) to "Half-Life 2," the
+ * "Source Engine," the "SourcePawn JIT," and any Game MODs that run on software
+ * by the Valve Corporation.  You must obey the GNU General Public License in
+ * all respects for all other code used.  Additionally, AlliedModders LLC grants
+ * this exception to all derivative works.  AlliedModders LLC defines further
+ * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
+ * or <http://www.sourcemod.net/license.php>.
+ *
+ * Version: $Id$
+ */
 // PropHunt Redux by Powerlord
-// - reddit.com/r/RUGC_Midwest -
 //         Based on
 //  PropHunt by Darkimmortal
 //   - GamingMasters.org -
@@ -382,7 +414,7 @@ new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
-	author = "Darkimmortal and Powerlord",
+	author = "Darkimmortal, Geit, and Powerlord",
 	description = "Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum",
 	version = PL_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=228086"
