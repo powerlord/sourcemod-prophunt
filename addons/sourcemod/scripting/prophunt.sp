@@ -2332,11 +2332,14 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 {
 	decl String:sample[128];
 	
+	new bool:emitted = false;
+	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
-		EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
+		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
-	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	
+	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
 		{
