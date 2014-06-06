@@ -24,7 +24,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.2.0 beta 4"
+#define PL_VERSION "3.2.0"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -504,7 +504,7 @@ public OnPluginStart()
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
-	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time", _, true, 30.0, true, 120.00);
+	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, 30.0, true, 120.00);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
