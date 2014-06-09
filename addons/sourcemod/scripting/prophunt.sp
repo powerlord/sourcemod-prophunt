@@ -415,6 +415,9 @@ new bool:g_PHMap;
 
 new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
 
+new g_RoundCount = 0;
+new g_RoundCurrent = 0;
+
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
@@ -792,7 +795,7 @@ RegisterDHooks()
 
 #if defined LOG
 	LogMessage("[PH] Hooking Gamerules SetWinningTeam team switch override using hookid %d", g_SetWinningTeamHook);
-#endif	
+#endif
 }
 
 UnregisterDHooks()
@@ -810,9 +813,20 @@ UnregisterDHooks()
 // virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
 public MRESReturn:ForceSwitchTeams(Handle:hParams)
 {
-	// params are 1-based
-	DHookSetParam(hParams, 4, true);
-	return MRES_ChangedHandled;
+	new bool:isEven = (g_RoundCount % 2 == 0);
+	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
+	if (lastRound)
+	{
+		g_RoundCount = 0;
+	}
+	
+	if (!isEven || lastRound)
+	{
+		// params are 1-based
+		DHookSetParam(hParams, 4, true);
+		return MRES_ChangedHandled;
+	}
+	return MRES_Ignored;
 }
 
 public UnloadForceSwitchTeamsHook(hookid)
@@ -1351,11 +1365,32 @@ public OnConfigsExecuted()
 #if defined DHOOKS
 		RegisterDHooks();
 #endif
-		
 	}
 	
 	UpdateGameDescription(true);
+	
+	CountRounds();
 }
+
+CountRounds()
+{
+	g_RoundCurrent = 0;
+	g_RoundCount = 0;
+	new entity = -1;
+	while ((entity = FindEntityByClassname(entity, "team_control_point_round")) != -1)
+	{
+		// Check if the round isn't disabled?
+		g_RoundCount++;
+	}
+	
+	if (g_RoundCount == 0)
+		g_RoundCount = 1;
+		
+#if defined LOG
+	LogMessage("[PH] Map has %d round(s)", g_RoundCount);
+#endif
+}
+
 
 StartTimers(bool:noScoreTimer = false)
 {
@@ -3171,6 +3206,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
+			g_RoundCurrent = 0;
 		}
 		
 		case RoundChange_Disable:
@@ -3263,7 +3299,6 @@ public Event_teamplay_restart_round(Handle:event, const String:name[], bool:dont
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
@@ -3271,6 +3306,8 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	
 	if (!g_Enabled)
 		return;
+	
+	g_RoundCurrent++;
 	
 	StartTimers(true);
 	
