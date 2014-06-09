@@ -813,14 +813,7 @@ UnregisterDHooks()
 // virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
 public MRESReturn:ForceSwitchTeams(Handle:hParams)
 {
-	new bool:isEven = (g_RoundCount % 2 == 0);
-	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
-	if (lastRound)
-	{
-		g_RoundCount = 0;
-	}
-	
-	if (!isEven || lastRound)
+	if (ShouldSwitchTeams())
 	{
 		// params are 1-based
 		DHookSetParam(hParams, 4, true);
@@ -837,6 +830,23 @@ public UnloadForceSwitchTeamsHook(hookid)
 #endif
 }
 #endif
+
+bool:ShouldSwitchTeams()
+{
+	new bool:isEven = (g_RoundCount % 2 == 0);
+	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
+	if (lastRound)
+	{
+		g_RoundCount = 0;
+	}
+	
+	if (!isEven || lastRound)
+	{
+		return true;
+	}
+	
+	return false;
+}
 
 loadGlobalConfig()
 {
@@ -2957,14 +2967,17 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 
-#if defined DHOOKS
-	if (!g_DHooks || g_SetWinningTeamHook == -1)
+	if (ShouldSwitchTeams())
 	{
-#endif		
-		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
-#if defined DHOOKS
+	#if defined DHOOKS
+		if (!g_DHooks || g_SetWinningTeamHook == -1)
+		{
+	#endif	
+			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+	#if defined DHOOKS
+		}
+	#endif		
 	}
-#endif		
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
