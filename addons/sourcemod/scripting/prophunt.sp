@@ -56,7 +56,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.3.0 alpha 1"
+#define PL_VERSION "3.3.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2974,17 +2974,17 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 #endif
 
-	if (ShouldSwitchTeams())
+#if defined DHOOKS
+	if (!g_DHooks || g_SetWinningTeamHook == -1)
 	{
-	#if defined DHOOKS
-		if (!g_DHooks || g_SetWinningTeamHook == -1)
+#endif	
+		if (ShouldSwitchTeams())
 		{
-	#endif	
 			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
-	#if defined DHOOKS
 		}
-	#endif		
+#if defined DHOOKS
 	}
+#endif		
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
