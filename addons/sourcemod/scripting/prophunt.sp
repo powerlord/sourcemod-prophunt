@@ -415,8 +415,10 @@ new bool:g_PHMap;
 
 new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
 
+// Multi-round support
 new g_RoundCount = 0;
 new g_RoundCurrent = 0;
+new g_RoundSwitchAlways = false;
 
 public Plugin:myinfo =
 {
@@ -833,7 +835,6 @@ public UnloadForceSwitchTeamsHook(hookid)
 
 bool:ShouldSwitchTeams()
 {
-	new bool:isEven = (g_RoundCount % 2 == 0);
 	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
 	if (lastRound)
 	{
@@ -843,13 +844,13 @@ bool:ShouldSwitchTeams()
 		g_RoundCurrent = 0;
 	}
 	
-	if (!isEven || lastRound)
+	if (g_RoundSwitchAlways || lastRound)
 	{
 		return true;
 	}
 	
 #if defined LOG
-	LogMessage("[PH] Teams will not be switched because it is not the last round or the number of rounds is even.");
+	LogMessage("[PH] Teams will not be switched because it is not the last round and we are set to not always switch rounds.");
 #endif
 
 	return false;
@@ -1394,17 +1395,40 @@ CountRounds()
 	g_RoundCurrent = 0;
 	g_RoundCount = 0;
 	new entity = -1;
+	new prevPriority = 0;
+	new bool:roundSwitchAlways = true;
+	
 	while ((entity = FindEntityByClassname(entity, "team_control_point_round")) != -1)
 	{
-		// Check if the round isn't disabled?
+		// Check if the round isn't disabled here?
+		// Test on ph_kakariko to see if its other part is present.
 		g_RoundCount++;
+		new priority = GetEntProp(entity, Prop_Data, "m_nPriority");
+		if (prevPriority == 0)
+		{
+			prevPriority = priority;
+		}
+		else
+		if (prevPriority == priority)
+		{
+			roundSwitchAlways = false;
+		}
 	}
 	
+	// No team_control_point_round entities means we have just 1 round
 	if (g_RoundCount == 0)
 		g_RoundCount = 1;
-		
+
+	if (g_RoundCount % 2 != 0)
+	{
+		// For odd number of rounds, always switch
+		roundSwitchAlways = true;
+	}
+	
+	g_RoundSwitchAlways = roundSwitchAlways;
+	
 #if defined LOG
-	LogMessage("[PH] Map has %d round(s)", g_RoundCount);
+	LogMessage("[PH] Map has %d round(s), Switch teams every round: %d", g_RoundCount, g_RoundSwitchAlways);
 #endif
 }
 
