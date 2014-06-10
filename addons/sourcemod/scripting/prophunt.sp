@@ -1413,7 +1413,7 @@ CountRounds()
 			prevPriority = priority;
 		}
 		else
-		if (prevPriority == priority)
+		if (prevPriority != priority)
 		{
 			roundSwitchAlways = false;
 		}
