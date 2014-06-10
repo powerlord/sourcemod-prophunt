@@ -56,7 +56,7 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.3.0 alpha 2"
+#define PL_VERSION "3.3.0 alpha 3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -127,6 +127,9 @@
 // Default: 0.2
 #define TEAM_CHANGE_TIME 0.2
 
+// Minimum and maximum setup times
+#define SETUP_MIN 30
+#define SETUP_MAX 120
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -276,6 +279,7 @@ new g_Message_red;
 new g_Message_blue;
 new g_RoundTime = 175;
 new g_Message_bit = 0;
+new g_Setup = 0;
 //new g_iVelocity = -1;
 
 #if defined STATS || defined LOCALSTATS
@@ -545,7 +549,7 @@ public OnPluginStart()
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
-	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, 30.0, true, 120.00);
+	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
 	g_PHDamageBlocksPropChange = CreateConVar("ph_damageblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
@@ -1722,7 +1726,14 @@ public OnCPMasterSpawnedPost(entity)
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
 	new String:setupLength[5];
-	GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));
+	if (g_Setup >= SETUP_MIN && g_Setup <= SETUP_MAX)
+	{
+		IntToString(g_Setup, setupLength, sizeof(setupLength));
+	}
+	else
+	{
+		GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));		
+	}
 	DispatchKeyValue(timer, "setup_length", setupLength);
 	//DispatchKeyValue(timer, "setup_length", "30");
 	DispatchKeyValue(timer, "reset_time", "1");
@@ -1904,9 +1915,10 @@ public OnMapStart()
 			g_Relay = bool:KvGetNum(fl, "relay", 0);
 			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
 			g_RoundTime = KvGetNum(fl, "round", 175);
+			g_Setup = KvGetNum(fl, "setup", 0);
 			
 			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
+			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i, setup: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime, g_Setup);
 		}
 		CloseHandle(fl);
 		
