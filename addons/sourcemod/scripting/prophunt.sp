@@ -101,7 +101,7 @@
 
 // Event and query logging for debugging purposes
 // Default: OFF
-//#define LOG
+#define LOG
 
 // Allow props to Targe Charge with enemy collisions disabled by pressing reload - pretty shit tbh.
 // Default: OFF
@@ -837,7 +837,10 @@ bool:ShouldSwitchTeams()
 	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
 	if (lastRound)
 	{
-		g_RoundCount = 0;
+#if defined LOG
+	LogMessage("[PH] This is the last of %d rounds.", g_RoundCount);
+#endif
+		g_RoundCurrent = 0;
 	}
 	
 	if (!isEven || lastRound)
@@ -845,6 +848,10 @@ bool:ShouldSwitchTeams()
 		return true;
 	}
 	
+#if defined LOG
+	LogMessage("[PH] Teams will not be switched because it is not the last round or the number of rounds is even.");
+#endif
+
 	return false;
 }
 
