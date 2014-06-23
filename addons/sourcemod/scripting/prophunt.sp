@@ -56,7 +56,10 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.3.0 alpha 3"
+// This should be defined by SourceMod, but isn't.
+#define ADMFLAG_NONE 0
+
+#define PL_VERSION "3.3.0 alpha 4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -329,6 +332,7 @@ new Handle:g_Text4 = INVALID_HANDLE;
 
 //new Handle:g_RoundTimer = INVALID_HANDLE;
 new Handle:g_PropMenu = INVALID_HANDLE;
+new Handle:g_ConfigMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
@@ -343,6 +347,7 @@ new Handle:g_PHReroll = INVALID_HANDLE;
 new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
 new Handle:g_PHSetupLength = INVALID_HANDLE;
 new Handle:g_PHDamageBlocksPropChange = INVALID_HANDLE;
+new Handle:g_PHPropMenuNames = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -423,6 +428,12 @@ new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
 new g_RoundCount = 0;
 new g_RoundCurrent = 0;
 new g_RoundSwitchAlways = false;
+
+// New override support for propmenu and stuff
+new g_PropMenuOldFlags = 0;
+new bool:g_PropMenuOverrideInstalled = false;
+new g_PropRerollOldFlags = 0;
+new bool:g_PropRerollOverrideInstalled = false;
 
 public Plugin:myinfo =
 {
@@ -540,17 +551,18 @@ public OnPluginStart()
 
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
-	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
+	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admins or people with the propmenu override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
 	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
-	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
+	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admins or people with the propreroll override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
 	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
 	g_PHDamageBlocksPropChange = CreateConVar("ph_damageblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
+	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "1", "Use names for Prop Menu?", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -580,6 +592,8 @@ public OnPluginStart()
 	HookConVarChange(g_PHStaticPropInfo, OnAntiHackChanged);
 	HookConVarChange(g_PHAirblast, OnAirblastChanged);
 	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
+	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
+	HookConVarChange(g_PHReroll, OnPropRerollChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -609,6 +623,8 @@ public OnPluginStart()
 
 	RegConsoleCmd("help", Command_motd);
 	RegConsoleCmd("phstats", Command_motd);
+	RegConsoleCmd("ph_stats", Command_motd);
+	RegConsoleCmd("ph_config", Command_config);
 	//RegConsoleCmd("motd", Command_motd);
 	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
 	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
@@ -663,6 +679,16 @@ public OnPluginStart()
 	g_ModelSkin = CreateArray();
 	
 	AutoExecConfig(true, "prophunt_redux");
+	
+	// Create Config menu
+	g_ConfigMenu = CreateMenu(Handler_ConfigMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
+	SetMenuTitle(g_ConfigMenu, "PropHunt Configuration");
+	SetMenuExitButton(g_ConfigMenu, true);
+	AddMenuItem(g_ConfigMenu, "#version", PL_VERSION);
+	AddMenuItem(g_ConfigMenu, "#propmenu", "PropMenu");
+	AddMenuItem(g_ConfigMenu, "#propreroll", "PropReroll");
+	AddMenuItem(g_ConfigMenu, "#preventfalldamage", "Prevent Fall Damage");
+	AddMenuItem(g_ConfigMenu, "#setuptime", "Setup Time");
 }
 
 // Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
@@ -1379,6 +1405,16 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
+	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
+	{
+		InstallPropMenuOverride();
+	}
+	
+	if (GetConVarInt(g_PHReroll) == 1 && !g_PropRerollOverrideInstalled)
+	{
+		InstallPropRerollOverride();
+	}
+	
 	g_MapRunning = true;
 	
 	if (g_Enabled)
@@ -1392,6 +1428,107 @@ public OnConfigsExecuted()
 	UpdateGameDescription(true);
 	
 	CountRounds();
+}
+
+InstallPropMenuOverride()
+{
+	new tempFlags;
+	if (GetCommandOverride("propmenu", Override_Command, tempFlags))
+	{
+		g_PropMenuOldFlags = tempFlags;
+	}
+	
+	AddCommandOverride("propmenu", Override_Command, ADMFLAG_NONE);
+	g_PropMenuOverrideInstalled = true;
+}
+
+RemovePropMenuOverride()
+{
+	if (g_PropMenuOldFlags == ADMFLAG_NONE)
+	{
+		UnsetCommandOverride("propmenu", Override_Command);
+	}
+	else
+	{
+		AddCommandOverride("propmenu", Override_Command, g_PropMenuOldFlags);
+		g_PropMenuOldFlags = ADMFLAG_NONE;
+	}
+	
+	g_PropMenuOverrideInstalled = false;
+}
+
+InstallPropRerollOverride()
+{
+	new tempFlags;
+	if (GetCommandOverride("propreroll", Override_Command, tempFlags))
+	{
+		g_PropRerollOldFlags = tempFlags;
+	}
+	
+	AddCommandOverride("propreroll", Override_Command, ADMFLAG_NONE);
+	g_PropMenuOverrideInstalled = true;
+}
+
+RemovePropRerollOverride()
+{
+	if (g_PropRerollOldFlags == ADMFLAG_NONE)
+	{
+		UnsetCommandOverride("propreroll", Override_Command);
+	}
+	else
+	{
+		AddCommandOverride("propreroll", Override_Command, g_PropRerollOldFlags);
+		g_PropRerollOldFlags = ADMFLAG_NONE;
+	}
+	
+	g_PropRerollOverrideInstalled = false;
+}
+
+public OnPropMenuChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new newVal = GetConVarInt(g_PHPropMenu);
+	if (g_PropMenuOverrideInstalled && newVal < 1)
+	{
+		RemovePropMenuOverride();
+	}
+	else if (!g_PropMenuOverrideInstalled && newVal == 1)
+	{
+		InstallPropMenuOverride();
+	}
+}
+
+public OnPropRerollChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new newVal = GetConVarInt(g_PHReroll);
+	if (g_PropRerollOverrideInstalled && newVal < 1)
+	{
+		RemovePropRerollOverride();
+	}
+	else if (!g_PropRerollOverrideInstalled && newVal == 1)
+	{
+		InstallPropRerollOverride();
+	}
+}
+
+public OnRebuildAdminCache(AdminCachePart:part)
+{
+	if (part == AdminCache_Overrides && (GetConVarInt(g_PHPropMenu) == 1 || GetConVarInt(g_PHReroll) == 1))
+	{
+		CreateTimer(0.2, Timer_RestoreOverrides);
+	}
+}
+
+public Action:Timer_RestoreOverrides(Handle:timer)
+{
+	if (GetConVarInt(g_PHPropMenu) == 1)
+	{
+		InstallPropMenuOverride();
+	}
+	
+	if (GetConVarInt(g_PHReroll) == 1)
+	{
+		InstallPropRerollOverride();
+	}
 }
 
 CountRounds()
@@ -1825,7 +1962,7 @@ public OnMapStart()
 			CloseHandle(g_PropMenu);
 			g_PropMenu = INVALID_HANDLE;
 		}
-		g_PropMenu = CreateMenu(Handler_PropMenu);
+		g_PropMenu = CreateMenu(Handler_PropMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
 		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
 		SetMenuExitButton(g_PropMenu, true);
 		
@@ -2164,7 +2301,7 @@ public Action:Command_propmenu(client, args)
 		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 0)
+	if(GetConVarInt(g_PHPropMenu) >= 0)
 	{
 		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
@@ -2217,7 +2354,10 @@ public Action:Command_propmenu(client, args)
 			}
 			else
 			{
-				DisplayMenu(g_PropMenu, client, MENU_TIME_FOREVER);
+				if (GetClientMenu(client) == MenuSource_None)
+				{
+					DisplayMenu(g_PropMenu, client, MENU_TIME_FOREVER);
+				}
 			}
 		}
 		else
@@ -2281,6 +2421,16 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 {
 	switch (action)
 	{
+		
+	case MenuAction_Display:
+		{
+			decl String:buffer[255];
+			Format(buffer, sizeof(buffer), "%T", "#TF_PH_PropMenuName", param1);
+			
+			new Handle:panel = Handle:param2;
+			SetPanelTitle(panel, buffer);
+		}
+		
 	case MenuAction_Select:
 		{
 			if(IsClientInGame(param1))
@@ -2313,7 +2463,25 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 				}
 			}
 		}
+		
+	case MenuAction_DisplayItem:
+		{
+			if (!GetConVarBool(g_PHPropMenuNames))
+			{
+				return 0;
+			}
+			
+			new String:model[MAXMODELNAME];
+			GetMenuItem(menu, param2, model, sizeof(model));
+			
+			new propData[PropData];
+			if (GetTrieArray(g_PropData, model, propData[0], sizeof(propData)))
+			{
+				return RedrawMenuItem(propData[PropData_Name]);
+			}
+		}
 	}
+	return 0;
 }
 
 bool:CanPropChange(client)
@@ -2865,6 +3033,204 @@ public Action:Command_motd(client, args)
 	return Plugin_Handled;
 }
 
+public Action:Command_config(client, args)
+{
+	if (client == 0)
+	{
+		DisplayConfigToConsole(client);
+	}
+	else
+	{
+		if (GetClientMenu(client) == MenuSource_None)
+		{
+			DisplayMenu(g_ConfigMenu, client, MENU_TIME_FOREVER);
+		}
+	}
+		
+	return Plugin_Handled;
+}
+
+DisplayConfigToConsole(client)
+{
+	decl String:propMenuStatus[18];
+	decl String:propRerollStatus[18];
+	decl String:preventFallDamage[4];
+	new propMenu = GetConVarInt(g_PHPropMenu);
+	new propReroll = GetConVarInt(g_PHReroll);
+	
+	switch (propMenu)
+	{
+		case -1:
+		{
+			propMenuStatus = "Off";
+		}
+		
+		case 0:
+		{
+			propMenuStatus = "#TF_PH_Restricted";
+		}
+		
+		case 1:
+		{
+			propMenuStatus = "On";
+		}
+	}
+	
+	switch (propReroll)
+	{
+		case -1:
+		{
+			propRerollStatus = "Off";
+		}
+		
+		case 0:
+		{
+			propRerollStatus = "#TF_PH_Restricted";
+		}
+		
+		case 1:
+		{
+			propRerollStatus = "On";
+		}
+	}
+	
+	if (GetConVarBool(g_PHPreventFallDamage))
+	{
+		preventFallDamage = "On";
+	}
+	else
+	{
+		preventFallDamage = "Off";
+	}
+	
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigName");
+	ReplyToCommand(client, "%t", "---------------------");
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigVersion", PL_VERSION);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenu", propMenuStatus);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", GetConVarInt(g_PHSetupLength));
+}
+
+public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
+{
+	switch (action)
+	{
+		case MenuAction_Display:
+		{
+			decl String:buffer[255];
+			Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigName", param1);
+			
+			new Handle:panel = Handle:param2;
+			SetPanelTitle(panel, buffer);
+		}
+		
+		case MenuAction_Select:
+		{
+			// We really just close the menu when they select something
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			decl String:infoBuf[64];
+			GetMenuItem(menu, param2, infoBuf, sizeof(infoBuf));
+			new String:buffer[255];
+			
+			if (StrEqual(infoBuf, "#version"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigVersion", param1, PL_VERSION);
+			}
+			else if (StrEqual(infoBuf, "#propmenu"))
+			{
+				new propMenu = GetConVarInt(g_PHPropMenu);
+				
+				decl String:propMenuStatus[25];
+				
+				switch (propMenu)
+				{
+					case -1:
+					{
+						propMenuStatus = "Off";
+					}
+					
+					case 0:
+					{
+						if (CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
+						{
+							propMenuStatus = "#TF_PH_RestrictedAllowed";
+						}
+						else
+						{
+							propMenuStatus = "#TF_PH_RestrictedDenied";
+						}
+					}
+					
+					case 1:
+					{
+						propMenuStatus = "On";
+					}
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenu", param1, propMenuStatus);
+			}
+			else if (StrEqual(infoBuf, "#propreroll"))
+			{
+				new propReroll = GetConVarInt(g_PHReroll);
+				
+				decl String:propRerollStatus[25];
+				
+				switch (propReroll)
+				{
+					case -1:
+					{
+						propRerollStatus = "Off";
+					}
+					
+					case 0:
+					{
+						if (CheckCommandAccess(param1, "propreroll", ADMFLAG_KICK))
+						{
+							propRerollStatus = "#TF_PH_RestrictedAllowed";
+						}
+						else
+						{
+							propRerollStatus = "#TF_PH_RestrictedDenied";
+						}
+					}
+					
+					case 1:
+					{
+						propRerollStatus = "On";
+					}
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropReroll", param1, propRerollStatus);
+			}
+			else if (StrEqual(infoBuf, "#preventfalldamage"))
+			{
+				decl String:preventFallDamage[4];
+				if (GetConVarBool(g_PHPreventFallDamage))
+				{
+					preventFallDamage = "On";
+				}
+				else
+				{
+					preventFallDamage = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, preventFallDamage);
+			}
+			else if (StrEqual(infoBuf, "setuptime"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, GetConVarInt(g_PHSetupLength));
+				
+			}
+			
+			return RedrawMenuItem(buffer);
+		}
+	}
+	return 0;
+}
 
 stock SetAlpha (target, alpha){
 	SetWeaponsAlpha(target,alpha);

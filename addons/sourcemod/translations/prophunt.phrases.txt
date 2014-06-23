@@ -169,4 +169,50 @@
 	{
 		"en"		"Can't change props while on fire, bleeding, or jarated."
 	}
+	"#TF_PH_PropMenuName"
+	{
+		"en"		"PropHunt Prop Menu"
+	}
+	"#TF_PH_Restricted"
+	{
+		"en"		"Restricted"
+	}
+	"#TF_PH_RestrictedAllowed"
+	{
+		"en"		"Restricted - Allowed"
+	}
+	"#TF_PH_RestrictedDenied"
+	{
+		"en"		"Restricted - Denied"
+	}
+	"#TF_PH_ConfigName"
+	{
+		"en"		"PropHunt Configuration"
+	}
+	"#TF_PH_ConfigVersion"
+	{
+		"#format"	"{1:s}"
+		"en"		"PropHunt Redux Version: {1}"
+	}
+	"#TF_PH_ConfigPropMenu"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Menu: {1}"
+	}
+	"#TF_PH_ConfigPropReroll"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Reroll: {1}"
+	}
+	"#TF_PH_ConfigPreventFallDamage"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prevent Fall Damage: {1}"
+	}
+	"#TF_PH_ConfigSetupTime"
+	{
+		"#format"	"{1:d}"
+		"en"		"Setup Time: {1}"
+	}
+	
 }
