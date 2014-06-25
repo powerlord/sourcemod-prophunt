@@ -194,10 +194,25 @@
 		"#format"	"{1:s}"
 		"en"		"PropHunt Redux Version: {1}"
 	}
+	"#TF_PH_ConfigAirblast"
+	{
+		"#format"	"{1:t}"
+		"en"		"Airblast: {1}"
+	}
 	"#TF_PH_ConfigPropMenu"
 	{
 		"#format"	"{1:t}"
 		"en"		"Prop Menu: {1}"
+	}
+	"#TF_PH_ConfigPropMenuRestrict"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Menu Restrict: {1}"
+	}
+	"#TF_PH_ConfigPropChange"
+	{
+		"#format"	"{1:t}"
+		"en"		"Burning/Bleeding Blocks Prop Change: {1}"
 	}
 	"#TF_PH_ConfigPropReroll"
 	{
@@ -214,5 +229,4 @@
 		"#format"	"{1:d}"
 		"en"		"Setup Time: {1}"
 	}
-	
 }

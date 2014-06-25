@@ -59,7 +59,9 @@
 // This should be defined by SourceMod, but isn't.
 #define ADMFLAG_NONE 0
 
-#define PL_VERSION "3.3.0 alpha 4"
+#define MAXLANGUAGECODE 4
+
+#define PL_VERSION "3.3.0 alpha 5"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -272,7 +274,7 @@ new bool:g_AllowedSpawn[MAXPLAYERS+1];
 new bool:g_RotLocked[MAXPLAYERS+1];
 new bool:g_Hit[MAXPLAYERS+1];
 new bool:g_Spec[MAXPLAYERS+1];
-new String:g_PlayerModel[MAXPLAYERS+1][MAXMODELNAME];
+new String:g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
 new String:g_Mapname[128];
 new String:g_ServerIP[32];
@@ -319,6 +321,10 @@ new Float:g_currentSpeed[MAXPLAYERS+1];
 //new g_oDefFOV;
 
 new Handle:g_PropData = INVALID_HANDLE;
+// Multi-language support
+new Handle:g_ModelLanguages = INVALID_HANDLE;
+new Handle:g_PropNames = INVALID_HANDLE;
+new Handle:g_PropNamesIndex = INVALID_HANDLE;
 
 new Handle:g_ConfigKeyValues = INVALID_HANDLE;
 new Handle:g_ModelName = INVALID_HANDLE;
@@ -547,6 +553,8 @@ public OnPluginStart()
 	g_hWeaponReplacementPlayerClasses = CreateTrie();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
+	// PropHunt Redux now lies and pretends to be PropHunt as well
+	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
@@ -561,8 +569,8 @@ public OnPluginStart()
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admins or people with the propreroll override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
 	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
-	g_PHDamageBlocksPropChange = CreateConVar("ph_damageblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
-	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "1", "Use names for Prop Menu?", _, true, 0.0, true, 1.0);
+	g_PHDamageBlocksPropChange = CreateConVar("ph_burningblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
+	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu?", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -671,6 +679,9 @@ public OnPluginStart()
 		}
 	}
 	g_PropData = CreateTrie();
+	g_PropNames = CreateTrie();
+	g_PropNamesIndex = CreateArray(ByteCountToCells(PLATFORM_MAX_PATH));
+	g_ModelLanguages = CreateArray(ByteCountToCells(MAXLANGUAGECODE));
 
 	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
 	g_ModelName = CreateArray(arraySize);
@@ -685,7 +696,10 @@ public OnPluginStart()
 	SetMenuTitle(g_ConfigMenu, "PropHunt Configuration");
 	SetMenuExitButton(g_ConfigMenu, true);
 	AddMenuItem(g_ConfigMenu, "#version", PL_VERSION);
+	AddMenuItem(g_ConfigMenu, "#airblast", "Airblast");
 	AddMenuItem(g_ConfigMenu, "#propmenu", "PropMenu");
+	AddMenuItem(g_ConfigMenu, "#proprestrict", "PropRestrict");
+	AddMenuItem(g_ConfigMenu, "#propdamage", "PropChange");
 	AddMenuItem(g_ConfigMenu, "#propreroll", "PropReroll");
 	AddMenuItem(g_ConfigMenu, "#preventfalldamage", "Prevent Fall Damage");
 	AddMenuItem(g_ConfigMenu, "#setuptime", "Setup Time");
@@ -727,18 +741,74 @@ ReadCommonPropData()
 		new propData[PropData];
 		
 		KvGetSectionName(propCommon, modelPath, PLATFORM_MAX_PATH);
-		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), "");
+		//KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Replaced with new support
 		KvGetString(propCommon, "offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
 		KvGetString(propCommon, "rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
+		
+		new Handle:languageTrie = CreateTrie();
+		
+		for (new i=0;i<GetLanguageCount();i++)
+		{
+			decl String:lang[MAXLANGUAGECODE];
+			decl String:name[MAXMODELNAME];
+			GetLanguageInfo(i, lang, sizeof(lang));
+			//search for the translation
+			KvGetString(propCommon, lang, name, sizeof(name));
+
+			// Make "en" read the "name" section for compatibility reasons if "en" isn't present
+			if (strlen(name) <= 0 && StrEqual(lang, "en"))
+			{
+				KvGetString(propCommon, "name", name, sizeof(name));
+			}
+			
+			if (strlen(name) > 0)
+			{
+				//language new?
+				if (FindStringInArray(g_ModelLanguages, lang) == -1)
+				{
+					PushArrayString(g_ModelLanguages, lang);
+				}
+				
+				SetTrieString(languageTrie, lang, name);
+			}
+		}
+		
+		PushArrayString(g_PropNamesIndex, modelPath);
 		
 		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData)))
 		{
 			LogError("Error saving prop data for %s", modelPath);
 		}
 		
+		if (!SetTrieValue(g_PropNames, modelPath, languageTrie))
+		{
+			LogError("Error saving prop names for %s", modelPath);
+		}
 	} while (KvGotoNextKey(propCommon));
 	
 	LogMessage("Loaded %d props from props_common.txt", counter);
+#if defined LOG
+	LogMessage("[PH] Loaded %d language(s)", GetArraySize(g_ModelLanguages));
+#endif
+	
+}
+
+ClearPropNames()
+{
+	new arraySize = GetArraySize(g_PropNamesIndex);
+	for (new i = 0; i < arraySize; i++)
+	{
+		decl String:name[PLATFORM_MAX_PATH];
+		new Handle:languageTrie = INVALID_HANDLE;
+		GetArrayString(g_PropNamesIndex, i, name, sizeof(name));
+		GetTrieValue(g_PropNames, name, languageTrie);
+		if (languageTrie != INVALID_HANDLE)
+		{
+			CloseHandle(languageTrie);
+		}
+	}
+	ClearTrie(g_PropNames);
+	ClearArray(g_PropNamesIndex);
 }
 
 public OnAllPluginsLoaded()
@@ -900,7 +970,9 @@ loadGlobalConfig()
 	config_parseClasses();
 	config_parseSounds();
 	
+	ClearPropNames();
 	ClearTrie(g_PropData);
+	ClearArray(g_ModelLanguages);
 	ReadCommonPropData();
 }
 
@@ -1337,7 +1409,7 @@ SetCVars(){
 	SetConVarInt(g_hArenaPreroundTime, IsDedicatedServer() ? 20:5, true);
 	
 	g_WeaponCriticals = GetConVarInt(g_hWeaponCriticals);
-	SetConVarInt(g_hWeaponCriticals, 1, true);
+	SetConVarInt(g_hWeaponCriticals, 0, true);
 	
 	g_Idledealmethod = GetConVarInt(g_hIdledealmethod);
 	SetConVarInt(g_hIdledealmethod, 0, true);
@@ -2309,8 +2381,8 @@ public Action:Command_propmenu(client, args)
 			{
 				if (CanPropChange(client))
 				{
-					decl String:model[MAXMODELNAME];
-					GetCmdArg(1, model, MAXMODELNAME);
+					decl String:model[PLATFORM_MAX_PATH];
+					GetCmdArg(1, model, sizeof(model));
 					
 					if (!FileExists(model, true))
 					{
@@ -2328,7 +2400,7 @@ public Action:Command_propmenu(client, args)
 						new count = GetMenuItemCount(g_PropMenu);
 						for (new i = 0; i < count; i++)
 						{
-							decl String:otherModel[MAXMODELNAME];
+							decl String:otherModel[PLATFORM_MAX_PATH];
 							GetMenuItem(g_PropMenu, i, otherModel, sizeof(otherModel));
 							if (strcmp(model, otherModel, false) == 0)
 							{
@@ -2344,7 +2416,7 @@ public Action:Command_propmenu(client, args)
 						}
 					}
 					g_RoundStartMessageSent[client] = false;
-					strcopy(g_PlayerModel[client], MAXMODELNAME, model);
+					strcopy(g_PlayerModel[client], sizeof(g_PlayerModel[]), model);
 					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 				}
 				else
@@ -2421,8 +2493,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 {
 	switch (action)
 	{
-		
-	case MenuAction_Display:
+		case MenuAction_Display:
 		{
 			decl String:buffer[255];
 			Format(buffer, sizeof(buffer), "%T", "#TF_PH_PropMenuName", param1);
@@ -2431,7 +2502,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 			SetPanelTitle(panel, buffer);
 		}
 		
-	case MenuAction_Select:
+		case MenuAction_Select:
 		{
 			if(IsClientInGame(param1))
 			{
@@ -2441,7 +2512,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 					{
 						if (CanPropChange(param1))
 						{
-							GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
+							GetMenuItem(menu, param2, g_PlayerModel[param1], PLATFORM_MAX_PATH);
 							g_RoundStartMessageSent[param1] = false;
 							Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
 						}
@@ -2464,20 +2535,20 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 			}
 		}
 		
-	case MenuAction_DisplayItem:
+		case MenuAction_DisplayItem:
 		{
 			if (!GetConVarBool(g_PHPropMenuNames))
 			{
 				return 0;
 			}
 			
-			new String:model[MAXMODELNAME];
+			new String:model[PLATFORM_MAX_PATH];
 			GetMenuItem(menu, param2, model, sizeof(model));
 			
-			new propData[PropData];
-			if (GetTrieArray(g_PropData, model, propData[0], sizeof(propData)))
+			new String:modelName[MAXMODELNAME];
+			if (GetModelNameForClient(param1, model, modelName, sizeof(modelName)))
 			{
-				return RedrawMenuItem(propData[PropData_Name]);
+				return RedrawMenuItem(modelName);
 			}
 		}
 	}
@@ -3055,8 +3126,20 @@ DisplayConfigToConsole(client)
 	decl String:propMenuStatus[18];
 	decl String:propRerollStatus[18];
 	decl String:preventFallDamage[4];
+	decl String:propChangeRestrict[4];
+	decl String:airblast[4];
+	decl String:propMenuRestrict[4];
 	new propMenu = GetConVarInt(g_PHPropMenu);
 	new propReroll = GetConVarInt(g_PHReroll);
+	
+	if (GetConVarBool(g_PHAirblast))
+	{
+		airblast = "On";
+	}
+	else
+	{
+		airblast = "Off";
+	}
 	
 	switch (propMenu)
 	{
@@ -3074,6 +3157,24 @@ DisplayConfigToConsole(client)
 		{
 			propMenuStatus = "On";
 		}
+	}
+	
+	if (GetConVarBool(g_PHPropMenuRestrict))
+	{
+		propMenuRestrict = "On";
+	}
+	else
+	{
+		propMenuRestrict = "Off";
+	}
+	
+	if (GetConVarBool(g_PHDamageBlocksPropChange))
+	{
+		propChangeRestrict = "On";
+	}
+	else
+	{
+		propChangeRestrict = "Off";
 	}
 	
 	switch (propReroll)
@@ -3104,9 +3205,12 @@ DisplayConfigToConsole(client)
 	}
 	
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigName");
-	ReplyToCommand(client, "%t", "---------------------");
+	ReplyToCommand(client, "---------------------");
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigVersion", PL_VERSION);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigAirblast", airblast);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenu", propMenuStatus);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenuRestrict", propMenuRestrict);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropChange", propChangeRestrict);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", GetConVarInt(g_PHSetupLength));
@@ -3140,6 +3244,20 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 			{
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigVersion", param1, PL_VERSION);
 			}
+			else if (StrEqual(infoBuf, "#airblast"))
+			{
+				decl String:airblast[4];
+				if (GetConVarBool(g_PHAirblast))
+				{
+					airblast = "On";
+				}
+				else
+				{
+					airblast = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigAirblast", param1, airblast);
+			}
 			else if (StrEqual(infoBuf, "#propmenu"))
 			{
 				new propMenu = GetConVarInt(g_PHPropMenu);
@@ -3172,6 +3290,34 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				}
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenu", param1, propMenuStatus);
+			}
+			else if (StrEqual(infoBuf, "#proprestrict"))
+			{
+				decl String:propMenuRestrict[4];
+				if (GetConVarBool(g_PHPropMenuRestrict))
+				{
+					propMenuRestrict = "On";
+				}
+				else
+				{
+					propMenuRestrict = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenuRestrict", param1, propMenuRestrict);
+			}
+			else if (StrEqual(infoBuf, "#propdamage"))
+			{
+				decl String:propChangeRestrict[4];
+				if (GetConVarBool(g_PHDamageBlocksPropChange))
+				{
+					propChangeRestrict = "On";
+				}
+				else
+				{
+					propChangeRestrict = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropChange", param1, propChangeRestrict);
 			}
 			else if (StrEqual(infoBuf, "#propreroll"))
 			{
@@ -4129,7 +4275,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		new propData[PropData];
 		
 		// fire in a nice random model
-		decl String:model[MAXMODELNAME];
+		decl String:model[PLATFORM_MAX_PATH];
 		new String:offset[32] = "0 0 0";
 		new String:rotation[32] = "0 0 0";
 		new skin = 0;		
@@ -4152,7 +4298,10 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
 			if (!g_RoundStartMessageSent[client])
 			{
-				CPrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
+				decl String:modelName[MAXMODELNAME];
+				
+				GetModelNameForClient(client, model, modelName, sizeof(modelName));
+				CPrintToChat(client, "%t", "#TF_PH_NowDisguised", modelName);
 				g_RoundStartMessageSent[client] = true;
 			}
 		}
@@ -4651,4 +4800,74 @@ public bool:ValidateMap(const String:map[])
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
 
 	return FileExists(confil, true);
+}
+
+// These functions are based on versions taken from CS:S/CS:GO Hide and Seek
+GetLanguageID(const String:langCode[])
+{
+	return FindStringInArray(g_ModelLanguages, langCode);
+}
+
+GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
+{
+	decl String:langCode[MAXLANGUAGECODE];
+	GetLanguageInfo(GetClientLanguage(client), langCode, sizeof(langCode));
+	// is client's prefered language available?
+	new langID = GetLanguageID(langCode);
+	if(langID != -1)
+	{
+		strcopy(languageCode, maxlen, langCode);
+		return langID; // yes.
+	}
+	else
+	{
+		GetLanguageInfo(GetServerLanguage(), langCode, sizeof(langCode));
+		// is default server language available?
+		langID = GetLanguageID(langCode);
+		if(langID != -1)
+		{
+			strcopy(languageCode, maxlen, langCode);
+			return langID; // yes.
+		}
+		else
+		{
+			// default to english
+			langID = GetLanguageID("en");
+			
+			if (langID != -1)
+			{
+				strcopy(languageCode, maxlen, "en");
+				return langID;
+			}
+			
+			// english not found? happens on custom map configs e.g.
+			// use the first language available
+			// this should always work, since we would have SetFailState() on parse
+			if(GetArraySize(g_ModelLanguages) > 0)
+			{
+				GetArrayString(g_ModelLanguages, 0, languageCode, maxlen);
+				return 0;
+			}
+		}
+	}
+	// this should never happen
+	return -1;
+}
+
+bool:GetModelNameForClient(client, const String:model[], String:name[], maxlen)
+{
+	decl String:langCode[MAXLANGUAGECODE];
+	
+	GetClientLanguageID(client, langCode, sizeof(langCode));
+	
+	new Handle:languageTrie;
+	if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, model, languageTrie) && GetTrieString(languageTrie, langCode, name, maxlen))
+	{
+		return true;
+	}
+	else
+	{
+		strcopy(name, maxlen, model);
+		return false;
+	}
 }
