@@ -694,6 +694,7 @@ public OnPluginStart()
 	// Create Config menu
 	g_ConfigMenu = CreateMenu(Handler_ConfigMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
 	SetMenuTitle(g_ConfigMenu, "PropHunt Configuration");
+	SetMenuPagination(g_ConfigMenu, MENU_NO_PAGINATION);
 	SetMenuExitButton(g_ConfigMenu, true);
 	AddMenuItem(g_ConfigMenu, "#version", PL_VERSION);
 	AddMenuItem(g_ConfigMenu, "#airblast", "Airblast");
@@ -3366,7 +3367,7 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, preventFallDamage);
 			}
-			else if (StrEqual(infoBuf, "setuptime"))
+			else if (StrEqual(infoBuf, "#setuptime"))
 			{
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, GetConVarInt(g_PHSetupLength));
 				
