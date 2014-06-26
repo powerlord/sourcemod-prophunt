@@ -570,7 +570,7 @@ public OnPluginStart()
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
 	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
 	g_PHDamageBlocksPropChange = CreateConVar("ph_burningblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
-	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu?", _, true, 0.0, true, 1.0);
+	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu? This is disabled by default for compatibility reasons.", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
