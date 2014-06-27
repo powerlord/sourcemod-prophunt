@@ -55,6 +55,11 @@
 		"en"		"Medium Tree"
 	}
 
+	"models/lilchewchew/lilchewchew_v3.mdl"
+	{
+		"en"		"Lil' Chew-Chew"
+	}
+
 	"models/player/pyro.mdl"
 	{
 		"en"		"Pyro"
@@ -451,6 +456,11 @@
 	{
 		"en"		"Scattered Rocks #6c"
 		"offset"	"0 0 7"
+	}
+
+	"models/props_forest/saw_blade.mdl"
+	{
+		"en"		"Saw Blade (Small)"
 	}
 
 	"models/props_forest/saw_blade_large.mdl"
