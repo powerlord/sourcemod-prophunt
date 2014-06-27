@@ -61,7 +61,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 alpha 5"
+#define PL_VERSION "3.3.0 alpha 6"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -774,8 +774,6 @@ ReadCommonPropData()
 			}
 		}
 		
-		PushArrayString(g_PropNamesIndex, modelPath);
-		
 		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData)))
 		{
 			LogError("Error saving prop data for %s", modelPath);
@@ -785,6 +783,9 @@ ReadCommonPropData()
 		{
 			LogError("Error saving prop names for %s", modelPath);
 		}
+
+		PushArrayString(g_PropNamesIndex, modelPath);
+		
 	} while (KvGotoNextKey(propCommon));
 	
 	LogMessage("Loaded %d props from props_common.txt", counter);
@@ -799,11 +800,10 @@ ClearPropNames()
 	new arraySize = GetArraySize(g_PropNamesIndex);
 	for (new i = 0; i < arraySize; i++)
 	{
-		decl String:name[PLATFORM_MAX_PATH];
+		decl String:modelName[PLATFORM_MAX_PATH];
 		new Handle:languageTrie = INVALID_HANDLE;
-		GetArrayString(g_PropNamesIndex, i, name, sizeof(name));
-		GetTrieValue(g_PropNames, name, languageTrie);
-		if (languageTrie != INVALID_HANDLE)
+		GetArrayString(g_PropNamesIndex, i, modelName, sizeof(modelName));
+		if (GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE)
 		{
 			CloseHandle(languageTrie);
 		}
@@ -4813,6 +4813,9 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 {
 	decl String:langCode[MAXLANGUAGECODE];
 	GetLanguageInfo(GetClientLanguage(client), langCode, sizeof(langCode));
+#if defined LOG
+	LogMessage("Client is using language code %s", langCode);
+#endif
 	// is client's prefered language available?
 	new langID = GetLanguageID(langCode);
 	if(langID != -1)
@@ -4822,7 +4825,13 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	}
 	else
 	{
+#if defined LOG
+		LogMessage("PH language code \"%s\" not found.", langCode);
+#endif
 		GetLanguageInfo(GetServerLanguage(), langCode, sizeof(langCode));
+#if defined LOG
+		LogMessage("Falling back to server language code \"%s\".", langCode);
+#endif
 		// is default server language available?
 		langID = GetLanguageID(langCode);
 		if(langID != -1)
@@ -4832,6 +4841,9 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 		}
 		else
 		{
+#if defined LOG
+			LogMessage("PH language \"%s\" not found, Falling back to \"en\".", langCode);
+#endif
 			// default to english
 			langID = GetLanguageID("en");
 			
@@ -4846,6 +4858,9 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 			// this should always work, since we would have SetFailState() on parse
 			if(GetArraySize(g_ModelLanguages) > 0)
 			{
+#if defined LOG
+				LogMessage("PH language \"en\" not found, Falling back to lang 0.");
+#endif
 				GetArrayString(g_ModelLanguages, 0, languageCode, maxlen);
 				return 0;
 			}
@@ -4855,20 +4870,22 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	return -1;
 }
 
-bool:GetModelNameForClient(client, const String:model[], String:name[], maxlen)
+bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxlen)
 {
 	decl String:langCode[MAXLANGUAGECODE];
 	
 	GetClientLanguageID(client, langCode, sizeof(langCode));
-	
+#if defined LOG
+	LogMessage("[PH] Retrieving %s name for %s", langCode, modelName);
+#endif	
 	new Handle:languageTrie;
-	if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, model, languageTrie) && GetTrieString(languageTrie, langCode, name, maxlen))
+	if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE && GetTrieString(languageTrie, langCode, name, maxlen))
 	{
 		return true;
 	}
 	else
 	{
-		strcopy(name, maxlen, model);
+		strcopy(name, maxlen, modelName);
 		return false;
 	}
 }
