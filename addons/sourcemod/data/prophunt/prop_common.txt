@@ -57,7 +57,12 @@
 
 	"models/harvest/tree/tree_medium.mdl"
 	{
-		"en"		"Medium Tree"
+		"en"		"Tree (Medium)"
+	}
+
+	"models/harvest/tree/tree_small.mdl"
+	{
+		"en"		"Tree (Small)"
 	}
 
 	"models/lilchewchew/lilchewchew_v3.mdl"
@@ -96,15 +101,39 @@
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_2fort/chimney002.mdl"
+	{
+		"en"		"Chimney #2"
+		"offset"	"0 0 -5"
+	}
+
 	"models/props_2fort/chimney003.mdl"
 	{
 		"en"		"Chimney #3"
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_2fort/chimney004.mdl"
+	{
+		"en"		"Chimney #4"
+		"offset"	"0 0 -5"
+	}
+
 	"models/props_2fort/chimney005.mdl"
 	{
 		"en"		"Chimney #5"
+		"offset"	"0 0 -5"
+	}
+
+	"models/props_2fort/chimney006.mdl"
+	{
+		"en"		"Chimney #6"
+		"offset"	"0 0 -5"
+	}
+
+	"models/props_2fort/chimney007.mdl"
+	{
+		"en"		"Chimney #7"
 		"offset"	"0 0 -5"
 	}
 
@@ -173,6 +202,11 @@
 		"en"		"Sink"
 	}
 
+	"models/props_2fort/tank002.mdl"
+	{
+		"en"		"Liquid Storage Tank"
+	}
+
 	"models/props_2fort/telephone001.mdl"
 	{
 		"en"		"Telephone"
@@ -229,7 +263,7 @@
 		"en"		"Old Fashioned Water Pump"
 	}
 
-	"models/props_2fort/weathervane.mdl"
+	"models/props_2fort/weathervane001.mdl"
 	{
 		"en"		"Weathervane"
 		"offset"	"0 0 18"
@@ -237,7 +271,7 @@
 	
 	"models/props_2fort/wood_shack001.mdl"
 	{
-		"en"		"Wood Shack"
+		"en"		"Wood Shack (2Fort)"
 		"offset"	 "0 0 -15"
 	}
 
@@ -301,7 +335,17 @@
 
 	"models/props_farm/oilcan01b.mdl"
 	{
+		"en"		"Oil Can #1b"
+	}
+
+	"models/props_farm/oilcan01.mdl"
+	{
 		"en"		"Oil Can #2"
+	}
+
+	"models/props_farm/paint_can001.mdl"
+	{
+		"en"		"Can of Paint #1"
 	}
 
 	"models/props_farm/paint_can002.mdl"
@@ -341,6 +385,11 @@
 	{
 		"en"		"Pile of Wood (Farm)"
 		"offset"	"0 0 15"
+	}
+
+	"models/props_farm/wood_shack001.mdl"
+	{
+		"en"		"Wood Shack (Farm)"
 	}
 
 	"models/props_farm/wooden_barrel.mdl"
@@ -430,9 +479,20 @@
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_forest/cliff_wall_02a.mdl"
+	{
+		"en"		"Cliff Wall #2a"
+		"offset"	"0 0 10"
+	}
+
 	"models/props_forest/cliff_wall_09a.mdl"
 	{
 		"en"		"Cliff Wall #9a"
+	}
+
+	"models/props_forest/cliff_wall_09b.mdl"
+	{
+		"en"		"Cliff Wall #9b"
 	}
 
 	"models/props_forest/cliff_wall_09c.mdl"
@@ -443,6 +503,26 @@
 	"models/props_forest/milk_crate.mdl"
 	{
 		"en"		"Milk Crate"
+	}
+
+	"models/props_forest/rock001.mdl"
+	{
+		"en"		"Large Rock #1"
+	}
+
+	"models/props_forest/rock002.mdl"
+	{
+		"en"		"Large Rock #2"
+	}
+
+	"models/props_forest/rock003.mdl"
+	{
+		"en"		"Large Rock #3"
+	}
+
+	"models/props_forest/rock004.mdl"
+	{
+		"en"		"Large Rock #4"
 	}
 
 	"models/props_forest/rock006.mdl"
@@ -599,7 +679,7 @@
 
 	"models/props_halloween/tombstone_01.mdl"
 	{
-		"en"		"Tombstone #1"
+		"en"		"Fake Tombstone"
 	}
 
 	"models/props_hydro/barrel_crate.mdl"
@@ -645,12 +725,17 @@
 
 	"models/props_hydro/water_barrel_cluster.mdl"
 	{
-		"en"		"Water Barrel(Cluster)"
+		"en"		"Water Barrel (Cluster)"
 	}
 
 	"models/props_hydro/water_barrel_cluster2.mdl"
 	{
-		"en"		"Hazardous Waste (Cluster)"
+		"en"		"Hazardous Waste Yellow (Cluster)"
+	}
+
+	"models/props_hydro/water_barrel_cluster3.mdl"
+	{
+		"en"		"Hazardous Waste Red (Cluster)"
 	}
 
 	"models/props_hydro/water_machinery1.mdl"
@@ -658,9 +743,24 @@
 		"en"		"Water Pump"
 	}
 
+	"models/props_manor/baby_grand_01.mdl"
+	{
+		"en"		"Baby Grand Piano"
+	}
+
+	"models/props_manor/bookcase_132_01.mdl"
+	{
+		"en"		"Book Case #1"
+	}
+
+	"models/props_manor/bookcase_132_02.mdl"
+	{
+		"en"		"Book Case #2"
+	}
+
 	"models/props_manor/bookcase_132_03.mdl"
 	{
-		"en"		"Book Case"
+		"en"		"Book Case #3"
 	}
 
 	"models/props_manor/cardboard_box_set_01.mdl"
@@ -678,6 +778,16 @@
 		"en"		"Manor Chair"
 	}
 
+	"models/props_manor/coffin_01.mdl"
+	{
+		"en"		"Wood Coffin with Cross"
+	}
+
+	"models/props_manor/coffin_02.mdl"
+	{
+		"en"		"Wood Coffin"
+	}
+
 	"models/props_manor/couch_01.mdl"
 	{
 		"en"		"Upholstered Couch"
@@ -688,6 +798,31 @@
 		"en"		"Grandfather Clock"
 	}
 
+	"models/props_manor/gravestone_01.mdl"
+	{
+		"en"		"Gravestone #1"
+	}
+
+	"models/props_manor/gravestone_02.mdl"
+	{
+		"en"		"Gravestone #2"
+	}
+
+	"models/props_manor/gravestone_03.mdl"
+	{
+		"en"		"Gravestone (Cross)"
+	}
+
+	"models/props_manor/gravestone_04.mdl"
+	{
+		"en"		"Gravestone (Rounded)"
+	}
+
+	"models/props_manor/table_01.mdl" 
+	{
+		"en"		"Small Uncovered Table"
+	}
+
 	"models/props_manor/table_02.mdl" 
 	{
 		"en"		"Small Covered Table"
@@ -695,7 +830,7 @@
 
 	"models/props_manor/table_03.mdl" 
 	{
-		"en"		"Small Uncovered Table"
+		"en"		"Large Uncovered Table"
 	}
 
 	"models/props_manor/tractor_01.mdl"
@@ -709,6 +844,16 @@
 		"offset"	"0 0 32"
 	}
 
+	"models/props_medieval/bar_bench.mdl"
+	{
+		"en"		"Wooden Bench"
+	}
+
+	"models/props_medieval/bar_table.mdl"
+	{
+		"en"		"Wooden Table"
+	}
+
 	"models/props_medieval/target/target.mdl"
 	{
 		"en"		"Arrow Target"
@@ -716,7 +861,12 @@
 
 	"models/props_mining/fence001_reference.mdl"
 	{
-		"en"		"Wooden Fence"
+		"en"		"Wooden Fence #1"
+	}
+
+	"models/props_mining/fence003_reference.mdl"
+	{
+		"en"		"Wooden Fence with Hole"
 	}
 
 	"models/props_mining/generator01.mdl"
@@ -744,9 +894,25 @@
 		"en"		"Large Rock #2"
 	}
 
+	"models/props_mining/rock006.mdl"
+	{
+		"en"		"Scattered Rocks Mining #6"
+		"offset"	"0 0 5"
+	}
+
 	"models/props_mining/sign001.mdl"
 	{
 		"en"		"Hazard Sign"
+	}
+
+	"models/props_mining/watertower001.mdl"
+	{
+		"en"		"Water Tower #1"
+	}
+
+	"models/props_mining/watertower002.mdl"
+	{
+		"en"		"Water Tower #2"
 	}
 
 	"models/props_nature/rock_worn001.mdl"
@@ -789,6 +955,11 @@
 		"en"		"Wall Computer #3"
 	}
 
+	"models/props_spytech/computer_wall04.mdl"
+	{
+		"en"		"Wall Computer #4"
+	}
+
 	"models/props_spytech/computer_wall05.mdl"
 	{
 		"en"		"Wall Computer #5"
@@ -814,6 +985,12 @@
 		"en"		"Spytech Console #4"
 	}
 
+	"models/props_spytech/suitcase.mdl"
+	{
+		"en"		"Intelligence Briefcase"
+		"offset"	"0 0 5"
+	}
+
 	"models/props_spytech/terminal_chair.mdl"
 	{
 		"en"		"Spytech Chair"
@@ -832,6 +1009,21 @@
 	"models/props_spytech/work_table001.mdl"
 	{
 		"en"		"Work Table"
+	}
+
+	"models/props_swamp/big_jetty.mdl"
+	{
+		"en"		"Jetty (Dock)"
+	}
+
+	"models/props_swamp/buttress_tree_small_ref.mdl"
+	{
+		"en"		"Buttress Tree"
+	}
+
+	"models/props_swamp/buttress_tree_stump_tiny_ref.mdl"
+	{
+		"en"		"Buttress Tree Stump"
 	}
 
 	"models/props_swamp/picnic_table.mdl"
