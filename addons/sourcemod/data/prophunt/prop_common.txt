@@ -414,11 +414,6 @@
 		"en"		"Small Snowy Pine Tree"
 	}
 
-	"models/props_forest/tree_pine_stump02.mdl"
-	{
-		"en"		"Pine Tree Stump #2"
-	}
-
 	"models/props_forest/chimney03.mdl"
 	{
 		"en"		"Chimney Forest #3"

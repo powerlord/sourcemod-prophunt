@@ -61,7 +61,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 alpha 6"
+#define PL_VERSION "3.3.0 alpha 7"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -767,6 +767,9 @@ ReadCommonPropData()
 				//language new?
 				if (FindStringInArray(g_ModelLanguages, lang) == -1)
 				{
+#if defined LOG
+					LogMessage("[PH] Adding language \"%s\" to languages list", lang);
+#endif
 					PushArrayString(g_ModelLanguages, lang);
 				}
 				
@@ -774,17 +777,24 @@ ReadCommonPropData()
 			}
 		}
 		
-		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData)))
+		new bool:error = false;
+		
+		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
 		{
 			LogError("Error saving prop data for %s", modelPath);
+			error = true;
 		}
 		
-		if (!SetTrieValue(g_PropNames, modelPath, languageTrie))
+		if (!SetTrieValue(g_PropNames, modelPath, languageTrie, false))
 		{
 			LogError("Error saving prop names for %s", modelPath);
+			error = true;
 		}
 
-		PushArrayString(g_PropNamesIndex, modelPath);
+		if (!error)
+		{
+			PushArrayString(g_PropNamesIndex, modelPath);
+		}
 		
 	} while (KvGotoNextKey(propCommon));
 	
