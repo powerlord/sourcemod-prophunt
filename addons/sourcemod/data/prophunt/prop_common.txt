@@ -35,6 +35,11 @@
 		"en"		"Torch (Medium)"
 	}
 
+	"models/egypt/tent/tent.mdl"
+	{
+		"en"		"Tent"
+	}
+
 	"models/harvest/pumpkin/pumpkin_small.mdl"
 	{
 		"en"		"Pumpkin (Small)"
@@ -409,6 +414,11 @@
 		"en"		"Pine Tree"
 	}
 
+	"models/props_foliage/tree_pine_extrasmall.mdl"
+	{
+		"en"		"Small Pine Tree"
+	}
+
 	"models/props_foliage/tree_pine_extrasmall_snow.mdl"
 	{
 		"en"		"Small Snowy Pine Tree"
@@ -699,6 +709,11 @@
 		"offset"	"0 0 32"
 	}
 
+	"models/props_medieval/target/target.mdl"
+	{
+		"en"		"Arrow Target"
+	}
+
 	"models/props_mining/fence001_reference.mdl"
 	{
 		"en"		"Wooden Fence"
@@ -817,6 +832,11 @@
 	"models/props_spytech/work_table001.mdl"
 	{
 		"en"		"Work Table"
+	}
+
+	"models/props_swamp/picnic_table.mdl"
+	{
+		"en"		"Picnic Table"
 	}
 
 	"models/props_swamp/shrub_03b.mdl"
