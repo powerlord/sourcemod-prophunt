@@ -338,7 +338,7 @@
 		"en"		"Oil Can #1b"
 	}
 
-	"models/props_farm/oilcan01.mdl"
+	"models/props_farm/oilcan02.mdl"
 	{
 		"en"		"Oil Can #2"
 	}
