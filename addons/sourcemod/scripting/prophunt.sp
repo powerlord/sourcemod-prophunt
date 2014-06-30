@@ -29,7 +29,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: $Id$
+ * Version: 3.3.0
  */
 // PropHunt Redux by Powerlord
 //         Based on
@@ -563,7 +563,7 @@ public OnPluginStart()
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
-	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
+	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to PropHunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admins or people with the propreroll override, 1 = all players", _, true, -1.0, true, 1.0);
@@ -839,7 +839,7 @@ public OnAllPluginsLoaded()
 #if defined LOG
 		LogMessage("[PH] Found Opt-In Multimod on startup.");
 #endif
-		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
+		OptInMultiMod_Register("prophunt", ValidateMap, MultiMod_Status, MultiMod_TranslateName);
 	}
 #endif
 
@@ -2227,7 +2227,7 @@ public OnPluginEnd()
 #if defined OIMM
 	if (g_OptinMultiMod)
 	{
-		OptInMultiMod_Unregister("Prop Hunt");
+		OptInMultiMod_Unregister("prophunt");
 	}
 #endif
 }
@@ -4799,6 +4799,11 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 public MultiMod_Status(bool:enabled)
 {
 	SetConVarBool(g_PHEnable, enabled);
+}
+
+public MultiMod_TranslateName(client, String:translation[], maxlength)
+{
+	Format(translation, maxlength, "%T", "#TF_PH_ModeName", client);
 }
 #endif
 

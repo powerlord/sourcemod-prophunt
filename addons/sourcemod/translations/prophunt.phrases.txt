@@ -135,7 +135,7 @@
 	}
 	"#TF_PH_ModeName"
 	{
-		"en"		"PropHunt Redux"
+		"en"		"PropHunt"
 	}
 	"#TF_PH_PropMenuNotRedOrAlive"
 	{
