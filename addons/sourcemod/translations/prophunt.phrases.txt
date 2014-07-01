@@ -229,4 +229,9 @@
 		"#format"	"{1:d}"
 		"en"		"Setup Time: {1}"
 	}
+	"#TF_PH_ConfigStats"
+	{
+		"en"		"Server is Stats Tracked. /ph_stats to view"
+	}
+
 }

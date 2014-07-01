@@ -61,7 +61,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 alpha 7"
+#define PL_VERSION "3.3.0 beta 1"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -704,6 +704,9 @@ public OnPluginStart()
 	AddMenuItem(g_ConfigMenu, "#propreroll", "PropReroll");
 	AddMenuItem(g_ConfigMenu, "#preventfalldamage", "Prevent Fall Damage");
 	AddMenuItem(g_ConfigMenu, "#setuptime", "Setup Time");
+#if defined STATS
+	AddMenuItem(g_ConfigMenu, "#stats", "Stats");
+#endif
 }
 
 // Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
@@ -3225,6 +3228,9 @@ DisplayConfigToConsole(client)
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
 	ReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", GetConVarInt(g_PHSetupLength));
+#if defined STATS
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigStats");
+#endif
 }
 
 public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
@@ -3255,7 +3261,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 			{
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigVersion", param1, PL_VERSION);
 			}
-			else if (StrEqual(infoBuf, "#airblast"))
+			else
+			if (StrEqual(infoBuf, "#airblast"))
 			{
 				decl String:airblast[4];
 				if (GetConVarBool(g_PHAirblast))
@@ -3269,7 +3276,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigAirblast", param1, airblast);
 			}
-			else if (StrEqual(infoBuf, "#propmenu"))
+			else
+			if (StrEqual(infoBuf, "#propmenu"))
 			{
 				new propMenu = GetConVarInt(g_PHPropMenu);
 				
@@ -3302,7 +3310,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenu", param1, propMenuStatus);
 			}
-			else if (StrEqual(infoBuf, "#proprestrict"))
+			else
+			if (StrEqual(infoBuf, "#proprestrict"))
 			{
 				decl String:propMenuRestrict[4];
 				if (GetConVarBool(g_PHPropMenuRestrict))
@@ -3316,7 +3325,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenuRestrict", param1, propMenuRestrict);
 			}
-			else if (StrEqual(infoBuf, "#propdamage"))
+			else
+			if (StrEqual(infoBuf, "#propdamage"))
 			{
 				decl String:propChangeRestrict[4];
 				if (GetConVarBool(g_PHDamageBlocksPropChange))
@@ -3330,7 +3340,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropChange", param1, propChangeRestrict);
 			}
-			else if (StrEqual(infoBuf, "#propreroll"))
+			else
+			if (StrEqual(infoBuf, "#propreroll"))
 			{
 				new propReroll = GetConVarInt(g_PHReroll);
 				
@@ -3363,7 +3374,8 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropReroll", param1, propRerollStatus);
 			}
-			else if (StrEqual(infoBuf, "#preventfalldamage"))
+			else
+			if (StrEqual(infoBuf, "#preventfalldamage"))
 			{
 				decl String:preventFallDamage[4];
 				if (GetConVarBool(g_PHPreventFallDamage))
@@ -3377,11 +3389,18 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 				
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, preventFallDamage);
 			}
-			else if (StrEqual(infoBuf, "#setuptime"))
+			else
+			if (StrEqual(infoBuf, "#setuptime"))
 			{
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, GetConVarInt(g_PHSetupLength));
-				
 			}
+#if defined STATS
+			else
+			if (StrEqual(infoBuf, "#stats"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigStats", param1);
+			}
+#endif
 			
 			return RedrawMenuItem(buffer);
 		}
