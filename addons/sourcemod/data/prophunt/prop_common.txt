@@ -1,5 +1,10 @@
 "propcommon"
 {
+	"models/alpine_logs/set1/log_27_211.md"
+	{
+		"en"		"Medium Alphine Log"
+	}
+
 	"models/egypt/palm_tree/palm_tree.mdl"
 	{
 		"en"		"Palm Tree"
@@ -85,9 +90,34 @@
 		"en"		"Corrugated Metal #1"
 	}
 
+	"models/props_2fort/corrugated_metal002.mdl"
+	{
+		"en"		"Corrugated Metal #2"
+	}
+
 	"models/props_2fort/corrugated_metal003.mdl"
 	{
 		"en"		"Corrugated Metal #3"
+	}
+
+	"models/props_2fort/corrugated_metal004.mdl"
+	{
+		"en"		"Corrugated Metal #4"
+	}
+
+	"models/props_2fort/corrugated_metal005.mdl"
+	{
+		"en"		"Corrugated Metal #5"
+	}
+
+	"models/props_2fort/corrugated_metal006.mdl"
+	{
+		"en"		"Corrugated Metal #6"
+	}
+
+	"models/props_2fort/corrugated_metal007.mdl"
+	{
+		"en"		"Corrugated Metal #7"
 	}
 
 	"models/props_2fort/cow001_reference.mdl"
@@ -500,6 +530,11 @@
 		"en"		"Cliff Wall #9c"
 	}
 
+	"models/props_forest/kitchen_stove.mdl"
+	{
+		"en"		"Kitchen Stove"
+	}
+
 	"models/props_forest/milk_crate.mdl"
 	{
 		"en"		"Milk Crate"
@@ -585,7 +620,7 @@
 
 	"models/props_forest/tree_pine_stackedlogs.mdl"
 	{
-		"en"		"Large stack of Logs"
+		"en"		"Large Stack of Logs"
 	}
 
 	"models/props_forest/tree_pine_stump01.mdl"
@@ -854,6 +889,11 @@
 		"en"		"Wooden Table"
 	}
 
+	"models/props_medieval/pictureframe001.mdl"
+	{
+		"en"		"Degroot Family Portrait"
+	}
+
 	"models/props_medieval/target/target.mdl"
 	{
 		"en"		"Arrow Target"
@@ -996,6 +1036,11 @@
 		"en"		"Spytech Chair"
 	}
 
+	"models/props_spytech/time_card_machine.mdl"
+	{
+		"en"		"Time Card Machine"
+	}
+
 	"models/props_spytech/tv001.mdl"
 	{
 		"en"		"Television"
@@ -1135,6 +1180,11 @@
 		"en"		"Mining Cart With Supplies"
 	}
 
+	"models/props_vehicles/mining_cart_supplies002.mdl"
+	{
+		"en"		"Mining Cart With Engineer Box"
+	}
+
 	"models/props_vehicles/pickup03.mdl"
 	{
 		"en"		"Pickup Truck"
@@ -1172,12 +1222,22 @@
 
 	"models/props_well/computer_cart01.mdl"
 	{
-		"en"		"Computer Cart"
+		"en"		"Computer Cart #1"
+	}
+
+	"models/props_well/computer_cart02.mdl"
+	{
+		"en"		"Computer Cart #2"
 	}
 
 	"models/props_well/hand_truck01.mdl"
 	{
 		"en"		"Hand Truck"
+	}
+
+	"models/weapons/w_models/w_toolbox.mdl"
+	{
+		"en"		"Engineer Toolbox"
 	}
 
 	"models/combine_strider.mdl"

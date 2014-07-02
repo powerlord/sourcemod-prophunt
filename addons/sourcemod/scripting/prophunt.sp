@@ -4314,6 +4314,9 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			model = g_PlayerModel[client];
 			modelIndex = FindStringInArray(g_ModelName, model);
+#if defined LOG
+			LogMessage("Change user model to %s", model);
+#endif
 		}
 		else
 		{
@@ -4326,14 +4329,14 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
-			if (!g_RoundStartMessageSent[client])
-			{
-				decl String:modelName[MAXMODELNAME];
-				
-				GetModelNameForClient(client, model, modelName, sizeof(modelName));
-				CPrintToChat(client, "%t", "#TF_PH_NowDisguised", modelName);
-				g_RoundStartMessageSent[client] = true;
-			}
+		}
+
+		if (!g_RoundStartMessageSent[client])
+		{
+			new String:modelName[MAXMODELNAME];
+			GetModelNameForClient(client, model, modelName, sizeof(modelName));
+			CPrintToChat(client, "%t", "#TF_PH_NowDisguised", modelName);
+			g_RoundStartMessageSent[client] = true;
 		}
 		
 		if (modelIndex > -1)
