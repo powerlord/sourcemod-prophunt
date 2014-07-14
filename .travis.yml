@@ -1,0 +1,20 @@
+language: cpp
+compiler: clang
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y g++-multilib
+
+install:
+  - wget http://www.gsptalk.com/mirror/sourcemod/sourcemod-1.6.0-linux.tar.gz -O /tmp/sourcemod.tar.gz
+  - tar -xzvf /tmp/sourcemod.tar.gz
+
+before_script:
+  - chmod +rx addons/sourcemod/scripting/spcomp
+  - chmod +rx addons/sourcemod/scripting/compile.sh
+  - cd addons/sourcemod/scripting/
+  
+script:
+  - ./spcomp prophunt.sp
+  - ./spcomp prophunt-stats.sp
+  
