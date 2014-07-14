@@ -1,6 +1,8 @@
 Prop Hunt Redux
 ==================
 
+![Build Status](https://travis-ci.org/powerlord/sourcemod-prophunt.svg?branch=master)
+
 Prop Hunt Redux is an effort to fix various issues with Prop Hunt and also to add some new features to the game mode.
 
 The major changes in Prop Hunt Redux over Prop Hunt 1.93 are:
