@@ -47,7 +47,6 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
-#include <readgamesounds>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
@@ -1370,6 +1369,10 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
+#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 7)
+				PrecacheScriptSound(soundString);
+#endif
+				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
 			if(KvGetDataType(g_ConfigKeyValues, "game") == KvData_String)
@@ -2651,13 +2654,17 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
+#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 7)
 		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
 		{
+#endif
 			new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
 			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
 			SetEventString(broadcastEvent, "sound", sample);
 			FireEvent(broadcastEvent);
+#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 7)
 		}
+#endif
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -2674,12 +2681,14 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 	decl String:sample[128];
 	
 	new bool:emitted = false;
-	
+
+#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 7)
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
-	
+#endif
+
 	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
