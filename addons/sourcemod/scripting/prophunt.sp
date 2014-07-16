@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 2"
+#define PL_VERSION "3.3.0 beta 3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -800,6 +800,8 @@ ReadCommonPropData()
 		
 	} while (KvGotoNextKey(propCommon));
 	
+	CloseHandle(propCommon);
+	
 	LogMessage("Loaded %d props from props_common.txt", counter);
 #if defined LOG
 	LogMessage("[PH] Loaded %d language(s)", GetArraySize(g_ModelLanguages));
@@ -973,6 +975,10 @@ loadGlobalConfig()
 {
 	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prophunt_config.cfg");
+	if (g_ConfigKeyValues != INVALID_HANDLE)
+	{
+		CloseHandle(g_ConfigKeyValues);
+	}
 	g_ConfigKeyValues = CreateKeyValues("prophunt_config");
 	if (!FileToKeyValues(g_ConfigKeyValues, Path))
 	{
