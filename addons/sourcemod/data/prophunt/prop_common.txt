@@ -2,1277 +2,1277 @@
 {
 	"models/alpine_logs/set1/log_27_211.md"
 	{
-		"en"		"Medium Alphine Log"
+		"name"		"Medium Alphine Log"
 	}
 
 	"models/egypt/palm_tree/palm_tree.mdl"
 	{
-		"en"		"Palm Tree"
+		"name"		"Palm Tree"
 	}
 
 	"models/egypt/palm_tree/palm_tree_big.mdl"
 	{
-		"en"		"Palm Tree (Large)"
+		"name"		"Palm Tree (Large)"
 	}
 
 	"models/egypt/pillar/pillar.mdl"
 	{
-		"en"		"Pillar"
+		"name"		"Pillar"
 	}
 
 	"models/egypt/pillar/pillar_big.mdl"
 	{
-		"en"		"Pillar (Large)"
+		"name"		"Pillar (Large)"
 	}
 
 	"models/egypt/pillar/pillar_medium.mdl"
 	{
-		"en"		"Pillar (Medium)"
+		"name"		"Pillar (Medium)"
 	}
 
 	"models/egypt/stick_torch/stick_torch_big.mdl"
 	{
-		"en"		"Torch (Large)"
+		"name"		"Torch (Large)"
 	}
 
 	"models/egypt/stick_torch/stick_torch_medium.mdl"
 	{
-		"en"		"Torch (Medium)"
+		"name"		"Torch (Medium)"
 	}
 
 	"models/egypt/tent/tent.mdl"
 	{
-		"en"		"Tent"
+		"name"		"Tent"
 	}
 
 	"models/harvest/pumpkin/pumpkin_small.mdl"
 	{
-		"en"		"Pumpkin (Small)"
+		"name"		"Pumpkin (Small)"
 	}
 
 	"models/harvest/pumpkin/pumpkin_big.mdl"
 	{
-		"en"		"Pumpkin (Large)"
+		"name"		"Pumpkin (Large)"
 	}
 
 	"models/harvest/tree/tree_big.mdl"
 	{
-		"en"		"Tree (Big)"
+		"name"		"Tree (Big)"
 	}
 
 	"models/harvest/tree/tree_medium.mdl"
 	{
-		"en"		"Tree (Medium)"
+		"name"		"Tree (Medium)"
 	}
 
 	"models/harvest/tree/tree_small.mdl"
 	{
-		"en"		"Tree (Small)"
+		"name"		"Tree (Small)"
 	}
 
 	"models/lilchewchew/lilchewchew_v3.mdl"
 	{
-		"en"		"Lil' Chew-Chew"
+		"name"		"Lil' Chew-Chew"
 	}
 
 	"models/player/pyro.mdl"
 	{
-		"en"		"Pyro"
+		"name"		"Pyro"
 	}
 
 	"models/props_2fort/coffeepot.mdl"
 	{
-		"en"		"Coffee Pot"
+		"name"		"Coffee Pot"
 	}
 
 	"models/props_2fort/corrugated_metal001.mdl"
 	{
-		"en"		"Corrugated Metal #1"
+		"name"		"Corrugated Metal #1"
 	}
 
 	"models/props_2fort/corrugated_metal002.mdl"
 	{
-		"en"		"Corrugated Metal #2"
+		"name"		"Corrugated Metal #2"
 	}
 
 	"models/props_2fort/corrugated_metal003.mdl"
 	{
-		"en"		"Corrugated Metal #3"
+		"name"		"Corrugated Metal #3"
 	}
 
 	"models/props_2fort/corrugated_metal004.mdl"
 	{
-		"en"		"Corrugated Metal #4"
+		"name"		"Corrugated Metal #4"
 	}
 
 	"models/props_2fort/corrugated_metal005.mdl"
 	{
-		"en"		"Corrugated Metal #5"
+		"name"		"Corrugated Metal #5"
 	}
 
 	"models/props_2fort/corrugated_metal006.mdl"
 	{
-		"en"		"Corrugated Metal #6"
+		"name"		"Corrugated Metal #6"
 	}
 
 	"models/props_2fort/corrugated_metal007.mdl"
 	{
-		"en"		"Corrugated Metal #7"
+		"name"		"Corrugated Metal #7"
 	}
 
 	"models/props_2fort/cow001_reference.mdl"
 	{
-		"en"		"Cutout Cow"
+		"name"		"Cutout Cow"
 	}
 
 	"models/props_2fort/chimney001.mdl"
 	{
-		"en"		"Chimney #1"
+		"name"		"Chimney #1"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney002.mdl"
 	{
-		"en"		"Chimney #2"
+		"name"		"Chimney #2"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney003.mdl"
 	{
-		"en"		"Chimney #3"
+		"name"		"Chimney #3"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney004.mdl"
 	{
-		"en"		"Chimney #4"
+		"name"		"Chimney #4"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney005.mdl"
 	{
-		"en"		"Chimney #5"
+		"name"		"Chimney #5"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney006.mdl"
 	{
-		"en"		"Chimney #6"
+		"name"		"Chimney #6"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/chimney007.mdl"
 	{
-		"en"		"Chimney #7"
+		"name"		"Chimney #7"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_2fort/frog.mdl"
 	{
-		"en"		"Spytech Frog"
+		"name"		"Spytech Frog"
 	}
 
 	"models/props_2fort/hardhat001.mdl"
 	{
-		"en"		"Hard Hat"
+		"name"		"Hard Hat"
 	}
 
 	"models/props_2fort/ladder001.mdl"
 	{
-		"en"		"Ladder"
+		"name"		"Ladder"
 	}
 
 	"models/props_2fort/locker001.mdl"
 	{
-		"en"		"Locker"
+		"name"		"Locker"
 	}
 
 	"models/props_2fort/lunchbag.mdl"
 	{
-		"en"		"Lunch Bag"
+		"name"		"Lunch Bag"
 	}
 
 	"models/props_2fort/metalbucket001.mdl"
 	{
-		"en"		"Bucket"
+		"name"		"Bucket"
 	}
 
 	"models/props_2fort/milkjug001.mdl"
 	{
-		"en"		"Milk Jug"
+		"name"		"Milk Jug"
 	}
 
 	"models/props_2fort/miningcrate001.mdl"
 	{
-		"en"		"Dynamite Crate"
+		"name"		"Dynamite Crate"
 	}
 
 	"models/props_2fort/miningcrate002.mdl"
 	{
-		"en"		"Mining Crate"
+		"name"		"Mining Crate"
 	}
 
 	"models/props_2fort/mop_and_bucket.mdl"
 	{
-		"en"		"Mop and Bucket"
+		"name"		"Mop and Bucket"
 	}
 
 	"models/props_2fort/oildrum.mdl"
 	{
-		"en"		"Oil Drum"
+		"name"		"Oil Drum"
 	}
 
 	"models/props_2fort/propane_tank_tall01.mdl"
 	{
-		"en"		"Propane Tank"
+		"name"		"Propane Tank"
 	}
 
 	"models/props_2fort/sink001.mdl"
 	{
-		"en"		"Sink"
+		"name"		"Sink"
 	}
 
 	"models/props_2fort/tank002.mdl"
 	{
-		"en"		"Liquid Storage Tank"
+		"name"		"Liquid Storage Tank"
 	}
 
 	"models/props_2fort/telephone001.mdl"
 	{
-		"en"		"Telephone"
+		"name"		"Telephone"
 	}
 	
 	"models/props_2fort/thermos.mdl"
 	{
-		"en"		"Thermos"
+		"name"		"Thermos"
 	}
 
 	"models/props_2fort/tire001.mdl"
 	{
-		"en"		"Tire"
+		"name"		"Tire"
 	}
 
 	"models/props_2fort/tire002.mdl"
 	{
-		"en"		"Tires #2"
+		"name"		"Tires #2"
 	}
 
 	"models/props_2fort/tire003.mdl"
 	{
-		"en"		"Stack of Tires"
+		"name"		"Stack of Tires"
 	}
 
 	"models/props_2fort/trainwheel001.mdl"
 	{
-		"en"		"Train Wheel"
+		"name"		"Train Wheel"
 	}
 
 	"models/props_2fort/trainwheel002.mdl"
 	{
-		"en"		"Train Wheels #2"
+		"name"		"Train Wheels #2"
 	}
 
 	"models/props_2fort/trainwheel003.mdl"
 	{
-		"en"		"Stack of Train Wheels"
+		"name"		"Stack of Train Wheels"
 	}
 
 	"models/props_2fort/trainwheel004.mdl"
 	{
-		"en"		"Train Wheels"
+		"name"		"Train Wheels"
 	}
 
 	"models/props_2fort/wastebasket01.mdl"
 	{
-		"en"		"Rubbish Bin"
+		"name"		"Rubbish Bin"
 		"offset"	"0 0 31"
 	}
 
 	"models/props_2fort/waterpump001.mdl"
 	{
-		"en"		"Old Fashioned Water Pump"
+		"name"		"Old Fashioned Water Pump"
 	}
 
 	"models/props_2fort/weathervane001.mdl"
 	{
-		"en"		"Weathervane"
+		"name"		"Weathervane"
 		"offset"	"0 0 18"
 	}
 	
 	"models/props_2fort/wood_shack001.mdl"
 	{
-		"en"		"Wood Shack (2Fort)"
+		"name"		"Wood Shack (2Fort)"
 		"offset"	 "0 0 -15"
 	}
 
 	"models/props_badlands/barrel01.mdl"
 	{
-		"en"		"Large Barrel #1"
+		"name"		"Large Barrel #1"
 	}
 
 	"models/props_badlands/barrel02.mdl"
 	{
-		"en"		"Large Barrel #2"
+		"name"		"Large Barrel #2"
 	}
 
 	"models/props_badlands/barrel03.mdl"
 	{
-		"en"		"Large Barrel #3"
+		"name"		"Large Barrel #3"
 	}
 
 	"models/props_farm/box_cluster01.mdl"
 	{
-		"en"		"Box Cluster"
+		"name"		"Box Cluster"
 	}
 
 	"models/props_farm/concrete_block001.mdl"
 	{
-		"en"		"Concrete Block"
+		"name"		"Concrete Block"
 	}
 
 	"models/props_farm/concrete_pipe001.mdl"
 	{
-		"en"		"Concrete Pipe #1"
+		"name"		"Concrete Pipe #1"
 	}
 
 	"models/props_farm/concrete_pipe002.mdl"
 	{
-		"en"		"Concrete Pipe #2"
+		"name"		"Concrete Pipe #2"
 	}
 
 	"models/props_farm/gibs/wooden_barrel_break01.mdl"
 	{
-		"en"		"Breakable Barrel"
+		"name"		"Breakable Barrel"
 		"offset"	"0 0 30"
 	}
 	
 	"models/props_farm/haypile001.mdl"
 	{
-		"en"		"Pile of Hay"
+		"name"		"Pile of Hay"
 		"offset"	"0 0 -2"
 	}
 
 	"models/props_farm/metal_pile.mdl"
 	{
-		"en"		"Metal Pile"
+		"name"		"Metal Pile"
 		"offset"	"0 0 20"
 	}
 
 	"models/props_farm/oilcan01.mdl"
 	{
-		"en"		"Oil Can #1"
+		"name"		"Oil Can #1"
 	}
 
 	"models/props_farm/oilcan01b.mdl"
 	{
-		"en"		"Oil Can #1b"
+		"name"		"Oil Can #1b"
 	}
 
 	"models/props_farm/oilcan02.mdl"
 	{
-		"en"		"Oil Can #2"
+		"name"		"Oil Can #2"
 	}
 
 	"models/props_farm/paint_can001.mdl"
 	{
-		"en"		"Can of Paint #1"
+		"name"		"Can of Paint #1"
 	}
 
 	"models/props_farm/paint_can002.mdl"
 	{
-		"en"		"Can of Paint #2"
+		"name"		"Can of Paint #2"
 	}
 
 	"models/props_farm/pallet001.mdl"
 	{
-		"en"		"Shipping pallet"
+		"name"		"Shipping pallet"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_farm/spool_wire.mdl"
 	{
-		"en"		"Wire Spool"
+		"name"		"Wire Spool"
 		"offset"	"0 0 24"
 	}
 
 	"models/props_farm/tractor_tire001.mdl"
 	{
-		"en"		"Tractor Tire"
+		"name"		"Tractor Tire"
 		"offset"	"0 0 15"
 	}
 
 	"models/props_farm/tree001.mdl"
 	{
-		"en"		"Tree (Farm)"
+		"name"		"Tree (Farm)"
 	}
 
 	"models/props_farm/welding_machine01.mdl"
 	{
-		"en"		"Welding Machine"
+		"name"		"Welding Machine"
 	}
 
 	"models/props_farm/wood_pile.mdl"
 	{
-		"en"		"Pile of Wood (Farm)"
+		"name"		"Pile of Wood (Farm)"
 		"offset"	"0 0 15"
 	}
 
 	"models/props_farm/wood_shack001.mdl"
 	{
-		"en"		"Wood Shack (Farm)"
+		"name"		"Wood Shack (Farm)"
 	}
 
 	"models/props_farm/wooden_barrel.mdl"
 	{
-		"en"		"Wooden Barrel"
+		"name"		"Wooden Barrel"
 		"offset"	"0 0 30"
 	}
 
 	"models/props_foliage/cactus01.mdl"
 	{
-		"en"		"Cactus"
+		"name"		"Cactus"
 	}
 
 	"models/props_foliage/deadtree01.mdl"
 	{
-		"en"		"Dead Tree"
+		"name"		"Dead Tree"
 	}
 
 	"models/props_foliage/joshuatree01.mdl"
 	{
-		"en"		"Joshua Tree #1"
+		"name"		"Joshua Tree #1"
 	}
 
 	"models/props_foliage/joshuatree02.mdl"
 	{
-		"en"		"Joshua Tree #2"
+		"name"		"Joshua Tree #2"
 	}
 
 	"models/props_foliage/shrub_01a.mdl"
 	{
-		"en"		"Shrub #1a"
+		"name"		"Shrub #1a"
 	}
 
 	"models/props_foliage/shrub_03_cluster.mdl"
 	{
-		"en"		"Shrub Cluster #3"
+		"name"		"Shrub Cluster #3"
 	}
 
 	"models/props_foliage/shrub_03_cluster02.mdl"
 	{
-		"en"		"Shrub Cluster #2"
+		"name"		"Shrub Cluster #2"
 	}
 
 	"models/props_foliage/shrub_03a.mdl"
 	{
-		"en"		"Shrub #3a"
+		"name"		"Shrub #3a"
 	}
 
 	"models/props_foliage/shrub_03b.mdl"
 	{
-		"en"		"Shrub #3b (Foliage)"
+		"name"		"Shrub #3b (Foliage)"
 	}
 
 	"models/props_foliage/shrub_03c.mdl"
 	{
-		"en"		"Shrub #3 (Foliage)"
+		"name"		"Shrub #3 (Foliage)"
 	}
 
 	"models/props_foliage/spikeplant01.mdl"
 	{
-		"en"		"Spiked Plant"
+		"name"		"Spiked Plant"
 	}
 
 	"models/props_foliage/tree01.mdl"
 	{
-		"en"		"Tree #1"
+		"name"		"Tree #1"
 	}
 
 	"models/props_foliage/tree_pine01.mdl"
 	{
-		"en"		"Pine Tree"
+		"name"		"Pine Tree"
 	}
 
 	"models/props_foliage/tree_pine_extrasmall.mdl"
 	{
-		"en"		"Small Pine Tree"
+		"name"		"Small Pine Tree"
 	}
 
 	"models/props_foliage/tree_pine_extrasmall_snow.mdl"
 	{
-		"en"		"Small Snowy Pine Tree"
+		"name"		"Small Snowy Pine Tree"
 	}
 
 	"models/props_forest/chimney03.mdl"
 	{
-		"en"		"Chimney Forest #3"
+		"name"		"Chimney Forest #3"
 		"offset"	"0 0 -5"
 	}
 
 	"models/props_forest/cliff_wall_02a.mdl"
 	{
-		"en"		"Cliff Wall #2a"
+		"name"		"Cliff Wall #2a"
 		"offset"	"0 0 10"
 	}
 
 	"models/props_forest/cliff_wall_09a.mdl"
 	{
-		"en"		"Cliff Wall #9a"
+		"name"		"Cliff Wall #9a"
 	}
 
 	"models/props_forest/cliff_wall_09b.mdl"
 	{
-		"en"		"Cliff Wall #9b"
+		"name"		"Cliff Wall #9b"
 	}
 
 	"models/props_forest/cliff_wall_09c.mdl"
 	{
-		"en"		"Cliff Wall #9c"
+		"name"		"Cliff Wall #9c"
 	}
 
 	"models/props_forest/kitchen_stove.mdl"
 	{
-		"en"		"Kitchen Stove"
+		"name"		"Kitchen Stove"
 	}
 
 	"models/props_forest/milk_crate.mdl"
 	{
-		"en"		"Milk Crate"
+		"name"		"Milk Crate"
 	}
 
 	"models/props_forest/rock001.mdl"
 	{
-		"en"		"Large Rock #1"
+		"name"		"Large Rock #1"
 	}
 
 	"models/props_forest/rock002.mdl"
 	{
-		"en"		"Large Rock #2"
+		"name"		"Large Rock #2"
 	}
 
 	"models/props_forest/rock003.mdl"
 	{
-		"en"		"Large Rock #3"
+		"name"		"Large Rock #3"
 	}
 
 	"models/props_forest/rock004.mdl"
 	{
-		"en"		"Large Rock #4"
+		"name"		"Large Rock #4"
 	}
 
 	"models/props_forest/rock006.mdl"
 	{
-		"en"		"Scattered Rocks #6"
+		"name"		"Scattered Rocks #6"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_forest/rock006b.mdl"
 	{
-		"en"		"Scattered Rocks #6b"
+		"name"		"Scattered Rocks #6b"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_forest/rock006c.mdl"
 	{
-		"en"		"Scattered Rocks #6c"
+		"name"		"Scattered Rocks #6c"
 		"offset"	"0 0 7"
 	}
 
 	"models/props_forest/saw_blade.mdl"
 	{
-		"en"		"Saw Blade (Small)"
+		"name"		"Saw Blade (Small)"
 	}
 
 	"models/props_forest/saw_blade_large.mdl"
 	{
-		"en"		"Saw Blade (Large)"
+		"name"		"Saw Blade (Large)"
 	}
 
 	"models/props_forest/sawmill_logs.mdl"
 	{
-		"en"		"Log Pile (Large)"
+		"name"		"Log Pile (Large)"
 	}
 
 	"models/props_forest/shrub_03b.mdl"
 	{
-		"en"		"Shrub #3b (Forest)"
+		"name"		"Shrub #3b (Forest)"
 	}
 
 	"models/props_forest/shrub_03c.mdl"
 	{
-		"en"		"Shrub #3 (Forest)"
+		"name"		"Shrub #3 (Forest)"
 	}
 
 	"models/props_forest/train_engine.mdl"
 	{
-		"en"		"Train Engine #1"
+		"name"		"Train Engine #1"
 	}
 
 	"models/props_forest/train_engine_01.mdl"
 	{
-		"en"		"Steam Train"
+		"name"		"Steam Train"
 	}
 
 	"models/props_forest/tree_pine_singlelog.mdl"
 	{
-		"en"		"Log"
+		"name"		"Log"
 	}
 
 	"models/props_forest/tree_pine_stackedlogs.mdl"
 	{
-		"en"		"Large Stack of Logs"
+		"name"		"Large Stack of Logs"
 	}
 
 	"models/props_forest/tree_pine_stump01.mdl"
 	{
-		"en"		"Tree Stump #1"
+		"name"		"Tree Stump #1"
 	}
 
 	"models/props_forest/tree_pine_stump02.mdl"
 	{
-		"en"		"Tree Stump #2"
+		"name"		"Tree Stump #2"
 	}
 
 	"models/props_forest/wood_pile.mdl"
 	{
-		"en"		"Pile of Wood (Forest)"
+		"name"		"Pile of Wood (Forest)"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_forest/wood_pile_short.mdl"
 	{
-		"en"		"Wood Pile (Short)"
+		"name"		"Wood Pile (Short)"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_forest/woodpile_indoor.mdl"
 	{
-		"en"		"Pile of Wood"
+		"name"		"Pile of Wood"
 	}
 
 	"models/props_gameplay/cap_point_base.mdl"
 	{
-		"en"		"Capture Point"
+		"name"		"Capture Point"
 		"offset"	"0 0 -2"
 	}
 
 	"models/props_gameplay/haybale.mdl"
 	{
-		"en"		"Haybale"
+		"name"		"Haybale"
 		"offset"	"0 0 10"
 	}
 
 	"models/props_gameplay/orange_cone001.mdl"
 	{
-		"en"		"Traffic Cone"
+		"name"		"Traffic Cone"
 	}
 
 	"models/props_gameplay/security_fence_section01.mdl"
 	{
-		"en"		"Security Fence"
+		"name"		"Security Fence"
 	}
 
 	"models/props_gameplay/sign_barricade001a.mdl"
 	{
-		"en"		"Barricade"
+		"name"		"Barricade"
 	}
 
 	"models/props_granary/grain_sack.mdl"
 	{
-		"en"		"Grain Sack"
+		"name"		"Grain Sack"
 	}
 
 	"models/props_granary/rocket_launchpad3.mdl"
 	{
-		"en"		"Rocket"
+		"name"		"Rocket"
 	}
 
 	"models/props_halloween/ghost.mdl"
 	{
-		"en"		"Ghost"
+		"name"		"Ghost"
 	}
 
 	"models/props_halloween/pumpkin_01.mdl"
 	{
-		"en"		"Small Halloween Pumpkin"
+		"name"		"Small Halloween Pumpkin"
 	}
 
 	"models/props_halloween/pumpkin_02.mdl"
 	{
-		"en"		"Large Halloween Pumpkin"
+		"name"		"Large Halloween Pumpkin"
 	}
 
 	"models/props_halloween/pumpkin_03.mdl"
 	{
-		"en"		"Medium Halloween Pumpkin"
+		"name"		"Medium Halloween Pumpkin"
 	}
 
 	"models/props_halloween/pumpkin_explode.mdl"
 	{
-		"en"		"Exploding Pumpkin"
+		"name"		"Exploding Pumpkin"
 	}
 
 	"models/props_halloween/tombstone_01.mdl"
 	{
-		"en"		"Fake Tombstone"
+		"name"		"Fake Tombstone"
 	}
 
 	"models/props_hydro/barrel_crate.mdl"
 	{
-		"en"		"Crate"
+		"name"		"Crate"
 	}
 
 	"models/props_hydro/barrel_crate_half.mdl"
 	{
-		"en"		"Crate (Small)"
+		"name"		"Crate (Small)"
 	}
 
 	"models/props_hydro/dumptruck.mdl"
 	{
-		"en"		"Dump Truck"
+		"name"		"Dump Truck"
 		"offset"	"0 0 2"
 	}
 
 	"models/props_hydro/metal_barrier01.mdl"
 	{
-		"en"		"Metal Barrier (Small)"
+		"name"		"Metal Barrier (Small)"
 	}
 
 	"models/props_hydro/metal_barrier02.mdl"
 	{
-		"en"		"Metal Barrier"
+		"name"		"Metal Barrier"
 	}
 
 	"models/props_hydro/road_bumper01.mdl"
 	{
-		"en"		"Bollard"
+		"name"		"Bollard"
 	}
 
 	"models/props_hydro/water_barrel.mdl"
 	{
-		"en"		"Water Barrel"
+		"name"		"Water Barrel"
 	}
 
 	"models/props_hydro/water_barrel_large.mdl"
 	{
-		"en"		"Water Barrel (Large)"
+		"name"		"Water Barrel (Large)"
 	}
 
 	"models/props_hydro/water_barrel_cluster.mdl"
 	{
-		"en"		"Water Barrel (Cluster)"
+		"name"		"Water Barrel (Cluster)"
 	}
 
 	"models/props_hydro/water_barrel_cluster2.mdl"
 	{
-		"en"		"Hazardous Waste Yellow (Cluster)"
+		"name"		"Hazardous Waste Yellow (Cluster)"
 	}
 
 	"models/props_hydro/water_barrel_cluster3.mdl"
 	{
-		"en"		"Hazardous Waste Red (Cluster)"
+		"name"		"Hazardous Waste Red (Cluster)"
 	}
 
 	"models/props_hydro/water_machinery1.mdl"
 	{
-		"en"		"Water Pump"
+		"name"		"Water Pump"
 	}
 
 	"models/props_manor/baby_grand_01.mdl"
 	{
-		"en"		"Baby Grand Piano"
+		"name"		"Baby Grand Piano"
 	}
 
 	"models/props_manor/bookcase_132_01.mdl"
 	{
-		"en"		"Book Case #1"
+		"name"		"Book Case #1"
 	}
 
 	"models/props_manor/bookcase_132_02.mdl"
 	{
-		"en"		"Book Case #2"
+		"name"		"Book Case #2"
 	}
 
 	"models/props_manor/bookcase_132_03.mdl"
 	{
-		"en"		"Book Case #3"
+		"name"		"Book Case #3"
 	}
 
 	"models/props_manor/cardboard_box_set_01.mdl"
 	{
-		"en"		"Cardboard Box Set #1"
+		"name"		"Cardboard Box Set #1"
 	}
 
 	"models/props_manor/cardboard_box_set_02.mdl"
 	{
-		"en"		"Cardboard Box Set #2"
+		"name"		"Cardboard Box Set #2"
 	}
 
 	"models/props_manor/chair_01.mdl" 
 	{
-		"en"		"Manor Chair"
+		"name"		"Manor Chair"
 	}
 
 	"models/props_manor/coffin_01.mdl"
 	{
-		"en"		"Wood Coffin with Cross"
+		"name"		"Wood Coffin with Cross"
 	}
 
 	"models/props_manor/coffin_02.mdl"
 	{
-		"en"		"Wood Coffin"
+		"name"		"Wood Coffin"
 	}
 
 	"models/props_manor/couch_01.mdl"
 	{
-		"en"		"Upholstered Couch"
+		"name"		"Upholstered Couch"
 	}
 
 	"models/props_manor/grandfather_clock_01.mdl"
 	{
-		"en"		"Grandfather Clock"
+		"name"		"Grandfather Clock"
 	}
 
 	"models/props_manor/gravestone_01.mdl"
 	{
-		"en"		"Gravestone #1"
+		"name"		"Gravestone #1"
 	}
 
 	"models/props_manor/gravestone_02.mdl"
 	{
-		"en"		"Gravestone #2"
+		"name"		"Gravestone #2"
 	}
 
 	"models/props_manor/gravestone_03.mdl"
 	{
-		"en"		"Gravestone (Cross)"
+		"name"		"Gravestone (Cross)"
 	}
 
 	"models/props_manor/gravestone_04.mdl"
 	{
-		"en"		"Gravestone (Rounded)"
+		"name"		"Gravestone (Rounded)"
 	}
 
 	"models/props_manor/table_01.mdl" 
 	{
-		"en"		"Small Uncovered Table"
+		"name"		"Small Uncovered Table"
 	}
 
 	"models/props_manor/table_02.mdl" 
 	{
-		"en"		"Small Covered Table"
+		"name"		"Small Covered Table"
 	}
 
 	"models/props_manor/table_03.mdl" 
 	{
-		"en"		"Large Uncovered Table"
+		"name"		"Large Uncovered Table"
 	}
 
 	"models/props_manor/tractor_01.mdl"
 	{
-		"en"		"Tractor"
+		"name"		"Tractor"
 	}
 	
 	"models/props_manor/vase_01.mdl"
 	{
-		"en"		"Vase"
+		"name"		"Vase"
 		"offset"	"0 0 32"
 	}
 
 	"models/props_medieval/bar_bench.mdl"
 	{
-		"en"		"Wooden Bench"
+		"name"		"Wooden Bench"
 	}
 
 	"models/props_medieval/bar_table.mdl"
 	{
-		"en"		"Wooden Table"
+		"name"		"Wooden Table"
 	}
 
 	"models/props_medieval/pictureframe001.mdl"
 	{
-		"en"		"Degroot Family Portrait"
+		"name"		"Degroot Family Portrait"
 	}
 
 	"models/props_medieval/target/target.mdl"
 	{
-		"en"		"Arrow Target"
+		"name"		"Arrow Target"
 	}
 
 	"models/props_mining/fence001_reference.mdl"
 	{
-		"en"		"Wooden Fence #1"
+		"name"		"Wooden Fence #1"
 	}
 
 	"models/props_mining/fence003_reference.mdl"
 	{
-		"en"		"Wooden Fence with Hole"
+		"name"		"Wooden Fence with Hole"
 	}
 
 	"models/props_mining/generator01.mdl"
 	{
-		"en"		"Generator"
+		"name"		"Generator"
 	}
 
 	"models/props_mining/generator_valve01.mdl"
 	{
-		"en"		"Generator Valve"
+		"name"		"Generator Valve"
 	}
 
 	"models/props_mining/mining_shack001a.mdl"
 	{
-		"en"		"Mining Shack"
+		"name"		"Mining Shack"
 	}
 
 	"models/props_mining/rock001.mdl"
 	{
-		"en"		"Large Rock #1"
+		"name"		"Large Rock #1"
 	}
 
 	"models/props_mining/rock002.mdl"
 	{
-		"en"		"Large Rock #2"
+		"name"		"Large Rock #2"
 	}
 
 	"models/props_mining/rock006.mdl"
 	{
-		"en"		"Scattered Rocks Mining #6"
+		"name"		"Scattered Rocks Mining #6"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_mining/sign001.mdl"
 	{
-		"en"		"Hazard Sign"
+		"name"		"Hazard Sign"
 	}
 
 	"models/props_mining/watertower001.mdl"
 	{
-		"en"		"Water Tower #1"
+		"name"		"Water Tower #1"
 	}
 
 	"models/props_mining/watertower002.mdl"
 	{
-		"en"		"Water Tower #2"
+		"name"		"Water Tower #2"
 	}
 
 	"models/props_nature/rock_worn001.mdl"
 	{
-		"en"		"Worn Rock"
+		"name"		"Worn Rock"
 	}
 
 	"models/props_spytech/bench001a.mdl"
 	{
-		"en"		"Bench #1"
+		"name"		"Bench #1"
 	}
 
 	"models/props_spytech/bench001b.mdl"
 	{
-		"en"		"Bench #2"
+		"name"		"Bench #2"
 	}
 
 	"models/props_spytech/chair.mdl"
 	{
-		"en"		"Chair"
+		"name"		"Chair"
 	}
 
 	"models/props_spytech/computer_low.mdl"
 	{
-		"en"		"Spytech Computer"
+		"name"		"Spytech Computer"
 	}
 
 	"models/props_spytech/computer_printer.mdl"
 	{
-		"en"		"Spytech Printer"
+		"name"		"Spytech Printer"
 	}
 
 	"models/props_spytech/computer_wall02.mdl"
 	{
-		"en"		"Wall Computer #2"
+		"name"		"Wall Computer #2"
 	}
 
 	"models/props_spytech/computer_wall03.mdl"
 	{
-		"en"		"Wall Computer #3"
+		"name"		"Wall Computer #3"
 	}
 
 	"models/props_spytech/computer_wall04.mdl"
 	{
-		"en"		"Wall Computer #4"
+		"name"		"Wall Computer #4"
 	}
 
 	"models/props_spytech/computer_wall05.mdl"
 	{
-		"en"		"Wall Computer #5"
+		"name"		"Wall Computer #5"
 	}
 
 	"models/props_spytech/control_room_console01.mdl"
 	{
-		"en"		"Spytech Console #1"
+		"name"		"Spytech Console #1"
 	}
 
 	"models/props_spytech/control_room_console02.mdl"
 	{
-		"en"		"Spytech Console #2"
+		"name"		"Spytech Console #2"
 	}
 
 	"models/props_spytech/control_room_console03.mdl"
 	{
-		"en"		"Spytech Console #3"
+		"name"		"Spytech Console #3"
 	}
 
 	"models/props_spytech/control_room_console04.mdl"
 	{
-		"en"		"Spytech Console #4"
+		"name"		"Spytech Console #4"
 	}
 
 	"models/props_spytech/suitcase.mdl"
 	{
-		"en"		"Intelligence Briefcase"
+		"name"		"Intelligence Briefcase"
 		"offset"	"0 0 5"
 	}
 
 	"models/props_spytech/terminal_chair.mdl"
 	{
-		"en"		"Spytech Chair"
+		"name"		"Spytech Chair"
 	}
 
 	"models/props_spytech/time_card_machine.mdl"
 	{
-		"en"		"Time Card Machine"
+		"name"		"Time Card Machine"
 	}
 
 	"models/props_spytech/tv001.mdl"
 	{
-		"en"		"Television"
+		"name"		"Television"
 	}
 
 	"models/props_spytech/watercooler.mdl"
 	{
-		"en"		"Water Cooler"
+		"name"		"Water Cooler"
 	}
 
 	"models/props_spytech/work_table001.mdl"
 	{
-		"en"		"Work Table"
+		"name"		"Work Table"
 	}
 
 	"models/props_swamp/big_jetty.mdl"
 	{
-		"en"		"Jetty (Dock)"
+		"name"		"Jetty (Dock)"
 	}
 
 	"models/props_swamp/buttress_tree_small_ref.mdl"
 	{
-		"en"		"Buttress Tree"
+		"name"		"Buttress Tree"
 	}
 
 	"models/props_swamp/buttress_tree_stump_tiny_ref.mdl"
 	{
-		"en"		"Buttress Tree Stump"
+		"name"		"Buttress Tree Stump"
 	}
 
 	"models/props_swamp/picnic_table.mdl"
 	{
-		"en"		"Picnic Table"
+		"name"		"Picnic Table"
 	}
 
 	"models/props_swamp/shrub_03b.mdl"
 	{
-		"en"		"Shrub #3b (Swamp)"
+		"name"		"Shrub #3b (Swamp)"
 	}
 
 	"models/props_training/target_demoman.mdl"
 	{
-		"en"		"DemoMan Target"
+		"name"		"DemoMan Target"
 	}
 
 	"models/props_training/target_engineer.mdl"
 	{
-		"en"		"Engineer Target"
+		"name"		"Engineer Target"
 	}
 
 	"models/props_training/target_heavy.mdl"
 	{
-		"en"		"Heavy Target"
+		"name"		"Heavy Target"
 	}
 
 	"models/props_training/target_medic.mdl"
 	{
-		"en"		"Medic Target"
+		"name"		"Medic Target"
 	}
 
 	"models/props_training/target_pyro.mdl"
 	{
-		"en"		"Pyro Target"
+		"name"		"Pyro Target"
 	}
 
 	"models/props_training/target_scout.mdl"
 	{
-		"en"		"Scout Target"
+		"name"		"Scout Target"
 	}
 
 	"models/props_training/target_sniper.mdl"
 	{
-		"en"		"Sniper Target"
+		"name"		"Sniper Target"
 	}
 
 	"models/props_training/target_soldier.mdl"
 	{
-		"en"		"Soldier Target"
+		"name"		"Soldier Target"
 	}
 
 	"models/props_training/target_spy.mdl"
 	{
-		"en"		"Spy Target"
+		"name"		"Spy Target"
 	}
 
 	"models/props_trainyard/beer_keg001.mdl"
 	{
-		"en"		"Beer Keg"
+		"name"		"Beer Keg"
 		"offset"	"0 0 34"
 	}
 
 	"models/props_trainyard/bomb_cart.mdl"
 	{
-		"en"		"Payload Cart (Blue)"
+		"name"		"Payload Cart (Blue)"
 		"offset"	"0 0 30"
 	}
 
 	"models/props_trainyard/bomb_cart_red.mdl"
 	{
-		"en"		"Payload Cart (Red)"
+		"name"		"Payload Cart (Red)"
 		"offset"	"0 0 26"
 	}
 
 	"models/props_trainyard/cart_base_separate.mdl"
 	{
-		"en"		"Cart Base"
+		"name"		"Cart Base"
 	}
 
 	"models/props_trainyard/cart_bomb_separate.mdl"
 	{
-		"en"		"Cart Bomb (Blue)"
+		"name"		"Cart Bomb (Blue)"
 	}
 
 	"models/props_trainyard/distillery_barrel001.mdl"
 	{
-		"en"		"Beer Barrel"
+		"name"		"Beer Barrel"
 		"offset"	"0 0 45"
 	}
 
 	"models/props_trainyard/portable_stairs001.mdl"
 	{
-		"en"		"Portable Stairs"
+		"name"		"Portable Stairs"
 	}
 
 	"models/props_trainyard/power_pylon.mdl"
 	{
-		"en"		"Power Pylon"
+		"name"		"Power Pylon"
 	}
 
 	"models/props_vehicles/mining_car_metal.mdl"
 	{
-		"en"		"Mining Car"
+		"name"		"Mining Car"
 	}
 
 	"models/props_vehicles/mining_cart_supplies001.mdl"
 	{
-		"en"		"Mining Cart With Supplies"
+		"name"		"Mining Cart With Supplies"
 	}
 
 	"models/props_vehicles/mining_cart_supplies002.mdl"
 	{
-		"en"		"Mining Cart With Engineer Box"
+		"name"		"Mining Cart With Engineer Box"
 	}
 
 	"models/props_vehicles/pickup03.mdl"
 	{
-		"en"		"Pickup Truck"
+		"name"		"Pickup Truck"
 	}
 
 	"models/props_vehicles/train_engine.mdl"
 	{
-		"en"		"Train Engine #2"
+		"name"		"Train Engine #2"
 	}
 
 	"models/props_vehicles/train_enginecar.mdl"
 	{
-		"en"		"Train Engine #3"
+		"name"		"Train Engine #3"
 	}
 
 	"models/props_vehicles/train_flatcar_container.mdl"
 	{
-		"en"		"Shipping Container"
+		"name"		"Shipping Container"
 	}
 
 	"models/props_vehicles/train_flatcar_container_01b.mdl"
 	{
-		"en"		"Shipping Container"
+		"name"		"Shipping Container"
 	}
 
 	"models/props_vehicles/train_flatcar_leveltop.mdl"
 	{
-		"en"		"Train Flatbed"
+		"name"		"Train Flatbed"
 	}
 
 	"models/props_well/brewing_vat.mdl"
 	{
-		"en"		"Brewing Vat"
+		"name"		"Brewing Vat"
 	}
 
 	"models/props_well/computer_cart01.mdl"
 	{
-		"en"		"Computer Cart #1"
+		"name"		"Computer Cart #1"
 	}
 
 	"models/props_well/computer_cart02.mdl"
 	{
-		"en"		"Computer Cart #2"
+		"name"		"Computer Cart #2"
 	}
 
 	"models/props_well/hand_truck01.mdl"
 	{
-		"en"		"Hand Truck"
+		"name"		"Hand Truck"
 	}
 
 	"models/weapons/w_models/w_toolbox.mdl"
 	{
-		"en"		"Engineer Toolbox"
+		"name"		"Engineer Toolbox"
 	}
 
 	"models/combine_strider.mdl"
 	{
-		"en"		"Combine Strider"
+		"name"		"Combine Strider"
 		"offset"	"0 0 520"
 	}
 
 	"models/props_c17/chair_stool01a.mdl"
 	{
-		"en"		"Stool"
+		"name"		"Stool"
 	}
 
 	"models/props_c17/utilitypole01d.mdl"
 	{
-		"en"		"Telegraph Pole"
+		"name"		"Telegraph Pole"
 	}
 
 	"models/props_junk/cardboard_box001a.mdl"
 	{
-		"en"		"Cardboard Box"
+		"name"		"Cardboard Box"
 	}
 
 	"models/props_rooftop/Roof_Dish001.mdl"
 	{
-		"en"		"Satellite Dish"
+		"name"		"Satellite Dish"
 	}
 
 	"models/props_rooftop/roof_vent004.mdl"
 	{
-		"en"		"Vent #4"
+		"name"		"Vent #4"
 	}
 
 	"models/props_trainstation/pole_384connection001a.mdl"
 	{
-		"en"		"Connection Pole"
+		"name"		"Connection Pole"
 	}
 }

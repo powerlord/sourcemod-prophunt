@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 3"
+#define PL_VERSION "3.3.0 beta 4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -353,6 +353,7 @@ new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
 new Handle:g_PHSetupLength = INVALID_HANDLE;
 new Handle:g_PHDamageBlocksPropChange = INVALID_HANDLE;
 new Handle:g_PHPropMenuNames = INVALID_HANDLE;
+new Handle:g_PHMultilingual = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -570,6 +571,7 @@ public OnPluginStart()
 	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
 	g_PHDamageBlocksPropChange = CreateConVar("ph_burningblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
 	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu? This is disabled by default for compatibility reasons.", _, true, 0.0, true, 1.0);
+	g_PHMultilingual = CreateConVar("ph_multilingual", "0", "Use multilingual support? Uses more Handles if enabled. Disabled by default as we have no alternate languages (yet)", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -718,7 +720,7 @@ public OnClientPostAdminCheck(client)
 }
 */
 
-ReadCommonPropData()
+ReadCommonPropData(bool:onlyLanguageRefresh = false)
 {
 	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_common.txt");
@@ -735,6 +737,14 @@ ReadCommonPropData()
 		return;
 	}		
 	
+	ClearPropNames();
+	
+	if (!onlyLanguageRefresh)
+	{
+		ClearTrie(g_PropData);
+	}
+	ClearArray(g_ModelLanguages);
+	
 	new counter = 0;
 	do
 	{
@@ -744,60 +754,71 @@ ReadCommonPropData()
 		new propData[PropData];
 		
 		KvGetSectionName(propCommon, modelPath, PLATFORM_MAX_PATH);
-		//KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Replaced with new support
+		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Still around for compat reasons
+		if (strlen(propData[PropData_Name]) == 0)
+		{
+			KvGetString(propCommon, "en", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Default this to English otherwise
+		}
 		KvGetString(propCommon, "offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
 		KvGetString(propCommon, "rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
-		
-		new Handle:languageTrie = CreateTrie();
-		
-		for (new i=0;i<GetLanguageCount();i++)
-		{
-			decl String:lang[MAXLANGUAGECODE];
-			decl String:name[MAXMODELNAME];
-			GetLanguageInfo(i, lang, sizeof(lang));
-			//search for the translation
-			KvGetString(propCommon, lang, name, sizeof(name));
 
-			// Make "en" read the "name" section for compatibility reasons if "en" isn't present
-			if (strlen(name) <= 0 && StrEqual(lang, "en"))
+		if (strlen(propData[PropData_Name]) == 0)
+		{
+			// No "name" or "en" block means no prop name, but this isn't an error that prevents us from using the prop for offset and rotation
+			LogError("Error getting prop name for %s", modelPath);
+		}
+		
+		if (!onlyLanguageRefresh)
+		{
+			if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
 			{
-				KvGetString(propCommon, "name", name, sizeof(name));
+				LogError("Error saving prop data for %s", modelPath);
+				continue;
 			}
+		}
+		
+		if (GetConVarBool(g_PHMultilingual))
+		{
+			new Handle:languageTrie = CreateTrie();
 			
-			if (strlen(name) > 0)
+			for (new i=0;i<GetLanguageCount();i++)
 			{
-				//language new?
-				if (FindStringInArray(g_ModelLanguages, lang) == -1)
+				decl String:lang[MAXLANGUAGECODE];
+				decl String:name[MAXMODELNAME];
+				GetLanguageInfo(i, lang, sizeof(lang));
+				//search for the translation
+				KvGetString(propCommon, lang, name, sizeof(name));
+
+				// Make "en" read the "name" section for compatibility reasons if "en" isn't present
+				if (strlen(name) <= 0 && StrEqual(lang, "en"))
 				{
-#if defined LOG
-					LogMessage("[PH] Adding language \"%s\" to languages list", lang);
-#endif
-					PushArrayString(g_ModelLanguages, lang);
+					strcopy(name, sizeof(name), propData[PropData_Name]);
 				}
 				
-				SetTrieString(languageTrie, lang, name);
+				if (strlen(name) > 0)
+				{
+					//language new?
+					if (FindStringInArray(g_ModelLanguages, lang) == -1)
+					{
+#if defined LOG
+						LogMessage("[PH] Adding language \"%s\" to languages list", lang);
+#endif
+						PushArrayString(g_ModelLanguages, lang);
+					}
+					
+					SetTrieString(languageTrie, lang, name);
+				}
+			}
+			
+			if (!SetTrieValue(g_PropNames, modelPath, languageTrie, false))
+			{
+				LogError("Error saving prop names for %s", modelPath);
+			}
+			else
+			{
+				PushArrayString(g_PropNamesIndex, modelPath);
 			}
 		}
-		
-		new bool:error = false;
-		
-		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
-		{
-			LogError("Error saving prop data for %s", modelPath);
-			error = true;
-		}
-		
-		if (!SetTrieValue(g_PropNames, modelPath, languageTrie, false))
-		{
-			LogError("Error saving prop names for %s", modelPath);
-			error = true;
-		}
-
-		if (!error)
-		{
-			PushArrayString(g_PropNamesIndex, modelPath);
-		}
-		
 	} while (KvGotoNextKey(propCommon));
 	
 	CloseHandle(propCommon);
@@ -822,6 +843,7 @@ ClearPropNames()
 			CloseHandle(languageTrie);
 		}
 	}
+	
 	ClearTrie(g_PropNames);
 	ClearArray(g_PropNamesIndex);
 }
@@ -989,10 +1011,7 @@ loadGlobalConfig()
 	config_parseClasses();
 	config_parseSounds();
 	
-	ClearPropNames();
-	ClearTrie(g_PropData);
-	ClearArray(g_ModelLanguages);
-	ReadCommonPropData();
+	ReadCommonPropData(false);
 }
 
 public OnLibraryAdded(const String:name[])
@@ -1603,6 +1622,19 @@ public OnPropRerollChanged(Handle:convar, const String:oldValue[], const String:
 	{
 		InstallPropRerollOverride();
 	}
+}
+
+public OnMultilingualChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	if (GetConVarBool(convar))
+	{
+		ReadCommonPropData(true);
+	}
+	else
+	{
+		ClearPropNames();
+	}
+	
 }
 
 public OnRebuildAdminCache(AdminCachePart:part)
@@ -4924,20 +4956,38 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 
 bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxlen)
 {
-	decl String:langCode[MAXLANGUAGECODE];
-	
-	GetClientLanguageID(client, langCode, sizeof(langCode));
-#if defined LOG
-	LogMessage("[PH] Retrieving %s name for %s", langCode, modelName);
-#endif	
-	new Handle:languageTrie;
-	if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE && GetTrieString(languageTrie, langCode, name, maxlen))
+	if (GetConVarBool(g_PHMultilingual))
 	{
-		return true;
+		decl String:langCode[MAXLANGUAGECODE];
+		
+		GetClientLanguageID(client, langCode, sizeof(langCode));
+#if defined LOG
+		LogMessage("[PH] Retrieving %s name for %s", langCode, modelName);
+#endif	
+		new Handle:languageTrie;
+		if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE && GetTrieString(languageTrie, langCode, name, maxlen))
+		{
+			return true;
+		}
+		else
+		{
+			strcopy(name, maxlen, modelName);
+			return false;
+		}
 	}
 	else
 	{
-		strcopy(name, maxlen, modelName);
-		return false;
+		new propData[PropData];
+		
+		if (GetTrieArray(g_PropData, modelName, propData[0], sizeof(propData)))
+		{
+			strcopy(name, maxlen, propData[PropData_Name]);
+			return true;
+		}
+		else
+		{
+			strcopy(name, maxlen, modelName);
+			return false;
+		}
 	}
 }
