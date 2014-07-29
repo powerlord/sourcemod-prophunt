@@ -603,6 +603,7 @@ public OnPluginStart()
 	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
 	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
 	HookConVarChange(g_PHReroll, OnPropRerollChanged);
+	HookConVarChange(g_PHMultilingual, OnMultilingualChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -684,10 +685,9 @@ public OnPluginStart()
 	g_PropNamesIndex = CreateArray(ByteCountToCells(PLATFORM_MAX_PATH));
 	g_ModelLanguages = CreateArray(ByteCountToCells(MAXLANGUAGECODE));
 
-	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
-	g_ModelName = CreateArray(arraySize);
-	g_ModelOffset = CreateArray(arraySize);
-	g_ModelRotation = CreateArray(arraySize);
+	g_ModelName = CreateArray(ByteCountToCells(PLATFORM_MAX_PATH));
+	g_ModelOffset = CreateArray(ByteCountToCells(11));
+	g_ModelRotation = CreateArray(ByteCountToCells(11));
 	g_ModelSkin = CreateArray();
 	
 	AutoExecConfig(true, "prophunt_redux");
