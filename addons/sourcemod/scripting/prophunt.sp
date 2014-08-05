@@ -91,6 +91,11 @@
 // Default: ON
 #define DHOOKS
 
+// Include support for the game sounds functions?
+// Note: Requires SourceMod 1.6.1 or newer.
+// Default: OFF
+//#define GAMESOUNDS
+
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
 #define SCATTERGUN
@@ -134,6 +139,7 @@
 // Minimum and maximum setup times
 #define SETUP_MIN 30
 #define SETUP_MAX 120
+
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1393,7 +1399,7 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
-#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 6 && SOURCEMOD_V_RELEASE >= 1)
+#if defined GAMESOUNDS
 				PrecacheScriptSound(soundString);
 #endif
 				
@@ -2694,7 +2700,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
-#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 6 && SOURCEMOD_V_RELEASE >= 1)
+#if defined GAMESOUNDS
 		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
 		{
 #endif
@@ -2702,7 +2708,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
 			SetEventString(broadcastEvent, "sound", sample);
 			FireEvent(broadcastEvent);
-#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 6 && SOURCEMOD_V_RELEASE >= 1)
+#if defined GAMESOUNDS
 		}
 #endif
 	}
@@ -2722,7 +2728,7 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 	
 	new bool:emitted = false;
 
-#if SOURCEMOD_V_MAJOR > 1 || (SOURCEMOD_V_MAJOR == 1 && SOURCEMOD_V_MINOR >= 6 && SOURCEMOD_V_RELEASE >= 1)
+#if defined GAMESOUNDS
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
