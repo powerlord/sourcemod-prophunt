@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 4"
+#define PL_VERSION "3.3.0 beta 5"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -976,7 +976,7 @@ bool:ShouldSwitchTeams()
 	if (lastRound)
 	{
 #if defined LOG
-	LogMessage("[PH] This is the last of %d rounds.", g_RoundCount);
+	LogMessage("[PH] This is the last of %d round(s).", g_RoundCount);
 #endif
 		g_RoundCurrent = 0;
 	}
@@ -1663,7 +1663,7 @@ CountRounds()
 	g_RoundCurrent = 0;
 	g_RoundCount = 0;
 	new entity = -1;
-	new prevPriority = 0;
+//	new prevPriority = 0;
 	new bool:roundSwitchAlways = true;
 	
 	while ((entity = FindEntityByClassname(entity, "team_control_point_round")) != -1)
@@ -1671,6 +1671,8 @@ CountRounds()
 		// Check if the round isn't disabled here?
 		// Test on ph_kakariko to see if its other part is present.
 		g_RoundCount++;
+		// We'll look at round priorities again sometime in the future, ignore for now.
+		/*
 		new priority = GetEntProp(entity, Prop_Data, "m_nPriority");
 		if (prevPriority == 0)
 		{
@@ -1679,18 +1681,21 @@ CountRounds()
 		else
 		if (prevPriority != priority)
 		{
+			
 			roundSwitchAlways = false;
+			break;
 		}
+		*/
 	}
 	
 	// No team_control_point_round entities means we have just 1 round
 	if (g_RoundCount == 0)
 		g_RoundCount = 1;
 
-	if (g_RoundCount % 2 != 0)
+	if (g_RoundCount % 2 == 0)
 	{
-		// For odd number of rounds, always switch
-		roundSwitchAlways = true;
+		// For event number of rounds, never switch
+		roundSwitchAlways = false;
 	}
 	
 	g_RoundSwitchAlways = roundSwitchAlways;
@@ -3870,6 +3875,10 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
+	// This is being called because TF2 destroys the gamerules object when there are 0-1 players at round end.
+	// This has the side effect of unsetting our hooks.  Luckily, we have checks in place to prevent double hooking.
+	RegisterDHooks();
+	
 	g_inPreRound = true;
 	
 	// This is now in round start after an issue was reported with last prop not resetting in 3.0.2
