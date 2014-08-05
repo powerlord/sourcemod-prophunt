@@ -417,7 +417,6 @@ new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 new bool:g_CvarsSet;
 
 new RoundChange:g_RoundChange;
-new bool:g_MapRunning = false;
 
 new bool:g_CurrentlyFlaming[MAXPLAYERS+1];
 new g_FlameCount[MAXPLAYERS+1];
@@ -903,7 +902,7 @@ public Action:LateLoadDHooks(Handle:timer)
 	g_DHooks = true;
 	InitializeDHooks();
 	
-	if (g_Enabled && g_MapRunning)
+	if (g_Enabled && g_MapStarted)
 		RegisterDHooks();
 	
 	return Plugin_Stop;
@@ -1529,14 +1528,13 @@ public OnConfigsExecuted()
 		InstallPropRerollOverride();
 	}
 	
-	g_MapRunning = true;
-	
 	if (g_Enabled)
 	{
 		SetCVars();
-#if defined DHOOKS
-		RegisterDHooks();
-#endif
+// Moved to round start
+//#if defined DHOOKS
+//		RegisterDHooks();
+//#endif
 	}
 	
 	UpdateGameDescription(true);
@@ -1580,7 +1578,7 @@ InstallPropRerollOverride()
 	}
 	
 	AddCommandOverride("propreroll", Override_Command, ADMFLAG_NONE);
-	g_PropMenuOverrideInstalled = true;
+	g_PropRerollOverrideInstalled = true;
 }
 
 RemovePropRerollOverride()
@@ -1747,7 +1745,7 @@ StopTimers()
 
 public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	if (!g_MapRunning)
+	if (!g_MapStarted)
 	{
 		return;
 	}
@@ -2043,7 +2041,6 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
-	g_MapRunning = false;
 	
 	ResetCVars();
 	StopTimers();
@@ -3850,9 +3847,10 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = true;
 			SetCVars();
-#if defined DHOOKS
-			RegisterDHooks();
-#endif
+// Moved to after g_Enabled check
+//#if defined DHOOKS
+//			RegisterDHooks();
+//#endif
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
@@ -3875,9 +3873,11 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
-	// This is being called because TF2 destroys the gamerules object when there are 0-1 players at round end.
+	// This is being called because TF2 sometimes destroys the gamerules object when there are 0-1 players at round end.
 	// This has the side effect of unsetting our hooks.  Luckily, we have checks in place to prevent double hooking.
+#if defined DHOOKS
 	RegisterDHooks();
+#endif
 	
 	g_inPreRound = true;
 	
@@ -3925,7 +3925,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	AcceptEntityInput(ent, "SetRedTeamGoalString");
 	SetVariantString("1");
 	AcceptEntityInput(ent, "SetRedTeamRole");
-
 }
 
 public Action:Timer_teamplay_round_start(Handle:timer)
