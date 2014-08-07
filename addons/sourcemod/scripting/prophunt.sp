@@ -640,6 +640,7 @@ public OnPluginStart()
 	RegConsoleCmd("phstats", Command_motd);
 	RegConsoleCmd("ph_stats", Command_motd);
 	RegConsoleCmd("ph_config", Command_config);
+	RegConsoleCmd("ph_settings", Command_config);
 	//RegConsoleCmd("motd", Command_motd);
 	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
 	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
