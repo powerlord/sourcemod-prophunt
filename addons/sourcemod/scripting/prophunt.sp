@@ -93,8 +93,8 @@
 
 // Include support for the game sounds functions?
 // Note: Requires SourceMod 1.6.1 or newer.
-// Default: OFF
-//#define GAMESOUNDS
+// Default: ON
+#define GAMESOUNDS
 
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
