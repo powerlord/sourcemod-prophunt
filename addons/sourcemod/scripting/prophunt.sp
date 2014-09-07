@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 5"
+#define PL_VERSION "3.3.0 beta 6"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -264,7 +264,7 @@ enum
 
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
-new bool:g_RemoveRedWeps = false;
+new bool:g_RemoveRedWeps = true;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -2226,6 +2226,7 @@ public OnMapStart()
 	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_LastProp = false;
+	g_RemoveRedWeps = true;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		g_LastPropDamageTime[client] = -1;
@@ -4122,7 +4123,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:Event_player_death(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (!g_Enabled)
+	if (!g_Enabled || g_inPreRound)
 		return Plugin_Continue;
 	
 	// This should be a separate event now, but we're leaving this in just in case
