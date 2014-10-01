@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 6"
+#define PL_VERSION "3.3.0 beta 7"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -264,7 +264,6 @@ enum
 
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
-new bool:g_RemoveRedWeps = true;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -2226,7 +2225,6 @@ public OnMapStart()
 	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_LastProp = false;
-	g_RemoveRedWeps = true;
 	for (new client = 1; client <= MaxClients; client++)
 	{
 		g_LastPropDamageTime[client] = -1;
@@ -3845,8 +3843,6 @@ TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	g_RemoveRedWeps = false;
-	
 	StopTimers();
 
 	switch (g_RoundChange)
@@ -3937,18 +3933,11 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 public Action:Timer_teamplay_round_start(Handle:timer)
 {
-	g_RemoveRedWeps = true;
-	
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsClientObserver(i))
 		{
 			SetEntityMoveType(i, MOVETYPE_NONE);
-			
-			if (GetClientTeam(i) == TEAM_PROP)
-			{
-				TF2_RegeneratePlayer(i);
-			}
 		}
 	}
 }
@@ -4726,8 +4715,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
-		// If g_RemoveRedWeps is set that is (which it is most of the time)
-		if (!g_LastProp && g_RemoveRedWeps)
+		if (!g_LastProp)
 		{
 			return Plugin_Stop;
 		}
