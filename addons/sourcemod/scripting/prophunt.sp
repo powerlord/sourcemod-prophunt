@@ -1929,8 +1929,13 @@ public Action:OnBlockedPropWearableSpawned(entity)
 #endif
 	
 	if (team == TEAM_PROP)
+	{
+#if defined LOG
+		LogMessage("[PH] Killing canteen %d belonging to \"%N\".", entity, client);
+#endif
 		AcceptEntityInput(entity, "Kill");
 		//return Plugin_Stop;
+	}
 	
 	return Plugin_Continue;
 }
@@ -1953,6 +1958,9 @@ public Action:OnBlockedPropWeaponSpawned(weaponIndex)
 #endif
 	if (team == TEAM_PROP)
 	{
+#if defined LOG
+		LogMessage("[PH] Killing spellbook %d (and its wearables) belonging to \"%N\".", weaponIndex, client);
+#endif
 		// papering over a valve bug where a weapon's extra wearables aren't properly removed from the weapon's owner
 		new extraWearable = GetEntPropEnt(weaponIndex, Prop_Send, "m_hExtraWearable");
 		if (extraWearable != -1)
