@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 7"
+#define PL_VERSION "3.3.0 beta 9"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -4343,7 +4343,10 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		/*
 		FakeClientCommand(client, "slot0");
 		FakeClientCommand(client, "slot3");
+		*/
+		// Restored in 3.3.0 beta 9 since sometimes clients spawn with weapons and we can't figure out why
 		TF2_RemoveAllWeapons(client);
+		/*
 		FakeClientCommand(client, "slot3");
 		FakeClientCommand(client, "slot0");
 		*/
