@@ -1878,10 +1878,14 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
 	}
 	else
-	if (strcmp(classname, "tf_powerup_bottle") == 0 ||
-		strcmp(classname, "tf_weapon_spellbook") == 0)
+	if (strcmp(classname, "tf_powerup_bottle") == 0)
 	{
-		SDKHook(entity, SDKHook_Spawn, OnBlockedPropItemSpawned);
+		SDKHook(entity, SDKHook_Spawn, OnBlockedPropWearableSpawned);
+	}
+	else
+	if (strcmp(classname, "tf_weapon_spellbook") == 0)
+	{
+		SDKHook(entity, SDKHook_Spawn, OnBlockedPropWeaponSpawned);
 	}
 	else
 	if (strcmp(classname, "team_round_timer") == 0)
@@ -1909,7 +1913,7 @@ public Action:OnBuilderSpawned(entity)
 	return Plugin_Continue;
 }
 
-public Action:OnBlockedPropItemSpawned(entity)
+public Action:OnBlockedPropWearableSpawned(entity)
 {
 	if (!IsValidEntity(entity))
 		return Plugin_Continue;
@@ -1920,8 +1924,44 @@ public Action:OnBlockedPropItemSpawned(entity)
 	
 	new team = GetClientTeam(owner);
 	if (team == TEAM_PROP)
-		return Plugin_Stop;
+		AcceptEntityInput(entity, "Kill");
+		//return Plugin_Stop;
 	
+	return Plugin_Continue;
+}
+
+// Spellbook is a weapon, but can't be removed used TF2_RemoveWeaponSlot
+// So... this basically copies it.
+public Action:OnBlockedPropWeaponSpawned(weaponIndex)
+{
+	if (!IsValidEntity(weaponIndex ))
+		return Plugin_Continue;
+	
+	new client = GetEntPropEnt(weaponIndex , Prop_Send, "m_hOwnerEntity");
+	if (client < 1 || client > MaxClients || !IsClientInGame(client))
+		return Plugin_Continue;
+	
+	new team = GetClientTeam(client);
+	if (team == TEAM_PROP)
+	{
+		// papering over a valve bug where a weapon's extra wearables aren't properly removed from the weapon's owner
+		new extraWearable = GetEntPropEnt(weaponIndex, Prop_Send, "m_hExtraWearable");
+		if (extraWearable != -1)
+		{
+			TF2_RemoveWearable(client, extraWearable);
+		}
+		
+		extraWearable = GetEntPropEnt(weaponIndex, Prop_Send, "m_hExtraWearableViewModel");
+		if (extraWearable != -1)
+		{
+			TF2_RemoveWearable(client, extraWearable);
+		}
+		
+		// Removal probably not needed as this is a spawn hook and wouldn't be equipped yet
+		//RemovePlayerItem(client, weaponIndex);
+		AcceptEntityInput(weaponIndex, "Kill");
+	}
+
 	return Plugin_Continue;
 }
 
