@@ -1110,7 +1110,7 @@ public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:ne
 	
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
-		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
 	}
 	else if (!GetConVarBool(g_PHAntiHack) && !GetConVarBool(g_PHStaticPropInfo) && g_hAntiHack != INVALID_HANDLE)
 	{
@@ -1714,17 +1714,17 @@ StartTimers(bool:noScoreTimer = false)
 {
 	if (g_hLocked == INVALID_HANDLE)
 	{
-		g_hLocked = CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
+		g_hLocked = CreateTimer(0.6, Timer_Locked, _, TIMER_REPEAT);
 	}
 		
 	if (!noScoreTimer && g_hScore == INVALID_HANDLE)
 	{
-		g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+		g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	}
 
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
-		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
 	}
 }
 
@@ -2378,7 +2378,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	}
 	
 	//block prop drowning
-	if(damagetype & DMG_DROWN && victim > 0 && victim < MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == TEAM_PROP && attacker == 0)
+	if(damagetype & DMG_DROWN && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == TEAM_PROP && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -2815,7 +2815,7 @@ public Action:Command_switch(client, args)
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, TEAM_PROP);
 	TF2_RespawnPlayer(client);
-	CreateTimer(0.5, Timer_Move, client);
+	CreateTimer(0.5, Timer_Move, GetClientUserId(client));
 	return Plugin_Handled;
 }
 
@@ -2833,8 +2833,8 @@ public Action:Command_pyro(client, args)
 	g_AllowedSpawn[client] = true;
 	ChangeClientTeam(client, TEAM_HUNTER);
 	TF2_RespawnPlayer(client);
-	CreateTimer(0.5, Timer_Move, client);
-	CreateTimer(0.8, Timer_Unfreeze, client);
+	CreateTimer(0.5, Timer_Move, GetClientUserId(client));
+	CreateTimer(0.8, Timer_Unfreeze, GetClientUserId(client));
 	return Plugin_Handled;
 }
 stock PlayersAlive (){
@@ -3154,7 +3154,7 @@ public PreThinkHook(client)
 						SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
 						TF2_SetPlayerClass(client, TFClass_DemoMan, false);
 						TF2_AddCondition(client, TFCond_Charging, 2.5);
-						CreateTimer(2.5, Timer_Charge, client);
+						CreateTimer(2.5, Timer_Charge, GetClientUserId(client));
 					}
 				}
 #endif
@@ -3670,7 +3670,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #endif	
 		if (ShouldSwitchTeams())
 		{
-			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
 		}
 #if defined DHOOKS
 	}
@@ -4190,7 +4190,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 #endif
 		//RemoveAnimeModel(client);
 
-		CreateTimer(0.1, Timer_Ragdoll, client);
+		CreateTimer(0.1, Timer_Ragdoll, GetClientUserId(client));
 
 		SDKUnhook(client, SDKHook_OnTakeDamage, TakeDamageHook);
 		SDKUnhook(client, SDKHook_PreThink, PreThinkHook);
@@ -4278,7 +4278,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 				{
 					g_LastPropPlayer = client2;
 					TF2_RegeneratePlayer(client2);
-					CreateTimer(0.1, Timer_WeaponAlpha, client2);
+					CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
 				}
 				else
 				if(GetClientTeam(client2) == TEAM_HUNTER)
@@ -4298,13 +4298,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 ////////////////////////////////////////////////////
 
 
-public Action:Timer_WeaponAlpha(Handle:timer, any:client)
+public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client) && IsPlayerAlive(client))
-	SetWeaponsAlpha(client, 0);
+	new client = GetClientOfUserId(userid);
+	if(client != 0 && IsClientInGame(client) && IsPlayerAlive(client))
+		SetWeaponsAlpha(client, 0);
 }
 
-public Action:Timer_Info(Handle:timer, any:client)
+public Action:Timer_Info(Handle:timer)
 {
 	g_Message_bit++;
 
@@ -4575,20 +4576,22 @@ public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, con
 	KickClient(client, "r_staticpropinfo detection was blocked");
 }
 
-public Action:Timer_Ragdoll(Handle:timer, any:client)
+public Action:Timer_Ragdoll(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client))
-	{
-		new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
-		if(rag > MaxClients && IsValidEntity(rag))
-		AcceptEntityInput(rag, "Kill");
-	}
+	new client = GetClientOfUserId(userid);
+	if (client < 1)
+		return Plugin_Handled;
+	
+	new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+	if(rag > MaxClients && IsValidEntity(rag))
+	AcceptEntityInput(rag, "Kill");
+
 	RemoveAnimeModel(client);
 	
 	return Plugin_Handled;
 }
 
-public Action:Timer_Score(Handle:timer, any:entity)
+public Action:Timer_Score(Handle:timer)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
@@ -4624,7 +4627,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	{
 		CloseHandle(g_hScore);
 	}
-	g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+	g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	TriggerTimer(g_hScore);
 	
 #if defined LOG
@@ -4667,10 +4670,11 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 }
 
 #if defined CHARGE
-public Action:Timer_Charge(Handle:timer, any:client)
+public Action:Timer_Charge(Handle:timer, any:userid)
 {
+	new client = GetClientOfUserId(userid);
 	new red = TEAM_PROP-2;
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	if(client > 0 && IsPlayerAlive(client))
 	{
 		//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
 		SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
@@ -4722,29 +4726,34 @@ public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
 }
 */
 
-public Action:Timer_Unfreeze(Handle:timer, any:client)
+public Action:Timer_Unfreeze(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(userid);
+	if(client > 0 && IsPlayerAlive(client))
 		SetEntityMoveType(client, MOVETYPE_WALK);
 	return Plugin_Handled;
 }
 
-public Action:Timer_Move(Handle:timer, any:client)
+public Action:Timer_Move(Handle:timer, any:userid)
 {
-	g_AllowedSpawn[client] = false;
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(userid);
+	if (client > 0)
 	{
-		new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
-		if(IsValidEntity(rag))
-		AcceptEntityInput(rag, "Kill");
-		SetEntityMoveType(client, MOVETYPE_WALK);
-		if(GetClientTeam(client) == TEAM_HUNTER)
+		g_AllowedSpawn[client] = false;
+		if(IsPlayerAlive(client))
 		{
-			CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
-		}
-		else
-		{
-			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+			if(IsValidEntity(rag))
+			AcceptEntityInput(rag, "Kill");
+			SetEntityMoveType(client, MOVETYPE_WALK);
+			if(GetClientTeam(client) == TEAM_HUNTER)
+			{
+				CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
+			}
+			else
+			{
+				CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			}
 		}
 	}
 	return Plugin_Handled;
