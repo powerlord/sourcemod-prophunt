@@ -4396,17 +4396,14 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		LogMessage("[PH] do equip %N", client);
 #endif
 		// Lets comment this out since we don't block RED weapons with TF2Items
-		// slot commands fix "remember last weapon" glitch, despite their client console spam
-		/*
-		FakeClientCommand(client, "slot0");
-		FakeClientCommand(client, "slot3");
-		*/
 		// Restored in 3.3.0 beta 9 since sometimes clients spawn with weapons and we can't figure out why
+		// slot commands fix "remember last weapon" glitch, despite their client console spam
+		FakeClientCommand(client, "slot0");
+		FakeClientCommand(client, "slot3");
 		TF2_RemoveAllWeapons(client);
-		/*
 		FakeClientCommand(client, "slot3");
 		FakeClientCommand(client, "slot0");
-		*/
+		
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
 		DispatchKeyValue(client, "targetname", pname);
@@ -4532,7 +4529,7 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 public Action:Timer_AntiHack(Handle:timer, any:entity)
 {
 	new red = TEAM_PROP - 2;
-	if(!g_RoundOver && !g_LastProp)
+	if(!g_RoundOver)
 	{
 		decl String:name[64];
 		for(new client=1; client <= MaxClients; client++)
@@ -4544,7 +4541,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 					QueryClientConVar(client, "r_staticpropinfo", QueryStaticProp);
 				}
 				
-				if(GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == TEAM_PROP && TF2_GetPlayerClass(client) == g_defaultClass[red])
+				if(!g_LastProp && GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == TEAM_PROP && TF2_GetPlayerClass(client) == g_defaultClass[red])
 				{
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
@@ -4553,7 +4550,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
-						TF2_RemoveAllWeapons(client);
+						//TF2_RemoveAllWeapons(client);
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 					}
 				}
@@ -4775,13 +4772,18 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
+		// As of PropHunt 3.3.0 beta 9, we no longer block Prop weapons using TF2Items
+		/*
 		if (!g_LastProp)
 		{
 			return Plugin_Stop;
 		}
-		
+		*/
+	
 		// Block wearables, action items, canteens, and spellbooks for Props
 		// From testing, Action items still work even if you block them
+		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
+		//  was open before round start and can only be used once
 		if (StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
 		{
 			return Plugin_Stop;
