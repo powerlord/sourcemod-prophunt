@@ -110,7 +110,7 @@
 
 // Event and query logging for debugging purposes
 // Default: OFF
-//#define LOG
+#define LOG
 
 // Allow props to Targe Charge with enemy collisions disabled by pressing reload - pretty shit tbh.
 // Default: OFF
@@ -1918,11 +1918,16 @@ public Action:OnBlockedPropWearableSpawned(entity)
 	if (!IsValidEntity(entity))
 		return Plugin_Continue;
 	
-	new owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	if (owner < 1 || owner > MaxClients || !IsClientInGame(owner))
+	new client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	if (client < 1 || client > MaxClients || !IsClientInGame(client))
 		return Plugin_Continue;
 	
-	new team = GetClientTeam(owner);
+	new team = GetClientTeam(client);
+
+#if defined LOG
+	LogMessage("[PH] canteen (%d) spawned for %d (\"%N\") on team %d", entity, client, client, team);
+#endif
+	
 	if (team == TEAM_PROP)
 		AcceptEntityInput(entity, "Kill");
 		//return Plugin_Stop;
@@ -1940,8 +1945,12 @@ public Action:OnBlockedPropWeaponSpawned(weaponIndex)
 	new client = GetEntPropEnt(weaponIndex , Prop_Send, "m_hOwnerEntity");
 	if (client < 1 || client > MaxClients || !IsClientInGame(client))
 		return Plugin_Continue;
-	
+
 	new team = GetClientTeam(client);
+
+#if defined LOG
+	LogMessage("[PH] spellbook (%d) spawned for %d (\"%N\") on team %d", weaponIndex, client, client, team);
+#endif
 	if (team == TEAM_PROP)
 	{
 		// papering over a valve bug where a weapon's extra wearables aren't properly removed from the weapon's owner
