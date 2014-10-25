@@ -47,7 +47,7 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
-#include <readgamesounds>
+//#include <readgamesounds>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
