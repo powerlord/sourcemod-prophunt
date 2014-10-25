@@ -1,5 +1,10 @@
 "propcommon"
 {
+	"models/alpine_logs/set1/log_27_211.md"
+	{
+		"name"		"Medium Alphine Log"
+	}
+
 	"models/egypt/palm_tree/palm_tree.mdl"
 	{
 		"name"		"Palm Tree"
@@ -35,6 +40,11 @@
 		"name"		"Torch (Medium)"
 	}
 
+	"models/egypt/tent/tent.mdl"
+	{
+		"name"		"Tent"
+	}
+
 	"models/harvest/pumpkin/pumpkin_small.mdl"
 	{
 		"name"		"Pumpkin (Small)"
@@ -52,7 +62,17 @@
 
 	"models/harvest/tree/tree_medium.mdl"
 	{
-		"name"		"Medium Tree"
+		"name"		"Tree (Medium)"
+	}
+
+	"models/harvest/tree/tree_small.mdl"
+	{
+		"name"		"Tree (Small)"
+	}
+
+	"models/lilchewchew/lilchewchew_v3.mdl"
+	{
+		"name"		"Lil' Chew-Chew"
 	}
 
 	"models/player/pyro.mdl"
@@ -70,9 +90,34 @@
 		"name"		"Corrugated Metal #1"
 	}
 
+	"models/props_2fort/corrugated_metal002.mdl"
+	{
+		"name"		"Corrugated Metal #2"
+	}
+
 	"models/props_2fort/corrugated_metal003.mdl"
 	{
 		"name"		"Corrugated Metal #3"
+	}
+
+	"models/props_2fort/corrugated_metal004.mdl"
+	{
+		"name"		"Corrugated Metal #4"
+	}
+
+	"models/props_2fort/corrugated_metal005.mdl"
+	{
+		"name"		"Corrugated Metal #5"
+	}
+
+	"models/props_2fort/corrugated_metal006.mdl"
+	{
+		"name"		"Corrugated Metal #6"
+	}
+
+	"models/props_2fort/corrugated_metal007.mdl"
+	{
+		"name"		"Corrugated Metal #7"
 	}
 
 	"models/props_2fort/cow001_reference.mdl"
@@ -86,15 +131,39 @@
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_2fort/chimney002.mdl"
+	{
+		"name"		"Chimney #2"
+		"offset"	"0 0 -5"
+	}
+
 	"models/props_2fort/chimney003.mdl"
 	{
 		"name"		"Chimney #3"
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_2fort/chimney004.mdl"
+	{
+		"name"		"Chimney #4"
+		"offset"	"0 0 -5"
+	}
+
 	"models/props_2fort/chimney005.mdl"
 	{
 		"name"		"Chimney #5"
+		"offset"	"0 0 -5"
+	}
+
+	"models/props_2fort/chimney006.mdl"
+	{
+		"name"		"Chimney #6"
+		"offset"	"0 0 -5"
+	}
+
+	"models/props_2fort/chimney007.mdl"
+	{
+		"name"		"Chimney #7"
 		"offset"	"0 0 -5"
 	}
 
@@ -163,6 +232,11 @@
 		"name"		"Sink"
 	}
 
+	"models/props_2fort/tank002.mdl"
+	{
+		"name"		"Liquid Storage Tank"
+	}
+
 	"models/props_2fort/telephone001.mdl"
 	{
 		"name"		"Telephone"
@@ -219,7 +293,7 @@
 		"name"		"Old Fashioned Water Pump"
 	}
 
-	"models/props_2fort/weathervane.mdl"
+	"models/props_2fort/weathervane001.mdl"
 	{
 		"name"		"Weathervane"
 		"offset"	"0 0 18"
@@ -227,7 +301,7 @@
 	
 	"models/props_2fort/wood_shack001.mdl"
 	{
-		"name"		"Wood Shack"
+		"name"		"Wood Shack (2Fort)"
 		"offset"	 "0 0 -15"
 	}
 
@@ -291,7 +365,17 @@
 
 	"models/props_farm/oilcan01b.mdl"
 	{
+		"name"		"Oil Can #1b"
+	}
+
+	"models/props_farm/oilcan02.mdl"
+	{
 		"name"		"Oil Can #2"
+	}
+
+	"models/props_farm/paint_can001.mdl"
+	{
+		"name"		"Can of Paint #1"
 	}
 
 	"models/props_farm/paint_can002.mdl"
@@ -331,6 +415,11 @@
 	{
 		"name"		"Pile of Wood (Farm)"
 		"offset"	"0 0 15"
+	}
+
+	"models/props_farm/wood_shack001.mdl"
+	{
+		"name"		"Wood Shack (Farm)"
 	}
 
 	"models/props_farm/wooden_barrel.mdl"
@@ -404,14 +493,14 @@
 		"name"		"Pine Tree"
 	}
 
+	"models/props_foliage/tree_pine_extrasmall.mdl"
+	{
+		"name"		"Small Pine Tree"
+	}
+
 	"models/props_foliage/tree_pine_extrasmall_snow.mdl"
 	{
 		"name"		"Small Snowy Pine Tree"
-	}
-
-	"models/props_forest/tree_pine_stump02.mdl"
-	{
-		"name"		"Pine Tree Stump #2"
 	}
 
 	"models/props_forest/chimney03.mdl"
@@ -420,9 +509,20 @@
 		"offset"	"0 0 -5"
 	}
 
+	"models/props_forest/cliff_wall_02a.mdl"
+	{
+		"name"		"Cliff Wall #2a"
+		"offset"	"0 0 10"
+	}
+
 	"models/props_forest/cliff_wall_09a.mdl"
 	{
 		"name"		"Cliff Wall #9a"
+	}
+
+	"models/props_forest/cliff_wall_09b.mdl"
+	{
+		"name"		"Cliff Wall #9b"
 	}
 
 	"models/props_forest/cliff_wall_09c.mdl"
@@ -430,9 +530,34 @@
 		"name"		"Cliff Wall #9c"
 	}
 
+	"models/props_forest/kitchen_stove.mdl"
+	{
+		"name"		"Kitchen Stove"
+	}
+
 	"models/props_forest/milk_crate.mdl"
 	{
 		"name"		"Milk Crate"
+	}
+
+	"models/props_forest/rock001.mdl"
+	{
+		"name"		"Large Rock #1"
+	}
+
+	"models/props_forest/rock002.mdl"
+	{
+		"name"		"Large Rock #2"
+	}
+
+	"models/props_forest/rock003.mdl"
+	{
+		"name"		"Large Rock #3"
+	}
+
+	"models/props_forest/rock004.mdl"
+	{
+		"name"		"Large Rock #4"
 	}
 
 	"models/props_forest/rock006.mdl"
@@ -451,6 +576,11 @@
 	{
 		"name"		"Scattered Rocks #6c"
 		"offset"	"0 0 7"
+	}
+
+	"models/props_forest/saw_blade.mdl"
+	{
+		"name"		"Saw Blade (Small)"
 	}
 
 	"models/props_forest/saw_blade_large.mdl"
@@ -490,7 +620,7 @@
 
 	"models/props_forest/tree_pine_stackedlogs.mdl"
 	{
-		"name"		"Large stack of Logs"
+		"name"		"Large Stack of Logs"
 	}
 
 	"models/props_forest/tree_pine_stump01.mdl"
@@ -584,7 +714,7 @@
 
 	"models/props_halloween/tombstone_01.mdl"
 	{
-		"name"		"Tombstone #1"
+		"name"		"Fake Tombstone"
 	}
 
 	"models/props_hydro/barrel_crate.mdl"
@@ -630,12 +760,17 @@
 
 	"models/props_hydro/water_barrel_cluster.mdl"
 	{
-		"name"		"Water Barrel(Cluster)"
+		"name"		"Water Barrel (Cluster)"
 	}
 
 	"models/props_hydro/water_barrel_cluster2.mdl"
 	{
-		"name"		"Hazardous Waste (Cluster)"
+		"name"		"Hazardous Waste Yellow (Cluster)"
+	}
+
+	"models/props_hydro/water_barrel_cluster3.mdl"
+	{
+		"name"		"Hazardous Waste Red (Cluster)"
 	}
 
 	"models/props_hydro/water_machinery1.mdl"
@@ -643,9 +778,24 @@
 		"name"		"Water Pump"
 	}
 
+	"models/props_manor/baby_grand_01.mdl"
+	{
+		"name"		"Baby Grand Piano"
+	}
+
+	"models/props_manor/bookcase_132_01.mdl"
+	{
+		"name"		"Book Case #1"
+	}
+
+	"models/props_manor/bookcase_132_02.mdl"
+	{
+		"name"		"Book Case #2"
+	}
+
 	"models/props_manor/bookcase_132_03.mdl"
 	{
-		"name"		"Book Case"
+		"name"		"Book Case #3"
 	}
 
 	"models/props_manor/cardboard_box_set_01.mdl"
@@ -663,6 +813,16 @@
 		"name"		"Manor Chair"
 	}
 
+	"models/props_manor/coffin_01.mdl"
+	{
+		"name"		"Wood Coffin with Cross"
+	}
+
+	"models/props_manor/coffin_02.mdl"
+	{
+		"name"		"Wood Coffin"
+	}
+
 	"models/props_manor/couch_01.mdl"
 	{
 		"name"		"Upholstered Couch"
@@ -673,6 +833,31 @@
 		"name"		"Grandfather Clock"
 	}
 
+	"models/props_manor/gravestone_01.mdl"
+	{
+		"name"		"Gravestone #1"
+	}
+
+	"models/props_manor/gravestone_02.mdl"
+	{
+		"name"		"Gravestone #2"
+	}
+
+	"models/props_manor/gravestone_03.mdl"
+	{
+		"name"		"Gravestone (Cross)"
+	}
+
+	"models/props_manor/gravestone_04.mdl"
+	{
+		"name"		"Gravestone (Rounded)"
+	}
+
+	"models/props_manor/table_01.mdl" 
+	{
+		"name"		"Small Uncovered Table"
+	}
+
 	"models/props_manor/table_02.mdl" 
 	{
 		"name"		"Small Covered Table"
@@ -680,7 +865,7 @@
 
 	"models/props_manor/table_03.mdl" 
 	{
-		"name"		"Small Uncovered Table"
+		"name"		"Large Uncovered Table"
 	}
 
 	"models/props_manor/tractor_01.mdl"
@@ -694,9 +879,34 @@
 		"offset"	"0 0 32"
 	}
 
+	"models/props_medieval/bar_bench.mdl"
+	{
+		"name"		"Wooden Bench"
+	}
+
+	"models/props_medieval/bar_table.mdl"
+	{
+		"name"		"Wooden Table"
+	}
+
+	"models/props_medieval/pictureframe001.mdl"
+	{
+		"name"		"Degroot Family Portrait"
+	}
+
+	"models/props_medieval/target/target.mdl"
+	{
+		"name"		"Arrow Target"
+	}
+
 	"models/props_mining/fence001_reference.mdl"
 	{
-		"name"		"Wooden Fence"
+		"name"		"Wooden Fence #1"
+	}
+
+	"models/props_mining/fence003_reference.mdl"
+	{
+		"name"		"Wooden Fence with Hole"
 	}
 
 	"models/props_mining/generator01.mdl"
@@ -724,9 +934,25 @@
 		"name"		"Large Rock #2"
 	}
 
+	"models/props_mining/rock006.mdl"
+	{
+		"name"		"Scattered Rocks Mining #6"
+		"offset"	"0 0 5"
+	}
+
 	"models/props_mining/sign001.mdl"
 	{
 		"name"		"Hazard Sign"
+	}
+
+	"models/props_mining/watertower001.mdl"
+	{
+		"name"		"Water Tower #1"
+	}
+
+	"models/props_mining/watertower002.mdl"
+	{
+		"name"		"Water Tower #2"
 	}
 
 	"models/props_nature/rock_worn001.mdl"
@@ -769,6 +995,11 @@
 		"name"		"Wall Computer #3"
 	}
 
+	"models/props_spytech/computer_wall04.mdl"
+	{
+		"name"		"Wall Computer #4"
+	}
+
 	"models/props_spytech/computer_wall05.mdl"
 	{
 		"name"		"Wall Computer #5"
@@ -794,9 +1025,20 @@
 		"name"		"Spytech Console #4"
 	}
 
+	"models/props_spytech/suitcase.mdl"
+	{
+		"name"		"Intelligence Briefcase"
+		"offset"	"0 0 5"
+	}
+
 	"models/props_spytech/terminal_chair.mdl"
 	{
 		"name"		"Spytech Chair"
+	}
+
+	"models/props_spytech/time_card_machine.mdl"
+	{
+		"name"		"Time Card Machine"
 	}
 
 	"models/props_spytech/tv001.mdl"
@@ -812,6 +1054,26 @@
 	"models/props_spytech/work_table001.mdl"
 	{
 		"name"		"Work Table"
+	}
+
+	"models/props_swamp/big_jetty.mdl"
+	{
+		"name"		"Jetty (Dock)"
+	}
+
+	"models/props_swamp/buttress_tree_small_ref.mdl"
+	{
+		"name"		"Buttress Tree"
+	}
+
+	"models/props_swamp/buttress_tree_stump_tiny_ref.mdl"
+	{
+		"name"		"Buttress Tree Stump"
+	}
+
+	"models/props_swamp/picnic_table.mdl"
+	{
+		"name"		"Picnic Table"
 	}
 
 	"models/props_swamp/shrub_03b.mdl"
@@ -918,6 +1180,11 @@
 		"name"		"Mining Cart With Supplies"
 	}
 
+	"models/props_vehicles/mining_cart_supplies002.mdl"
+	{
+		"name"		"Mining Cart With Engineer Box"
+	}
+
 	"models/props_vehicles/pickup03.mdl"
 	{
 		"name"		"Pickup Truck"
@@ -955,12 +1222,22 @@
 
 	"models/props_well/computer_cart01.mdl"
 	{
-		"name"		"Computer Cart"
+		"name"		"Computer Cart #1"
+	}
+
+	"models/props_well/computer_cart02.mdl"
+	{
+		"name"		"Computer Cart #2"
 	}
 
 	"models/props_well/hand_truck01.mdl"
 	{
 		"name"		"Hand Truck"
+	}
+
+	"models/weapons/w_models/w_toolbox.mdl"
+	{
+		"name"		"Engineer Toolbox"
 	}
 
 	"models/combine_strider.mdl"
