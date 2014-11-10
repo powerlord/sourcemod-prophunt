@@ -3160,7 +3160,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		if (IsClientInGame(client) && !IsFakeClient(client))
 		{
 			// For some reason, this has to be set every round or the player GUI messes up
-			SendConVarValue(client, FindConVar("tf_arena_round_time"), "600");
+			SendConVarValue(client, g_hArenaRoundTime, "600");
 		}
 	}
 	// Delay freeze by a frame
