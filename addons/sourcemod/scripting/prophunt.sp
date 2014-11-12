@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 9"
+#define PL_VERSION "3.3.0 beta 10"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1111,6 +1111,8 @@ public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:ne
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
+		// Also run said timer 0.1 seconds after round start.
+		CreateTimer(0.1, Timer_AntiHack, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	else if (!GetConVarBool(g_PHAntiHack) && !GetConVarBool(g_PHStaticPropInfo) && g_hAntiHack != INVALID_HANDLE)
 	{
@@ -1725,6 +1727,8 @@ StartTimers(bool:noScoreTimer = false)
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
+		// Also run said timer 0.1 seconds after round start.
+		CreateTimer(0.1, Timer_AntiHack, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -4397,13 +4401,14 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		LogMessage("[PH] do equip %N", client);
 #endif
 		// Lets comment this out since we don't block RED weapons with TF2Items
-		// Restored in 3.3.0 beta 9 since sometimes clients spawn with weapons and we can't figure out why
 		// slot commands fix "remember last weapon" glitch, despite their client console spam
+		/*
 		FakeClientCommand(client, "slot0");
 		FakeClientCommand(client, "slot3");
 		TF2_RemoveAllWeapons(client);
 		FakeClientCommand(client, "slot3");
 		FakeClientCommand(client, "slot0");
+		*/
 		
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
@@ -4781,13 +4786,10 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
-		// As of PropHunt 3.3.0 beta 9, we no longer block Prop weapons using TF2Items
-		/*
 		if (!g_LastProp)
 		{
 			return Plugin_Stop;
 		}
-		*/
 	
 		// Block wearables, action items, canteens, and spellbooks for Props
 		// From testing, Action items still work even if you block them
