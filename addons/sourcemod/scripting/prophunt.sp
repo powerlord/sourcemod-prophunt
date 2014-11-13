@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 10"
+#define PL_VERSION "3.3.0 beta 11"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -1882,16 +1882,6 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
 	}
 	else
-	if (strcmp(classname, "tf_powerup_bottle") == 0)
-	{
-		SDKHook(entity, SDKHook_Spawn, OnBlockedPropWearableSpawned);
-	}
-	else
-	if (strcmp(classname, "tf_weapon_spellbook") == 0)
-	{
-		SDKHook(entity, SDKHook_Spawn, OnBlockedPropWeaponSpawned);
-	}
-	else
 	if (strcmp(classname, "team_round_timer") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
@@ -1914,75 +1904,6 @@ public Action:OnBuilderSpawned(entity)
 	{
 		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, _:TFObject_Sentry);
 	}
-	return Plugin_Continue;
-}
-
-public Action:OnBlockedPropWearableSpawned(entity)
-{
-	if (!IsValidEntity(entity))
-		return Plugin_Continue;
-	
-	new client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	if (client < 1 || client > MaxClients || !IsClientInGame(client))
-		return Plugin_Continue;
-	
-	new team = GetClientTeam(client);
-
-#if defined LOG
-	LogMessage("[PH] canteen (%d) spawned for %d (\"%N\") on team %d", entity, client, client, team);
-#endif
-	
-	if (team == TEAM_PROP)
-	{
-#if defined LOG
-		LogMessage("[PH] Killing canteen %d belonging to \"%N\".", entity, client);
-#endif
-		AcceptEntityInput(entity, "Kill");
-		//return Plugin_Stop;
-	}
-	
-	return Plugin_Continue;
-}
-
-// Spellbook is a weapon, but can't be removed used TF2_RemoveWeaponSlot
-// So... this basically copies it.
-public Action:OnBlockedPropWeaponSpawned(weaponIndex)
-{
-	if (!IsValidEntity(weaponIndex ))
-		return Plugin_Continue;
-	
-	new client = GetEntPropEnt(weaponIndex , Prop_Send, "m_hOwnerEntity");
-	if (client < 1 || client > MaxClients || !IsClientInGame(client))
-		return Plugin_Continue;
-
-	new team = GetClientTeam(client);
-
-#if defined LOG
-	LogMessage("[PH] spellbook (%d) spawned for %d (\"%N\") on team %d", weaponIndex, client, client, team);
-#endif
-	if (team == TEAM_PROP)
-	{
-#if defined LOG
-		LogMessage("[PH] Killing spellbook %d (and its wearables) belonging to \"%N\".", weaponIndex, client);
-#endif
-		// papering over a valve bug where a weapon's extra wearables aren't properly removed from the weapon's owner
-		new extraWearable = GetEntPropEnt(weaponIndex, Prop_Send, "m_hExtraWearable");
-		if (extraWearable != -1)
-		{
-			TF2_RemoveWearable(client, extraWearable);
-		}
-		
-		extraWearable = GetEntPropEnt(weaponIndex, Prop_Send, "m_hExtraWearableViewModel");
-		if (extraWearable != -1)
-		{
-			TF2_RemoveWearable(client, extraWearable);
-		}
-		
-		// Removal probably not needed as this is a spawn hook and wouldn't be equipped yet
-		//RemovePlayerItem(client, weaponIndex);
-		AcceptEntityInput(weaponIndex, "Kill");
-	}
-
 	return Plugin_Continue;
 }
 
@@ -3581,6 +3502,14 @@ stock SetWeaponsAlpha (target, alpha){
 				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
 				SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
 				SetEntityRenderColor(weapon, 255, 255, 255, alpha);
+				
+				// Lets hide extra wearables too
+				new extraWearable = GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
+				if(extraWearable > -1 && IsValidEdict(extraWearable))
+				{
+					SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+					SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
+				}
 			}
 		}
 	}
@@ -4783,6 +4712,13 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Stop;
 	}
 	
+	// Block canteens and spellbooks for all players as the game will only check them ONCE
+	// If they're ever shown, they will only end up in this block again if a different action item is equipped
+	if (StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
+	{
+		return Plugin_Stop;
+	}
+	
 	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
@@ -4791,11 +4727,11 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			return Plugin_Stop;
 		}
 	
-		// Block wearables, action items, canteens, and spellbooks for Props
+		// Block wearablesfor Props
 		// From testing, Action items still work even if you block them
 		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
 		//  was open before round start and can only be used once
-		if (StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
+		if (StrEqual(classname, "tf_wearable", false))
 		{
 			return Plugin_Stop;
 		}
