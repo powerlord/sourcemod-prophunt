@@ -47,6 +47,7 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
+#include <SteamWorks>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
@@ -60,7 +61,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0 beta 11"
+#define PL_VERSION "3.4.0 alpha 1"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -365,6 +366,7 @@ new String:g_AdText[128] = "";
 new bool:g_MapStarted = false;
 
 new bool:g_SteamTools = false;
+new bool:g_SteamWorks = false;
 new bool:g_TF2Attribs = false;
 #if defined OIMM
 new bool:g_OptinMultiMod = false;
@@ -444,6 +446,8 @@ new g_PropMenuOldFlags = 0;
 new bool:g_PropMenuOverrideInstalled = false;
 new g_PropRerollOldFlags = 0;
 new bool:g_PropRerollOverrideInstalled = false;
+
+new g_GameRulesProxy = INVALID_ENT_REFERENCE;
 
 public Plugin:myinfo =
 {
@@ -567,7 +571,7 @@ public OnPluginStart()
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
-	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to PropHunt Redux?", _, true, 0.0, true, 1.0);
+	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools/SteamWorks is loaded, set the Game Description to PropHunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
 	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admins or people with the propreroll override, 1 = all players", _, true, -1.0, true, 1.0);
@@ -856,13 +860,19 @@ ClearPropNames()
 public OnAllPluginsLoaded()
 {
 	g_SteamTools = LibraryExists("SteamTools");
-	if (g_SteamTools)
+	g_SteamWorks = LibraryExists("SteamWorks");
+	if (g_SteamTools || g_SteamWorks)
 	{
 #if defined LOG
-		LogMessage("[PH] Found SteamTools on startup.");
+		if (g_SteamTools)
+			LogMessage("[PH] Found SteamTools on startup.");
+			
+		if (g_SteamWorks)
+			LogMessage("[PH] Found SteamWorks on startup.");
 #endif
 		UpdateGameDescription();
 	}
+	
 #if defined OIMM
 	g_OptinMultiMod = LibraryExists("optin_multimod");
 	if (g_OptinMultiMod)
@@ -1029,6 +1039,15 @@ public OnLibraryAdded(const String:name[])
 		g_SteamTools = true;
 		UpdateGameDescription();
 	}
+	else
+	if (StrEqual(name, "SteamWorks", false))
+	{
+#if defined LOG
+		LogMessage("[PH] SteamWorks Loaded ");
+#endif
+		g_SteamWorks = true;
+		UpdateGameDescription();
+	}
 #if defined OIMM
 	else
 	if (StrEqual(name, "optin_multimod", false))
@@ -1064,6 +1083,14 @@ public OnLibraryRemoved(const String:name[])
 		LogMessage("[PH] SteamTools Unloaded ");
 #endif
 		g_SteamTools = false;
+	}
+	else
+	if (StrEqual(name, "SteamWorks", false))
+	{
+#if defined LOG
+		LogMessage("[PH] SteamWorks Unloaded ");
+#endif
+		g_SteamWorks = false;
 	}
 #if defined OIMM
 	else
@@ -1165,7 +1192,7 @@ public OnFallDamageChanged(Handle:convar, const String:oldValue[], const String:
 
 UpdateGameDescription(bool:bAddOnly=false)
 {
-	if (!g_SteamTools)
+	if (!g_SteamTools && !g_SteamWorks)
 	{
 		return;
 	}
@@ -1192,7 +1219,15 @@ UpdateGameDescription(bool:bAddOnly=false)
 		strcopy(gamemode, sizeof(gamemode), "Team Fortress");
 	}
 	
-	Steam_SetGameDescription(gamemode);
+	if (g_SteamTools)
+	{
+		Steam_SetGameDescription(gamemode);
+	}
+	else
+	if (g_SteamWorks)
+	{
+		SteamWorks_SetGameDescription(gamemode);
+	}
 }
 
 config_parseWeapons()
@@ -1525,6 +1560,8 @@ ResetCVars()
 public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
+	
+	g_GameRulesProxy = FindEntityByClassname(-1, "tf_gamerules");
 	
 	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
 	{
@@ -2257,6 +2294,11 @@ public OnPluginEnd()
 	if (g_SteamTools)
 	{
 		Steam_SetGameDescription("Team Fortress");
+	}
+	else
+	if (g_SteamWorks)
+	{
+		SteamWorks_SetGameDescription("Team Fortress");
 	}
 #if defined OIMM
 	if (g_OptinMultiMod)
@@ -3585,8 +3627,9 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	if (!g_Enabled)
 		return;
 
-#if defined STATS || defined LOCALSTATS
+	// We use this value for non-stats things now, too.
 	new winner = GetEventInt(event, "winning_team");
+
 #if defined STATS
 	DbRound(winner);
 #endif
@@ -3595,15 +3638,40 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	LocalStats_DbRound(winner);
 #endif
 
-#endif
-
 #if defined DHOOKS
 	if (!g_DHooks || g_SetWinningTeamHook == -1)
 	{
 #endif	
 		if (ShouldSwitchTeams())
 		{
-			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
+			new redScore;
+			new bluScore;
+			
+			// This block is necessary because _score is always 0 for the losing team
+			// even though scores aren't cleared when tf_arena_use_queue is set to 0
+			if (winner == TEAM_RED)
+			{
+				redScore = GetEventInt(event, "red_score");
+				bluScore = GetEventInt(event, "blue_score_prev");
+			}
+			else
+			if (winner == TEAM_BLUE)
+			{
+				redScore = GetEventInt(event, "red_score_prev");
+				bluScore = GetEventInt(event, "blue_score");
+			}
+			else
+			{
+				// Neither team wins, they both keep their previous scores
+				redScore = GetEventInt(event, "red_score_prev");
+				bluScore = GetEventInt(event, "blue_score_prev");
+			}
+			
+			new Handle:data;
+			CreateDataTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, data, TIMER_FLAG_NO_MAPCHANGE);
+			
+			WritePackCell(data, redScore);
+			WritePackCell(data, bluScore);
 		}
 #if defined DHOOKS
 	}
@@ -3683,7 +3751,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	//StopPreroundTimers(false);
 }
 
-public Action:Timer_ChangeTeam(Handle:timer)
+public Action:Timer_ChangeTeam(Handle:timer, Handle:data)
 {
 	for (new client = 1; client <= MaxClients; ++client)
 	{
@@ -3704,6 +3772,26 @@ public Action:Timer_ChangeTeam(Handle:timer)
 		}
 		
 	}
+	
+	/*
+	 * Switch team scores
+  	 * BLU: 2
+	 * RED: 0
+		
+	 * To switch, REDchange should be +2, BLUchange should be -2
+		
+	 * 2 - 0 = REDchange = oldBLU - oldRED
+	 * 0 - 2 = BLUchange = oldRED - oldBLU
+	 */
+	ResetPack(data);
+	new redScore = ReadPackCell(data);
+	new bluScore = ReadPackCell(data);
+	
+	SetVariantInt(bluScore - redScore);
+	AcceptEntityInput(g_GameRulesProxy, "AddRedTeamScore");
+	
+	SetVariantInt(redScore - bluScore);
+	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
 	
 	return Plugin_Continue;
 }
@@ -3904,21 +3992,22 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	//GameMode Explanation
 	decl String:message[256];
-	ent = FindEntityByClassname(-1, "tf_gamerules"); // Can't use sdktools_gamerules for this
 
+	// Not sure this has to be done every round, but we'll keep it here just in case.
+	
 	//BLU
 	Format(message, sizeof(message), "%T", "#TF_PH_BluHelp", LANG_SERVER);
 	SetVariantString(message);
-	AcceptEntityInput(ent, "SetBlueTeamGoalString");
+	AcceptEntityInput(g_GameRulesProxy, "SetBlueTeamGoalString");
 	SetVariantString("2");
-	AcceptEntityInput(ent, "SetBlueTeamRole");
+	AcceptEntityInput(g_GameRulesProxy, "SetBlueTeamRole");
 
 	//RED
 	Format(message, sizeof(message), "%T", "#TF_PH_RedHelp", LANG_SERVER);
 	SetVariantString(message);
-	AcceptEntityInput(ent, "SetRedTeamGoalString");
+	AcceptEntityInput(g_GameRulesProxy, "SetRedTeamGoalString");
 	SetVariantString("1");
-	AcceptEntityInput(ent, "SetRedTeamRole");
+	AcceptEntityInput(g_GameRulesProxy, "SetRedTeamRole");
 }
 
 public Action:Timer_teamplay_round_start(Handle:timer)
