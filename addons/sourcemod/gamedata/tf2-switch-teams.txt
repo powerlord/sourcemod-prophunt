@@ -1,0 +1,28 @@
+"Games"
+{
+	
+	"tf"
+	{
+		"Offsets"
+		
+		{
+			"CTeamplayRules::SetSwitchTeams"
+			{
+				"windows"	"158"
+				"linux"		"159"
+			}
+
+			"CTeamplayRules::ShouldSwitchTeams"
+			{
+				"windows"	"159"
+				"linux"		"160"
+			}
+
+			"CTeamplayRules::HandleSwitchTeams"
+			{
+				"windows"	"160"
+				"linux"		"161"
+			}
+		}
+	}
+}
