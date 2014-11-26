@@ -29,7 +29,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: 3.3.0
+ * Version: 3.4.0
  */
 // PropHunt Redux by Powerlord
 //         Based on
@@ -70,10 +70,6 @@
 // Default: OFF
 //#define STATS
 
-// Enable for local stats support
-// Default: OFF
-//#define LOCALSTATS
-
 // GM only stuff
 //#define GM
  
@@ -86,16 +82,10 @@
 // Default: OFF
 //#define OIMM
 
-// Include support for DHooks to switch teams on round end
-// You only really want to disable this if the SetWinningTeam offset breaks
-// and Powerlord (or someone else) hasn't fixed it yet
+// Include support for switching teams using gamedata
+// You only really want to disable this if team switchs aren't working (i.e. gamedata hasn't yet been updated)
 // Default: ON
-#define DHOOKS
-
-// Include support for the game sounds functions?
-// Note: Requires SourceMod 1.6.1 or newer.
-// Default: ON
-#define GAMESOUNDS
+#define SWITCH_TEAMS
 
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
@@ -145,10 +135,6 @@
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
-
-#if defined DHOOKS
-#include <dhooks>
-#endif
 
 #if defined OIMM
 #include <optin_multimod>
@@ -292,7 +278,7 @@ new g_Message_bit = 0;
 new g_Setup = 0;
 //new g_iVelocity = -1;
 
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 new bool:g_MapChanging = false;
 new g_StartTime;
 #endif
@@ -415,7 +401,9 @@ new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
 
+#if !defined SWITCH_TEAMS
 new Handle:g_hBonusRoundTime;
+#endif
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
@@ -510,19 +498,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 */
 #endif
 
-#if defined LOCALSTATS
-
-#include "prophunt\localstats2.inc"
-
-#endif
-
-// DHooks stuff
-#if defined DHOOKS
-new Handle:hWinning = INVALID_HANDLE;
-new bool:g_DHooks = false;
-new g_SetWinningTeamOffset = -1;
-new g_SetWinningTeamHook = -1;
-#endif
+new Handle:g_hSwitchTeams;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
@@ -532,14 +508,23 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
-#if defined DHOOKS
-	new Handle:gc = LoadGameConfigFile("tf2-roundend.games");
-	if (gc != INVALID_HANDLE)
-	{
-		g_SetWinningTeamOffset = GameConfGetOffset(gc, "SetWinningTeam");
-		CloseHandle(gc);
-	}
-#endif	
+	new Handle:gc;
+	
+#if defined SWITCH_TEAMS
+	gc = LoadGameConfigFile("tf2-switch-teams");
+	
+	StartPrepSDKCall(SDKCall_GameRules);
+	PrepSDKCall_SetFromConf(gc, SDKConf_Virtual, "CTeamplayRules::SetSwitchTeams");
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
+	g_hSwitchTeams = EndPrepSDKCall();
+	
+#if defined LOG
+	LogMessage("[PH] Created call to SetSwitchTeams at vtable offset %d", GameConfGetOffset(gc, "CTeamplayRules::SetSwitchTeams"));
+#endif
+	
+	CloseHandle(gc);
+#endif
+
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
 	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
@@ -548,7 +533,7 @@ public OnPluginStart()
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
 	new bool:statsbool = false;
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 	statsbool = true;
 #endif
 
@@ -565,7 +550,6 @@ public OnPluginStart()
 	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-//	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admins or people with the propmenu override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
@@ -600,7 +584,9 @@ public OnPluginStart()
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
 	
+#if !defined SWITCH_TEAMS
 	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
+#endif
 	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
@@ -635,10 +621,6 @@ public OnPluginStart()
 	Stats_Init();
 #endif
 
-#if defined LOCALSTATS
-	LocalStats_Init();
-#endif
-
 	RegConsoleCmd("help", Command_motd);
 	RegConsoleCmd("phstats", Command_motd);
 	RegConsoleCmd("ph_stats", Command_motd);
@@ -656,9 +638,6 @@ public OnPluginStart()
 	LoadTranslations("prophunt.phrases");
 	LoadTranslations("common.phrases");
  
-	//g_oFOV = FindSendPropOffs("CBasePlayer", "m_iFOV");
-	//g_oDefFOV = FindSendPropOffs("CBasePlayer", "m_iDefaultFOV");
-	
 	g_Sounds = CreateTrie();
 	g_BroadcastSounds = CreateTrie();
 	
@@ -671,20 +650,12 @@ public OnPluginStart()
 	RegAdminCmd("ph_pyro", Command_pyro, ADMFLAG_BAN, "Switches to BLU");
 	RegAdminCmd("ph_reloadconfig", Command_ReloadConfig, ADMFLAG_BAN, "Reloads the PropHunt configuration");
 
-	//if((g_iVelocity = FindSendPropOffs("CBasePlayer", "m_vecVelocity[0]")) == -1)
-	//LogError("Could not find offset for CBasePlayer::m_vecVelocity[0]");
-
-	//CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
-	//CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
-	//CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
-
-
 	for(new client=1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
 		{
 			ForcePlayerSuicide(client);
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 			OnClientPostAdminCheck(client);
 #endif
 		}
@@ -718,16 +689,6 @@ public OnPluginStart()
 	AddMenuItem(g_ConfigMenu, "#stats", "Stats");
 #endif
 }
-
-// Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
-/*
-public OnClientPostAdminCheck(client)
-{
-#if defined LOCALSTATS
-	LocalStats_OnClientPostAdminCheck(client);
-#endif
-}
-*/
 
 ReadCommonPropData(bool:onlyLanguageRefresh = false)
 {
@@ -892,100 +853,11 @@ public OnAllPluginsLoaded()
 		LogMessage("[PH] Found TF2Attributes on startup.");
 	}
 #endif
-	
-#if defined DHOOKS
-	g_DHooks = LibraryExists("dhooks");
-	
-	if (g_DHooks)
-	{
-#if defined LOG
-		LogMessage("[PH] Found DHooks on startup.");
-#endif
-		InitializeDHooks();
-	}
-	
-#endif
 }
 
-#if defined DHOOKS
-public Action:LateLoadDHooks(Handle:timer)
-{
-	if (!g_DHooks)
-		return Plugin_Stop;
-		
-	LogMessage("[PH] DHooks Loaded ");
-
-	g_DHooks = true;
-	InitializeDHooks();
-	
-	if (g_Enabled && g_MapStarted)
-		RegisterDHooks();
-	
-	return Plugin_Stop;
-}
-
-InitializeDHooks()
-{
-	if (!g_DHooks || g_SetWinningTeamOffset == -1)
-		return;
-	
-#if defined LOG
-	LogMessage("[PH] Creating SetWinningTeam hook using offset %d", g_SetWinningTeamOffset);
-#endif
-	hWinning = DHookCreate(g_SetWinningTeamOffset, HookType_GameRules, ReturnType_Void, ThisPointer_Ignore, ForceSwitchTeams);
-	DHookAddParam(hWinning, HookParamType_Int);
-	DHookAddParam(hWinning, HookParamType_Int);
-	DHookAddParam(hWinning, HookParamType_Bool);
-	DHookAddParam(hWinning, HookParamType_Bool);
-	DHookAddParam(hWinning, HookParamType_Bool);	
-}
-
-RegisterDHooks()
-{
-	if (!g_DHooks || g_SetWinningTeamHook > -1)
-		return;
-	
-	g_SetWinningTeamHook = DHookGamerules(hWinning, false, UnloadForceSwitchTeamsHook);
-
-#if defined LOG
-	LogMessage("[PH] Hooking Gamerules SetWinningTeam team switch override using hookid %d", g_SetWinningTeamHook);
-#endif
-}
-
-UnregisterDHooks()
-{
-	if (!g_DHooks || g_SetWinningTeamHook == -1)
-		return;
-		
-	DHookRemoveHookID(g_SetWinningTeamHook);
-#if defined LOG
-	LogMessage("[PH] Manually unhooking Gamerules SetWinningTeam team switch override from hookid %d", g_SetWinningTeamHook);
-#endif
-	g_SetWinningTeamHook = -1;
-}
-
-// virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
-public MRESReturn:ForceSwitchTeams(Handle:hParams)
-{
-	if (ShouldSwitchTeams())
-	{
-		// params are 1-based
-		DHookSetParam(hParams, 4, true);
-		return MRES_ChangedHandled;
-	}
-	return MRES_Ignored;
-}
-
-public UnloadForceSwitchTeamsHook(hookid)
-{
-	g_SetWinningTeamHook = -1;
-#if defined LOG
-	LogMessage("[PH] Automatically unhooking Gamerules SetWinningTeam team switch override from hookid %d", hookid);
-#endif
-}
-#endif
-
-bool:ShouldSwitchTeams()
+// Should we switch teams this round?
+// Note: Don't confuse this with the games ShouldSwitchTeams
+bool:Internal_ShouldSwitchTeams()
 {
 	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
 	if (lastRound)
@@ -1066,13 +938,6 @@ public OnLibraryAdded(const String:name[])
 #endif
 		g_TF2Attribs = true;
 	}
-#if defined DHOOKS
-	else
-	if (StrEqual(name, "dhooks", false))
-	{
-		CreateTimer(0.5, LateLoadDHooks);
-	}
-#endif
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -1110,19 +975,6 @@ public OnLibraryRemoved(const String:name[])
 #endif
 		g_TF2Attribs = false;
 	}
-#if defined DHOOKS
-	else
-	if (StrEqual(name, "dhooks", false))
-	{
-#if defined LOG
-		LogMessage("[PH] DHooks Unloaded ");
-#endif
-		
-		g_DHooks = false;
-		g_SetWinningTeamHook = -1;
-		hWinning = INVALID_HANDLE; // Don't attempt to close this Handle as the extension unloader will have already done so
-	}
-#endif
 }
 
 public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -1232,15 +1084,6 @@ UpdateGameDescription(bool:bAddOnly=false)
 
 config_parseWeapons()
 {
-	/*
-	for(new i = 0; i < MAXITEMS; i++)
-	{
-		g_weaponNerfs[i] = 1.0;
-		g_weaponSelfDamage[i] = 10.0;
-		g_weaponRemovals[i] = false;
-	}
-	*/
-	
 	ClearArray(g_hWeaponRemovals);
 	ClearTrie(g_hWeaponNerfs);
 	ClearTrie(g_hWeaponSelfDamage);
@@ -1436,9 +1279,7 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
-#if defined GAMESOUNDS
 				PrecacheScriptSound(soundString);
-#endif
 				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
@@ -1463,8 +1304,6 @@ SetCVars(){
 	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
-	//cvar = FindConVar("mp_tournament");
-	//SetConVarFlags(cvar, GetConVarFlags(cvar) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hTournamentStopwatch, GetConVarFlags(g_hTournamentStopwatch) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hTournamentHideDominationIcons, GetConVarFlags(g_hTournamentHideDominationIcons) & ~(FCVAR_NOTIFY));
 	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
@@ -1561,7 +1400,7 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
-	g_GameRulesProxy = FindEntityByClassname(-1, "tf_gamerules");
+	g_GameRulesProxy = EntIndexToEntRef(FindEntityByClassname(-1, "tf_gamerules"));
 	
 	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
 	{
@@ -1576,10 +1415,6 @@ public OnConfigsExecuted()
 	if (g_Enabled)
 	{
 		SetCVars();
-// Moved to round start
-//#if defined DHOOKS
-//		RegisterDHooks();
-//#endif
 	}
 	
 	UpdateGameDescription(true);
@@ -1854,24 +1689,6 @@ stock FillHealth (entity)
 	}
 }
 
-/*
-stock bool:IsValidAdmin(client)
-{
-	decl String:flags[26];
-	GetConVarString(g_PHAdmFlag, flags, sizeof(flags));
-	if (GetUserFlagBits(client) & ADMFLAG_ROOT)
-	{
-		return true;
-	}
-	new iFlags = ReadFlagString(flags);
-	if (GetUserFlagBits(client) & iFlags)
-	{
-		return true;
-	}
-	return false;
-}
-*/
-
 stock ExtinguishPlayer (client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
 	{
@@ -1914,11 +1731,6 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawnedPost);
 	}
 	else
-	if(strcmp(classname, "tf_weapon_builder") == 0)
-	{
-		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
-	}
-	else
 	if (strcmp(classname, "team_round_timer") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
@@ -1930,17 +1742,6 @@ public Action:OnBullshitEntitySpawned(entity)
 	if(IsValidEntity(entity))
 		AcceptEntityInput(entity, "Kill");
 	
-	return Plugin_Continue;
-}
-
-// This doesn't actually work, sadly.
-// It SHOULD work, but doesn't
-public Action:OnBuilderSpawned(entity)
-{
-	if(IsValidEntity(entity))
-	{
-		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, _:TFObject_Sentry);
-	}
 	return Plugin_Continue;
 }
 
@@ -1984,8 +1785,7 @@ public Action:OnCPMasterSpawned(entity)
 	LogMessage("[PH] cpmaster spawned");
 #endif
     
-	DispatchKeyValue(entity, "switch_teams", "0");
-	//SetEntProp(entity, Prop_Data, "m_bSwitchTeamsOnWin", 0); // Changed in 3.0.0 beta 6, now forced off instead of on.
+	DispatchKeyValue(entity, "switch_teams", "0"); // Changed in 3.0.0 beta 6, now forced off instead of on. Ignored because SetWinner overrides it
 	
 	return Plugin_Continue;
 }
@@ -2027,7 +1827,6 @@ public OnCPMasterSpawnedPost(entity)
 		GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));		
 	}
 	DispatchKeyValue(timer, "setup_length", setupLength);
-	//DispatchKeyValue(timer, "setup_length", "30");
 	DispatchKeyValue(timer, "reset_time", "1");
 	DispatchKeyValue(timer, "auto_countdown", "1");
 	DispatchKeyValue(timer, "timer_length", time);
@@ -2060,7 +1859,7 @@ public OnCPMasterSpawnedPost(entity)
 
 public OnMapEnd()
 {
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 	g_MapChanging = true;
 #endif
 
@@ -2101,6 +1900,7 @@ public OnMapEnd()
 
 public OnMapStart()
 {
+	g_GameRulesProxy = INVALID_ENT_REFERENCE;
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
 	
 	g_PHMap = IsPropHuntMap();
@@ -2226,16 +2026,6 @@ public OnMapStart()
 		
 		PrecacheModel(FLAMETHROWER, true);
 		
-		/*new ent = FindEntityByClassname(-1, "team_control_point_master");
-			if (ent == 1)
-			{
-			AcceptEntityInput(ent, "Kill");
-			}
-			ent = CreateEntityByName("team_control_point_master");
-			DispatchKeyValue(ent, "switch_teams", "1");
-			DispatchSpawn(ent);
-		AcceptEntityInput(ent, "Enable");*/
-		
 		// workaround for CreateEntityByNsme
 		g_MapStarted = true;
 		
@@ -2262,32 +2052,17 @@ public OnMapStart()
 		g_ReplacementCount[i] = 0;
 	}
 	
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 	g_MapChanging = false;
 #endif
 
 }
-
-/*
-public Action:OnGetGameDescription(String:gameDesc[64])
-{
-	if (strlen(g_AdText) > 0)
-	Format(gameDesc, sizeof(gameDesc), "PropHunt %s (%s)", g_Version, g_AdText);
-	else
-	Format(gameDesc, sizeof(gameDesc), "PropHunt %s", g_Version);
-	
-	return Plugin_Changed;
-}
-*/
 
 public OnPluginEnd()
 {
 	PrintCenterTextAll("%t", "#TF_PH_PluginReload");
 #if defined STATS
 	Stats_Uninit();
-#endif
-#if defined LOCALSTATS
-	LocalStats_Uninit();
 #endif
 	
 	ResetCVars();
@@ -2351,6 +2126,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 		return Plugin_Changed;
 	}
 
+	// block fall damage if set
 	if(GetConVarBool(g_PHPreventFallDamage) && damagetype & DMG_FALL && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && attacker == 0)
 	{
 		damage = 0.0;
@@ -2359,7 +2135,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	return Plugin_Continue;
 }
 
-stock RemoveAnimeModel (client){
+stock RemovePropModel (client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
 	{
 		SetVariantString("0 0 0");
@@ -2375,16 +2151,12 @@ stock RemoveAnimeModel (client){
 	}
 }
 
+#if defined STATS
 public OnClientDisconnect(client)
 {
-#if defined STATS
 	OCD(client);
-#endif
-
-#if defined LOCALSTATS
-	LocalStats_OnClientDisconnect(client);
-#endif
 }
+#endif
 
 public OnClientDisconnect_Post(client)
 {
@@ -2392,18 +2164,10 @@ public OnClientDisconnect_Post(client)
 #if defined STATS
 	OCD_Post(client);
 #endif
-
-#if defined LOCALSTATS
-	LocalStats_OnClientDisconnect_Post(client);
-#endif
 }
 
 stock SwitchView (target, bool:observer, bool:viewmodel){
 	g_First[target] = !observer;
-	/*SetEntPropEnt(target, Prop_Send, "m_hObserverTarget", observer ? target:-1);
-	SetEntProp(target, Prop_Send, "m_iObserverMode", observer ? 1:0);
-	SetEntData(target, g_oFOV, observer ? 100:GetEntData(target, g_oDefFOV, 4), 4, true);
-	SetEntProp(target, Prop_Send, "m_bDrawViewmodel", viewmodel ? 1:0);*/
 	
 	SetVariantInt(observer ? 1 : 0);
 	AcceptEntityInput(target, "SetForcedTauntCam");
@@ -2411,22 +2175,6 @@ stock SwitchView (target, bool:observer, bool:viewmodel){
 	SetVariantInt(observer ? 1 : 0);
 	AcceptEntityInput(target, "SetCustomModelVisibletoSelf");
 }
-
-/*
-stock ForceTeamWin (team){
-	new ent = FindEntityByClassname(-1, "team_control_point_master");
-	if (ent == -1)
-	{
-		ent = CreateEntityByName("team_control_point_master");
-		DispatchKeyValue(ent, "targetname", "master_control_point");
-		DispatchKeyValue(ent, "StartDisabled", "0");
-		DispatchSpawn(ent);
-		AcceptEntityInput(ent, "Enable");
-	}
-	SetVariantInt(team);
-	AcceptEntityInput(ent, "SetWinner");
-}
-*/
 
 public Action:Command_jointeam(client, args)
 {
@@ -2724,17 +2472,13 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
-#if defined GAMESOUNDS
 		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
 		{
-#endif
 			new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
-			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
+			SetEventInt(broadcastEvent, "team", 0); // despite documentation saying otherwise, it's team -1 for all (docs say team 0). Edit: changed from -1 to 0 in a 2014 update
 			SetEventString(broadcastEvent, "sound", sample);
 			FireEvent(broadcastEvent);
-#if defined GAMESOUNDS
 		}
-#endif
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -2752,12 +2496,10 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 	
 	new bool:emitted = false;
 
-#if defined GAMESOUNDS
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
-#endif
 
 	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -2814,29 +2556,6 @@ stock PlayersAlive (){
 	return alive;
 }
 
-/*
-public StopPreroundTimers(bool:instant)
-{
-	StopTimer(g_TimerStart);
-	for (new i = 0; i < sizeof(g_CountdownSoundTimers); i++)
-	{
-		if(g_CountdownSoundTimers[i] != INVALID_HANDLE)
-		{
-			StopTimer(g_CountdownSoundTimers[i]);
-		}
-	}
-	if(instant)
-	{
-		StopTimer(g_RoundTimer);
-	}
-	else
-	{
-		CreateTimer(2.0, Timer_AfterWinPanel);
-	}
-}
-*/
-
-
 stock ChangeClientTeamAlive (client, team)
 {
 	SetEntProp(client, Prop_Send, "m_lifeState", 2);
@@ -2884,7 +2603,6 @@ stock bool:IsPropHuntMap ()
 {
 	return ValidateMap(g_Mapname);
 }
-
 
 public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &bool:result)
 {
@@ -2996,7 +2714,6 @@ stock DoSelfDamage(client, weapon)
 stock AddVelocity (client, Float:speed){
 	new Float:velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
-	//GetEntDataVector(client, g_iVelocity, velocity);
 
 	// fucking win
 	if(velocity[0] < 200 && velocity[0] > -200)
@@ -3129,16 +2846,6 @@ public PreThinkHook(client)
 			else
 			if(GetClientTeam(client) == TEAM_HUNTER && TF2_GetPlayerClass(client) == TFClass_Pyro)
 			{
-				/*
-				if(IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUNPYRO || IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUN_UNIQUE)
-				{
-					SetEntData(client, FindDataMapOffs(client, "m_iAmmo") + 8, SHOTGUN_MAX_AMMO-GetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1")));
-					if(GetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1")) > SHOTGUN_MAX_AMMO)
-					{
-						SetEntData(GetPlayerWeaponSlot(client, 1), FindSendPropInfo("CBaseCombatWeapon", "m_iClip1"), SHOTGUN_MAX_AMMO);
-					}
-				}
-				*/
 				new shotgun = GetPlayerWeaponSlot(client, 1);
 				if(IsValidEntity(shotgun))
 				{
@@ -3161,14 +2868,6 @@ public PreThinkHook(client)
 	} // in game
 }
 
-/*
-public SetupRoundTime(time)
-{
-	g_RoundTimer = CreateTimer(float(time-1), Timer_TimeUp, _, TIMER_FLAG_NO_MAPCHANGE);
-	SetConVarInt(g_hArenaRoundTime, time, true, false);
-}
-*/
-
 public GetClassCount(TFClassType:class, team) 
 {
 	new classCount;
@@ -3181,7 +2880,6 @@ public GetClassCount(TFClassType:class, team)
 	}
 	return classCount;
 }
-
 
 public Action:Command_motd(client, args)
 {
@@ -3496,44 +3194,6 @@ stock SetAlpha (target, alpha){
 stock SetWeaponsAlpha (target, alpha){
 	if(IsPlayerAlive(target))
 	{
-		//decl String:classname[64];
-		
-		/*
-		// Old version
-		new m_hMyWeapons = FindSendPropOffs("CBasePlayer", "m_hMyWeapons");
-		for(new i = 0, weapon; i < 47; i += 4)
-		{
-			weapon = GetEntDataEnt2(target, m_hMyWeapons + i);
-			if(weapon > -1 && IsValidEdict(weapon))
-			{
-				GetEdictClassname(weapon, classname, sizeof(classname));
-				if(StrContains(classname, "tf_weapon", false) != -1)
-				{
-					SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
-					SetEntityRenderColor(weapon, 255, 255, 255, alpha);
-				}
-			}
-		}
-		*/
-	
-		/*
-		// "New" old version
-		// There are 47 weapon slots of offsets 0 - 188, the previous code was unfortunately wrong.
-		for(new i = 0, weapon; i <= 47; ++i)
-		{
-			weapon = GetEntPropEnt(target, Prop_Send, "m_hMyWeapons", i);
-			if(weapon > -1 && IsValidEdict(weapon))
-			{
-				GetEdictClassname(weapon, classname, sizeof(classname));
-				if(StrContains(classname, "tf_weapon", false) != -1)
-				{
-					SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
-					SetEntityRenderColor(weapon, 255, 255, 255, alpha);
-				}
-			}
-		}
-		*/
-		
 		// TF2 only supports 1 weapon per slot, so save time and just check all 6 slots.
 		// Engy is the only class with 6 items (3 weapons, 2 tools, and an invisible builder)
 		for(new i = 0; i <= 5; ++i)
@@ -3633,49 +3293,41 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #if defined STATS
 	DbRound(winner);
 #endif
-	
-#if defined LOCALSTATS
-	LocalStats_DbRound(winner);
-#endif
 
-#if defined DHOOKS
-	if (!g_DHooks || g_SetWinningTeamHook == -1)
+	if (Internal_ShouldSwitchTeams())
 	{
-#endif	
-		if (ShouldSwitchTeams())
+		
+		new redScore;
+		new bluScore;
+		
+		// This block is necessary because _score is always 0 for the losing team
+		// even though scores aren't cleared when tf_arena_use_queue is set to 0
+		if (winner == TEAM_RED)
 		{
-			new redScore;
-			new bluScore;
-			
-			// This block is necessary because _score is always 0 for the losing team
-			// even though scores aren't cleared when tf_arena_use_queue is set to 0
-			if (winner == TEAM_RED)
-			{
-				redScore = GetEventInt(event, "red_score");
-				bluScore = GetEventInt(event, "blue_score_prev");
-			}
-			else
-			if (winner == TEAM_BLUE)
-			{
-				redScore = GetEventInt(event, "red_score_prev");
-				bluScore = GetEventInt(event, "blue_score");
-			}
-			else
-			{
-				// Neither team wins, they both keep their previous scores
-				redScore = GetEventInt(event, "red_score_prev");
-				bluScore = GetEventInt(event, "blue_score_prev");
-			}
-			
-			new Handle:data;
-			CreateDataTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, data, TIMER_FLAG_NO_MAPCHANGE);
-			
-			WritePackCell(data, redScore);
-			WritePackCell(data, bluScore);
+			redScore = GetEventInt(event, "red_score");
+			bluScore = GetEventInt(event, "blue_score_prev");
 		}
-#if defined DHOOKS
+		else
+		if (winner == TEAM_BLUE)
+		{
+			redScore = GetEventInt(event, "red_score_prev");
+			bluScore = GetEventInt(event, "blue_score");
+		}
+		else
+		{
+			// Neither team wins, they both keep their previous scores
+			redScore = GetEventInt(event, "red_score_prev");
+			bluScore = GetEventInt(event, "blue_score_prev");
+		}
+		
+#if defined SWITCH_TEAMS
+		// This is OK as arena_win_panel is fired *after* SetWinningTeam is called.
+		SetSwitchTeams(true);
+#else
+		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
+#endif
+		SwitchTeamScores(redScore, bluScore);
 	}
-#endif		
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
 
@@ -3683,27 +3335,15 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	{
 		if(IsClientInGame(client))
 		{
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 			if(GetClientTeam(client) == winner)
 			{
-#if defined STATS
 				AlterScore(client, 3, ScReason_TeamWin, 0);
-#endif
-	
-#if defined LOCALSTATS
-				LocalStats_AlterScore(client, 3, ScReason_TeamWin, 0);
-#endif
 			}
 			else
 			if(GetClientTeam(client) != _:TFTeam_Spectator)
 			{
-#if defined STATS
 				AlterScore(client, -1, ScReason_TeamLose, 0);
-#endif
-
-#if defined LOCALSTATS
-				LocalStats_AlterScore(client, -1, ScReason_TeamLose, 0);
-#endif
 			}
 #endif
 			// bit annoying when testing the plugin and/or maps on a listen server
@@ -3721,37 +3361,12 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		}
 		//ResetPlayer(client); // Players are now reset on round start instead of round end
 	}
-/*
-#if defined LOG
-	LogMessage("Team balancing...");
-#endif
-	decl String:cname[64];
-	while(GetTeamClientCount(TEAM_PROP) > GetTeamClientCount(TEAM_HUNTER) + 1 )
-	{
-		client = GetRandomPlayer(TEAM_PROP);
-		GetClientName(client, cname, sizeof(cname));
-		CPrintToChatAll("%t", "#TF_PH_BalanceBlu", cname);
-		ChangeClientTeamAlive(client, TEAM_HUNTER);
-	}
-	while(GetTeamClientCount(TEAM_HUNTER) > GetTeamClientCount(TEAM_PROP) +1 )
-	{
-		client = GetRandomPlayer(TEAM_HUNTER);
-		GetClientName(client, cname, sizeof(cname));
-		CPrintToChatAll("%t", "#TF_PH_BalanceRed", cname);
-		ChangeClientTeamAlive(client, TEAM_PROP);
-	}
-#if defined LOG
-	LogMessage("Complete");
-#endif
-*/
 
 	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
 	SetConVarInt(g_hTeamsUnbalanceLimit, UNBALANCE_LIMIT, true);
-
-	//StopPreroundTimers(false);
 }
 
-public Action:Timer_ChangeTeam(Handle:timer, Handle:data)
+public Action:Timer_ChangeTeam(Handle:timer)
 {
 	for (new client = 1; client <= MaxClients; ++client)
 	{
@@ -3767,68 +3382,13 @@ public Action:Timer_ChangeTeam(Handle:timer, Handle:data)
 		else
 		if (GetClientTeam(client) == TEAM_PROP)
 		{
-			RemoveAnimeModel(client);
+			RemovePropModel(client);
 			ChangeClientTeamAlive(client, TEAM_HUNTER);
 		}
 		
 	}
-	
-	/*
-	 * Switch team scores
-  	 * BLU: 2
-	 * RED: 0
-		
-	 * To switch, REDchange should be +2, BLUchange should be -2
-		
-	 * 2 - 0 = REDchange = oldBLU - oldRED
-	 * 0 - 2 = BLUchange = oldRED - oldBLU
-	 */
-	ResetPack(data);
-	new redScore = ReadPackCell(data);
-	new bluScore = ReadPackCell(data);
-	
-	SetVariantInt(bluScore - redScore);
-	AcceptEntityInput(g_GameRulesProxy, "AddRedTeamScore");
-	
-	SetVariantInt(redScore - bluScore);
-	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
-	
 	return Plugin_Continue;
 }
-
-/*
-public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	if (!g_Enabled)
-		return;
-	
-	new bool:reset = GetEventBool(event, "full_reset");
-#if defined LOG
-	LogMessage("[PH] teamplay round start: %i, %i", reset, g_RoundOver);
-#endif
-	// checking for the first time this calls (pre-setup), i think
-	if(reset && g_RoundOver)
-	{
-		new team, zteam=TEAM_HUNTER;
-		for(new client=1; client <= MaxClients; client++)
-		{
-			if(IsClientInGame(client))
-			{
-
-				team = GetClientTeam(client);
-
-				// prevent sitting out
-				if(team == TEAM_SPEC && !g_Spec[client])
-				{
-					ChangeClientTeam(client, zteam);
-					zteam = zteam == TEAM_HUNTER ? TEAM_PROP:TEAM_HUNTER;
-				}
-
-			}
-		}
-	}
-}
-*/
 
 public Event_post_inventory_application(Handle:event, const String:name[], bool:dontBroadcast)
 {
@@ -3929,10 +3489,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = true;
 			SetCVars();
-// Moved to after g_Enabled check
-//#if defined DHOOKS
-//			RegisterDHooks();
-//#endif
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
@@ -3943,9 +3499,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = false;
 			ResetCVars();
-#if defined DHOOKS
-			UnregisterDHooks();
-#endif
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;			
@@ -3955,11 +3508,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
-	// This is being called because TF2 sometimes destroys the gamerules object when there are 0-1 players at round end.
-	// This has the side effect of unsetting our hooks.  Luckily, we have checks in place to prevent double hooking.
-#if defined DHOOKS
-	RegisterDHooks();
-#endif
 	
 	g_inPreRound = true;
 	
@@ -4045,11 +3593,9 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 		// bl4nk mentions arena_round_start, but I think he meant teamplay_round_start
 		CreateTimer(0.0, Timer_arena_round_start);
 		
-		//SetupRoundTime(g_RoundTime);
-		
 		CreateTimer(0.1, Timer_Info);
 
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 		g_StartTime = GetTime();
 #endif
 	}
@@ -4100,13 +3646,6 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new blue = TEAM_HUNTER - 2;
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
-	// Lets remove this since we wipe their model later anyway
-	/*
-	if (IsValidClient(client)){
-		RemoveAnimeModel(client);
-	}
-	*/
-
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client))
@@ -4117,7 +3656,8 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			ForcePlayerSuicide(client);
 			return;
 		}
-		RemoveAnimeModel(client);
+		// Wipe their model in case they were a prop last round and lived
+		RemovePropModel(client);
 		SDKHook(client, SDKHook_OnTakeDamage, TakeDamageHook);
 		SDKHook(client, SDKHook_PreThink, PreThinkHook);
 #if defined LOG
@@ -4210,7 +3750,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 #if defined LOG
 		LogMessage("[PH] Player death %N", client);
 #endif
-		//RemoveAnimeModel(client);
+		//RemovePropModel(client);
 
 		CreateTimer(0.1, Timer_Ragdoll, GetClientUserId(client));
 
@@ -4221,7 +3761,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
 	
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 	decl String:weapon[64];
 	new attackerID = GetEventInt(event, "attacker");
 	new assisterID = GetEventInt(event, "assister");
@@ -4254,6 +3794,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		
 		// This is to kill the particle effects from the Harvest Ghost prop and the like
 		// Moved to RED-only section so we don't kill unusual effects.
+		// Reference: https://github.com/ValveSoftware/source-sdk-2013/blob/master/sp/src/game/shared/particle_parse.cpp#L482
 		SetVariantString("ParticleEffectStop");
 		AcceptEntityInput(client, "DispatchEffect");
 	}
@@ -4266,9 +3807,6 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 			PlayerKilled(clientID, attackerID, assisterID, weaponid, weapon);
 #endif
 
-#if defined LOCALSTATS
-			LocalStats_PlayerKilled(clientID, attackerID, assisterID, weaponid, weapon);
-#endif			
 			if(IsPlayerAlive(attacker))
 			{
 				Speedup(attacker);
@@ -4327,6 +3865,7 @@ public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 		SetWeaponsAlpha(client, 0);
 }
 
+// This is used for the fading in of the game mode name and stuff
 public Action:Timer_Info(Handle:timer)
 {
 	g_Message_bit++;
@@ -4413,20 +3952,10 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		//TF2_RegeneratePlayer(client);
 		
 #if defined LOG
 		LogMessage("[PH] do equip %N", client);
 #endif
-		// Lets comment this out since we don't block RED weapons with TF2Items
-		// slot commands fix "remember last weapon" glitch, despite their client console spam
-		/*
-		FakeClientCommand(client, "slot0");
-		FakeClientCommand(client, "slot3");
-		TF2_RemoveAllWeapons(client);
-		FakeClientCommand(client, "slot3");
-		FakeClientCommand(client, "slot0");
-		*/
 		
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
@@ -4609,7 +4138,7 @@ public Action:Timer_Ragdoll(Handle:timer, any:userid)
 	if(rag > MaxClients && IsValidEntity(rag))
 	AcceptEntityInput(rag, "Kill");
 
-	RemoveAnimeModel(client);
+	RemovePropModel(client);
 	
 	return Plugin_Handled;
 }
@@ -4618,16 +4147,10 @@ public Action:Timer_Score(Handle:timer)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
-#if defined STATS || defined LOCALSTATS
+#if defined STATS
 		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
 		{
-		#if defined STATS
 			AlterScore(client, 2, ScReason_Time, 0);
-		#endif
-		
-		#if defined LOCALSTATS
-			LocalStats_AlterScore(client, 2, ScReason_Time, 0);
-		#endif
 		}
 #endif
 		g_TouchingCP[client] = false;
@@ -4643,7 +4166,6 @@ public OnSetupStart(const String:output[], caller, activator, Float:delay)
 }
 
 // This used to hook the teamplay_setup_finished event, but ph_kakariko messes with that
-//public Action:Event_teamplay_setup_finished(Handle:event, const String:name[], bool:dontBroadcast)
 public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 {
 	if (g_hScore != INVALID_HANDLE)
@@ -4699,55 +4221,12 @@ public Action:Timer_Charge(Handle:timer, any:userid)
 	new red = TEAM_PROP-2;
 	if(client > 0 && IsPlayerAlive(client))
 	{
-		//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
 		SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
 		TF2_SetPlayerClass(client, g_defaultClass[red], false);
 	}
 	return Plugin_Handled;
 }
 #endif
-
-/*
-public TimeEnd(const String:output[], caller, activator, Float:delay)
-{
-#if defined LOG
-	LogMessage("[PH] Time Up");
-#endif
-	if(!g_RoundOver)
-	{
-		ForceTeamWin(TEAM_PROP);
-		g_RoundOver = true;
-		g_inPreRound = true;
-	}
-}
-*/
-
-/*
-public Action:Timer_TimeUp(Handle:timer, any:lol)
-{
-#if defined LOG
-	LogMessage("[PH] Time Up");
-#endif
-	if(!g_RoundOver)
-	{
-		ForceTeamWin(TEAM_PROP);
-		g_RoundOver = true;
-		g_inPreRound = true;
-	}
-	g_RoundTimer = INVALID_HANDLE;
-	return Plugin_Handled;
-}
-*/
-
-/*
-public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
-{
-#if defined LOG
-	LogMessage("[PH] After Win Panel");
-#endif
-	StopTimer(g_RoundTimer);
-}
-*/
 
 public Action:Timer_Unfreeze(Handle:timer, any:userid)
 {
@@ -4816,7 +4295,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			return Plugin_Stop;
 		}
 	
-		// Block wearablesfor Props
+		// Block wearables for Props
 		// From testing, Action items still work even if you block them
 		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
 		//  was open before round start and can only be used once
@@ -4837,7 +4316,6 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
 	new bool:addattribs = GetTrieString(g_hWeaponAddAttribs, defIndex, addAttributes, sizeof(addAttributes));
 	new bool:removeAirblast = !GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower");
-//	new String:pieces[5][128];
 
 	if (replace)
 	{
@@ -4894,43 +4372,6 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		TF2Items_SetAttribute(weapon, attribCount++, 356, 1.0); // "airblast disabled"
 		weaponChanged = true;
 	}
-	
-	// This block isn't used as all weapon replacements are now done on spawn.
-	/*
-	if (replace)
-	{
-		TrimString(pieces[Item_Index]);
-		TrimString(pieces[Item_Quality]);
-		TrimString(pieces[Item_Level]);
-		TrimString(pieces[Item_Attributes]);
-
-		new index = StringToInt(pieces[Item_Index]);
-		new quality = StringToInt(pieces[Item_Quality]);
-		new level = StringToInt(pieces[Item_Level]);
-		TF2Items_SetItemIndex(weapon, index);
-		TF2Items_SetQuality(weapon, quality);
-		TF2Items_SetLevel(weapon, level);
-		
-		if (strlen(pieces[Item_Attributes]) > 0)
-		{
-			new String:newAttribs[32][6];
-			new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
-			if (count % 2 > 0)
-			{
-				LogError("Error parsing replacement attributes for item definition index %d", iItemDefinitionIndex);
-				return Plugin_Continue;
-			}
-			
-			for (new i = 0; i < count && attribCount < 16; i += 2)
-			{
-				new attrib = StringToInt(newAttribs[i]);
-				new Float:value = StringToFloat(newAttribs[i+1]);
-				TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
-			}
-		}
-		weaponChanged = true;
-	}
-	*/
 	
 	if (addattribs)
 	{
@@ -5092,4 +4533,33 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 			return false;
 		}
 	}
+}
+
+SetSwitchTeams(bool:bSwitchTeams)
+{
+	// Note, this doesn't switch team scores... those are switched when SetWinner is called in the game
+	// Also, SetWinner will override our selection here, so this must be sent AFTER arena_win_panel fires
+	SDKCall(g_hSwitchTeams, bSwitchTeams);
+}
+
+// Manually switch the scores.
+// The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
+// This is what DHooks did, but Arena confused it anyway and it only sometimes worked
+SwitchTeamScores(redScore, bluScore)
+{
+	/*
+	 * Switch team scores
+  	 * BLU: 2
+	 * RED: 0
+		
+	 * To switch, REDchange should be +2, BLUchange should be -2
+		
+	 * 2 - 0 = REDchange = oldBLU - oldRED
+	 * 0 - 2 = BLUchange = oldRED - oldBLU
+	 */
+	SetVariantInt(bluScore - redScore);
+	AcceptEntityInput(g_GameRulesProxy, "AddRedTeamScore");
+	
+	SetVariantInt(redScore - bluScore);
+	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
 }
