@@ -6,7 +6,7 @@ before_install:
   - sudo apt-get install -y g++-multilib
 
 install:
-  - wget http://www.sourcemod.net/smdrop/1.6/sourcemod-1.6.1-git4552-linux.tar.gz -O /tmp/sourcemod.tar.gz
+  - wget http://www.sourcemod.net/smdrop/1.6/sourcemod-1.6.3-git4606-linux.tar.gz -O /tmp/sourcemod.tar.gz
   - tar -xzvf /tmp/sourcemod.tar.gz
 
 before_script:
@@ -16,5 +16,4 @@ before_script:
   
 script:
   - ./spcomp prophunt.sp
-  - ./spcomp prophunt-stats.sp
   
