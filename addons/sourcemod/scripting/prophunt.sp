@@ -2162,7 +2162,7 @@ public OnMapStart()
 			g_Relay = bool:KvGetNum(fl, "relay", 0);
 			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
 			g_RoundTime = KvGetNum(fl, "round", 175);
-			g_Setup = KvGetNum(fl, "setup", 0);
+			g_Setup = KvGetNum(fl, "setup", 30);
 			
 			PrintToServer("Successfully parsed %s", confil);
 			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i, setup: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime, g_Setup);
