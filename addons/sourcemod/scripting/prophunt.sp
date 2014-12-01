@@ -29,7 +29,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: $Id$
+ * Version: 3.3.0
  */
 // PropHunt Redux by Powerlord
 //         Based on
@@ -47,7 +47,6 @@
 
 #undef REQUIRE_EXTENSIONS
 #include <steamtools>
-//#include <readgamesounds>
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
@@ -56,7 +55,12 @@
 #define SNDCHAN_VOICE2 7
 #endif
 
-#define PL_VERSION "3.2.1"
+// This should be defined by SourceMod, but isn't.
+#define ADMFLAG_NONE 0
+
+#define MAXLANGUAGECODE 4
+
+#define PL_VERSION "3.3.0 beta 11"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -127,6 +131,10 @@
 // Default: 0.2
 #define TEAM_CHANGE_TIME 0.2
 
+// Minimum and maximum setup times
+#define SETUP_MIN 30
+#define SETUP_MAX 120
+
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -141,10 +149,13 @@
 #endif 
 
 // Needed for stats2.inc compatibility
-#define TEAM_BLUE 3
-#define TEAM_RED 2
-#define TEAM_SPEC 1
-#define TEAM_UNASSIGNED 0
+#define TEAM_BLUE _:TFTeam_Blue
+#define TEAM_RED _:TFTeam_Red
+#define TEAM_SPEC _:TFTeam_Spectator
+#define TEAM_UNASSIGNED _:TFTeam_Unassigned
+
+#define TEAM_PROP TEAM_RED
+#define TEAM_HUNTER TEAM_BLUE
 
 #define FLAMETHROWER "models/weapons/w_models/w_flamethrower.mdl"
 
@@ -248,7 +259,6 @@ enum
 
 new bool:g_RoundOver = true;
 new bool:g_inPreRound = true;
-new bool:g_RemoveRedWeps = false;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -263,7 +273,7 @@ new bool:g_AllowedSpawn[MAXPLAYERS+1];
 new bool:g_RotLocked[MAXPLAYERS+1];
 new bool:g_Hit[MAXPLAYERS+1];
 new bool:g_Spec[MAXPLAYERS+1];
-new String:g_PlayerModel[MAXPLAYERS+1][MAXMODELNAME];
+new String:g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
 new String:g_Mapname[128];
 new String:g_ServerIP[32];
@@ -273,6 +283,7 @@ new g_Message_red;
 new g_Message_blue;
 new g_RoundTime = 175;
 new g_Message_bit = 0;
+new g_Setup = 0;
 //new g_iVelocity = -1;
 
 #if defined STATS || defined LOCALSTATS
@@ -309,6 +320,10 @@ new Float:g_currentSpeed[MAXPLAYERS+1];
 //new g_oDefFOV;
 
 new Handle:g_PropData = INVALID_HANDLE;
+// Multi-language support
+new Handle:g_ModelLanguages = INVALID_HANDLE;
+new Handle:g_PropNames = INVALID_HANDLE;
+new Handle:g_PropNamesIndex = INVALID_HANDLE;
 
 new Handle:g_ConfigKeyValues = INVALID_HANDLE;
 new Handle:g_ModelName = INVALID_HANDLE;
@@ -322,6 +337,7 @@ new Handle:g_Text4 = INVALID_HANDLE;
 
 //new Handle:g_RoundTimer = INVALID_HANDLE;
 new Handle:g_PropMenu = INVALID_HANDLE;
+new Handle:g_ConfigMenu = INVALID_HANDLE;
 
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
@@ -335,6 +351,9 @@ new Handle:g_PHAntiHack = INVALID_HANDLE;
 new Handle:g_PHReroll = INVALID_HANDLE;
 new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
 new Handle:g_PHSetupLength = INVALID_HANDLE;
+new Handle:g_PHDamageBlocksPropChange = INVALID_HANDLE;
+new Handle:g_PHPropMenuNames = INVALID_HANDLE;
+new Handle:g_PHMultilingual = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -398,7 +417,6 @@ new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 new bool:g_CvarsSet;
 
 new RoundChange:g_RoundChange;
-new bool:g_MapRunning = false;
 
 new bool:g_CurrentlyFlaming[MAXPLAYERS+1];
 new g_FlameCount[MAXPLAYERS+1];
@@ -410,6 +428,17 @@ new g_LastPropPlayer = 0;
 new bool:g_PHMap;
 
 new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
+
+// Multi-round support
+new g_RoundCount = 0;
+new g_RoundCurrent = 0;
+new g_RoundSwitchAlways = false;
+
+// New override support for propmenu and stuff
+new g_PropMenuOldFlags = 0;
+new bool:g_PropMenuOverrideInstalled = false;
+new g_PropRerollOldFlags = 0;
+new bool:g_PropRerollOverrideInstalled = false;
 
 public Plugin:myinfo =
 {
@@ -523,20 +552,25 @@ public OnPluginStart()
 	g_hWeaponReplacementPlayerClasses = CreateTrie();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
+	// PropHunt Redux now lies and pretends to be PropHunt as well
+	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 //	g_PHAdmFlag = CreateConVar("ph_propmenu_flag", "c", "Flag to use for the PropMenu");
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
-	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = players with the propmenu override", _, true, -1.0, true, 0.0);
+	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admins or people with the propmenu override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
 	g_PHPreventFallDamage = CreateConVar("ph_preventfalldamage", "0", "Set to 1 to prevent fall damage.  Will use TF2Attributes if available due to client prediction", _, true, 0.0, true, 1.0);
-	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to Prop Hunt Redux?", _, true, 0.0, true, 1.0);
+	g_PHGameDescription = CreateConVar("ph_gamedescription", "1", "If SteamTools is loaded, set the Game Description to PropHunt Redux?", _, true, 0.0, true, 1.0);
 	g_PHAirblast = CreateConVar("ph_airblast", "0", "Allow Pyros to airblast? Takes effect on round change unless TF2Attributes is installed.", _, true, 0.0, true, 1.0);
 	g_PHAntiHack = CreateConVar("ph_antihack", "1", "Make sure props don't have weapons. Leave this on unless you're having issues with other plugins.", _, true, 0.0, true, 1.0);
-	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = players with the propreroll override", _, true, -1.0, true, 0.0);
+	g_PHReroll = CreateConVar("ph_propreroll", "0", "Control use of the propreroll command: -1 = Disabled, 0 = admins or people with the propreroll override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHStaticPropInfo = CreateConVar("ph_staticpropinfo", "1", "Kick players who have r_staticpropinfo set to 1?", _, true, 0.0, true, 1.0);
-	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, 30.0, true, 120.00);
+	g_PHSetupLength = CreateConVar("ph_setuplength", "30", "Amount of setup time in seconds.", _, true, float(SETUP_MIN), true, float(SETUP_MAX));
+	g_PHDamageBlocksPropChange = CreateConVar("ph_burningblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
+	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu? This is disabled by default for compatibility reasons.", _, true, 0.0, true, 1.0);
+	g_PHMultilingual = CreateConVar("ph_multilingual", "0", "Use multilingual support? Uses more Handles if enabled. Disabled by default as we have no alternate languages (yet)", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -566,6 +600,9 @@ public OnPluginStart()
 	HookConVarChange(g_PHStaticPropInfo, OnAntiHackChanged);
 	HookConVarChange(g_PHAirblast, OnAirblastChanged);
 	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
+	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
+	HookConVarChange(g_PHReroll, OnPropRerollChanged);
+	HookConVarChange(g_PHMultilingual, OnMultilingualChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -595,6 +632,9 @@ public OnPluginStart()
 
 	RegConsoleCmd("help", Command_motd);
 	RegConsoleCmd("phstats", Command_motd);
+	RegConsoleCmd("ph_stats", Command_motd);
+	RegConsoleCmd("ph_config", Command_config);
+	RegConsoleCmd("ph_settings", Command_config);
 	//RegConsoleCmd("motd", Command_motd);
 	RegAdminCmd("propmenu", Command_propmenu, ADMFLAG_KICK, "Select a new prop from the prop menu if allowed.");
 	RegAdminCmd("propreroll", Command_propreroll, ADMFLAG_KICK, "Change your prop. Useable once per round if allowed.");
@@ -641,14 +681,33 @@ public OnPluginStart()
 		}
 	}
 	g_PropData = CreateTrie();
+	g_PropNames = CreateTrie();
+	g_PropNamesIndex = CreateArray(ByteCountToCells(PLATFORM_MAX_PATH));
+	g_ModelLanguages = CreateArray(ByteCountToCells(MAXLANGUAGECODE));
 
-	new arraySize = ByteCountToCells(PLATFORM_MAX_PATH);
-	g_ModelName = CreateArray(arraySize);
-	g_ModelOffset = CreateArray(arraySize);
-	g_ModelRotation = CreateArray(arraySize);
+	g_ModelName = CreateArray(ByteCountToCells(PLATFORM_MAX_PATH));
+	g_ModelOffset = CreateArray(ByteCountToCells(11));
+	g_ModelRotation = CreateArray(ByteCountToCells(11));
 	g_ModelSkin = CreateArray();
 	
 	AutoExecConfig(true, "prophunt_redux");
+	
+	// Create Config menu
+	g_ConfigMenu = CreateMenu(Handler_ConfigMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
+	SetMenuTitle(g_ConfigMenu, "PropHunt Configuration");
+	SetMenuPagination(g_ConfigMenu, MENU_NO_PAGINATION);
+	SetMenuExitButton(g_ConfigMenu, true);
+	AddMenuItem(g_ConfigMenu, "#version", PL_VERSION);
+	AddMenuItem(g_ConfigMenu, "#airblast", "Airblast");
+	AddMenuItem(g_ConfigMenu, "#propmenu", "PropMenu");
+	AddMenuItem(g_ConfigMenu, "#proprestrict", "PropRestrict");
+	AddMenuItem(g_ConfigMenu, "#propdamage", "PropChange");
+	AddMenuItem(g_ConfigMenu, "#propreroll", "PropReroll");
+	AddMenuItem(g_ConfigMenu, "#preventfalldamage", "Prevent Fall Damage");
+	AddMenuItem(g_ConfigMenu, "#setuptime", "Setup Time");
+#if defined STATS
+	AddMenuItem(g_ConfigMenu, "#stats", "Stats");
+#endif
 }
 
 // Unfortunately, until we rewrite stats2.inc, this check is going to cause problems.
@@ -661,7 +720,7 @@ public OnClientPostAdminCheck(client)
 }
 */
 
-ReadCommonPropData()
+ReadCommonPropData(bool:onlyLanguageRefresh = false)
 {
 	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_common.txt");
@@ -678,6 +737,14 @@ ReadCommonPropData()
 		return;
 	}		
 	
+	ClearPropNames();
+	
+	if (!onlyLanguageRefresh)
+	{
+		ClearTrie(g_PropData);
+	}
+	ClearArray(g_ModelLanguages);
+	
 	new counter = 0;
 	do
 	{
@@ -687,18 +754,98 @@ ReadCommonPropData()
 		new propData[PropData];
 		
 		KvGetSectionName(propCommon, modelPath, PLATFORM_MAX_PATH);
-		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), "");
+		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Still around for compat reasons
+		if (strlen(propData[PropData_Name]) == 0)
+		{
+			KvGetString(propCommon, "en", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Default this to English otherwise
+		}
 		KvGetString(propCommon, "offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
 		KvGetString(propCommon, "rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
-		
-		if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData)))
+
+		if (strlen(propData[PropData_Name]) == 0)
 		{
-			LogError("Error saving prop data for %s", modelPath);
+			// No "name" or "en" block means no prop name, but this isn't an error that prevents us from using the prop for offset and rotation
+			LogError("Error getting prop name for %s", modelPath);
 		}
 		
+		if (!onlyLanguageRefresh)
+		{
+			if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
+			{
+				LogError("Error saving prop data for %s", modelPath);
+				continue;
+			}
+		}
+		
+		if (GetConVarBool(g_PHMultilingual))
+		{
+			new Handle:languageTrie = CreateTrie();
+			
+			for (new i=0;i<GetLanguageCount();i++)
+			{
+				decl String:lang[MAXLANGUAGECODE];
+				decl String:name[MAXMODELNAME];
+				GetLanguageInfo(i, lang, sizeof(lang));
+				//search for the translation
+				KvGetString(propCommon, lang, name, sizeof(name));
+
+				// Make "en" read the "name" section for compatibility reasons if "en" isn't present
+				if (strlen(name) <= 0 && StrEqual(lang, "en"))
+				{
+					strcopy(name, sizeof(name), propData[PropData_Name]);
+				}
+				
+				if (strlen(name) > 0)
+				{
+					//language new?
+					if (FindStringInArray(g_ModelLanguages, lang) == -1)
+					{
+#if defined LOG
+						LogMessage("[PH] Adding language \"%s\" to languages list", lang);
+#endif
+						PushArrayString(g_ModelLanguages, lang);
+					}
+					
+					SetTrieString(languageTrie, lang, name);
+				}
+			}
+			
+			if (!SetTrieValue(g_PropNames, modelPath, languageTrie, false))
+			{
+				LogError("Error saving prop names for %s", modelPath);
+			}
+			else
+			{
+				PushArrayString(g_PropNamesIndex, modelPath);
+			}
+		}
 	} while (KvGotoNextKey(propCommon));
 	
+	CloseHandle(propCommon);
+	
 	LogMessage("Loaded %d props from props_common.txt", counter);
+#if defined LOG
+	LogMessage("[PH] Loaded %d language(s)", GetArraySize(g_ModelLanguages));
+#endif
+	
+}
+
+ClearPropNames()
+{
+	new arraySize = GetArraySize(g_PropNamesIndex);
+	for (new i = 0; i < arraySize; i++)
+	{
+		decl String:modelName[PLATFORM_MAX_PATH];
+		new Handle:languageTrie = INVALID_HANDLE;
+		GetArrayString(g_PropNamesIndex, i, modelName, sizeof(modelName));
+		if (GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE)
+		{
+			CloseHandle(languageTrie);
+		}
+	}
+	
+	ClearTrie(g_PropNames);
+	ClearArray(g_PropNamesIndex);
 }
 
 public OnAllPluginsLoaded()
@@ -718,7 +865,7 @@ public OnAllPluginsLoaded()
 #if defined LOG
 		LogMessage("[PH] Found Opt-In Multimod on startup.");
 #endif
-		OptInMultiMod_Register("Prop Hunt", ValidateMap, MultiMod_Status);
+		OptInMultiMod_Register("prophunt", ValidateMap, MultiMod_Status, MultiMod_TranslateName);
 	}
 #endif
 
@@ -756,7 +903,7 @@ public Action:LateLoadDHooks(Handle:timer)
 	g_DHooks = true;
 	InitializeDHooks();
 	
-	if (g_Enabled && g_MapRunning)
+	if (g_Enabled && g_MapStarted)
 		RegisterDHooks();
 	
 	return Plugin_Stop;
@@ -787,7 +934,7 @@ RegisterDHooks()
 
 #if defined LOG
 	LogMessage("[PH] Hooking Gamerules SetWinningTeam team switch override using hookid %d", g_SetWinningTeamHook);
-#endif	
+#endif
 }
 
 UnregisterDHooks()
@@ -805,9 +952,13 @@ UnregisterDHooks()
 // virtual void SetWinningTeam( int team, int iWinReason, bool bForceMapReset = true, bool bSwitchTeams = false, bool bDontAddScore = false );
 public MRESReturn:ForceSwitchTeams(Handle:hParams)
 {
-	// params are 1-based
-	DHookSetParam(hParams, 4, true);
-	return MRES_ChangedHandled;
+	if (ShouldSwitchTeams())
+	{
+		// params are 1-based
+		DHookSetParam(hParams, 4, true);
+		return MRES_ChangedHandled;
+	}
+	return MRES_Ignored;
 }
 
 public UnloadForceSwitchTeamsHook(hookid)
@@ -819,10 +970,37 @@ public UnloadForceSwitchTeamsHook(hookid)
 }
 #endif
 
+bool:ShouldSwitchTeams()
+{
+	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
+	if (lastRound)
+	{
+#if defined LOG
+	LogMessage("[PH] This is the last of %d round(s).", g_RoundCount);
+#endif
+		g_RoundCurrent = 0;
+	}
+	
+	if (g_RoundSwitchAlways || lastRound)
+	{
+		return true;
+	}
+	
+#if defined LOG
+	LogMessage("[PH] Teams will not be switched because it is not the last round and we are set to not always switch rounds.");
+#endif
+
+	return false;
+}
+
 loadGlobalConfig()
 {
 	decl String:Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prophunt_config.cfg");
+	if (g_ConfigKeyValues != INVALID_HANDLE)
+	{
+		CloseHandle(g_ConfigKeyValues);
+	}
 	g_ConfigKeyValues = CreateKeyValues("prophunt_config");
 	if (!FileToKeyValues(g_ConfigKeyValues, Path))
 	{
@@ -833,8 +1011,7 @@ loadGlobalConfig()
 	config_parseClasses();
 	config_parseSounds();
 	
-	ClearTrie(g_PropData);
-	ReadCommonPropData();
+	ReadCommonPropData(false);
 }
 
 public OnLibraryAdded(const String:name[])
@@ -928,7 +1105,9 @@ public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:ne
 	
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
-		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
+		// Also run said timer 0.1 seconds after round start.
+		CreateTimer(0.1, Timer_AntiHack, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	else if (!GetConVarBool(g_PHAntiHack) && !GetConVarBool(g_PHStaticPropInfo) && g_hAntiHack != INVALID_HANDLE)
 	{
@@ -1107,8 +1286,8 @@ config_parseWeapons()
 
 config_parseClasses()
 {
-	new red = _:TFTeam_Red-2;
-	new blue = _:TFTeam_Blue-2;
+	new red = TEAM_PROP-2;
+	new blue = TEAM_HUNTER-2;
 	g_defaultClass[red] = TFClass_Scout;
 	g_defaultClass[blue] = TFClass_Pyro;
 	
@@ -1217,6 +1396,8 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
+				PrecacheScriptSound(soundString);
+				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
 			if(KvGetDataType(g_ConfigKeyValues, "game") == KvData_String)
@@ -1270,7 +1451,7 @@ SetCVars(){
 	SetConVarInt(g_hArenaPreroundTime, IsDedicatedServer() ? 20:5, true);
 	
 	g_WeaponCriticals = GetConVarInt(g_hWeaponCriticals);
-	SetConVarInt(g_hWeaponCriticals, 1, true);
+	SetConVarInt(g_hWeaponCriticals, 0, true);
 	
 	g_Idledealmethod = GetConVarInt(g_hIdledealmethod);
 	SetConVarInt(g_hIdledealmethod, 0, true);
@@ -1338,35 +1519,209 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
-	g_MapRunning = true;
+	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
+	{
+		InstallPropMenuOverride();
+	}
+	
+	if (GetConVarInt(g_PHReroll) == 1 && !g_PropRerollOverrideInstalled)
+	{
+		InstallPropRerollOverride();
+	}
 	
 	if (g_Enabled)
 	{
 		SetCVars();
-#if defined DHOOKS
-		RegisterDHooks();
-#endif
-		
+// Moved to round start
+//#if defined DHOOKS
+//		RegisterDHooks();
+//#endif
 	}
 	
 	UpdateGameDescription(true);
+	
+	CountRounds();
 }
+
+InstallPropMenuOverride()
+{
+	new tempFlags;
+	if (GetCommandOverride("propmenu", Override_Command, tempFlags))
+	{
+		g_PropMenuOldFlags = tempFlags;
+	}
+	
+	AddCommandOverride("propmenu", Override_Command, ADMFLAG_NONE);
+	g_PropMenuOverrideInstalled = true;
+}
+
+RemovePropMenuOverride()
+{
+	if (g_PropMenuOldFlags == ADMFLAG_NONE)
+	{
+		UnsetCommandOverride("propmenu", Override_Command);
+	}
+	else
+	{
+		AddCommandOverride("propmenu", Override_Command, g_PropMenuOldFlags);
+		g_PropMenuOldFlags = ADMFLAG_NONE;
+	}
+	
+	g_PropMenuOverrideInstalled = false;
+}
+
+InstallPropRerollOverride()
+{
+	new tempFlags;
+	if (GetCommandOverride("propreroll", Override_Command, tempFlags))
+	{
+		g_PropRerollOldFlags = tempFlags;
+	}
+	
+	AddCommandOverride("propreroll", Override_Command, ADMFLAG_NONE);
+	g_PropRerollOverrideInstalled = true;
+}
+
+RemovePropRerollOverride()
+{
+	if (g_PropRerollOldFlags == ADMFLAG_NONE)
+	{
+		UnsetCommandOverride("propreroll", Override_Command);
+	}
+	else
+	{
+		AddCommandOverride("propreroll", Override_Command, g_PropRerollOldFlags);
+		g_PropRerollOldFlags = ADMFLAG_NONE;
+	}
+	
+	g_PropRerollOverrideInstalled = false;
+}
+
+public OnPropMenuChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new newVal = GetConVarInt(g_PHPropMenu);
+	if (g_PropMenuOverrideInstalled && newVal < 1)
+	{
+		RemovePropMenuOverride();
+	}
+	else if (!g_PropMenuOverrideInstalled && newVal == 1)
+	{
+		InstallPropMenuOverride();
+	}
+}
+
+public OnPropRerollChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	new newVal = GetConVarInt(g_PHReroll);
+	if (g_PropRerollOverrideInstalled && newVal < 1)
+	{
+		RemovePropRerollOverride();
+	}
+	else if (!g_PropRerollOverrideInstalled && newVal == 1)
+	{
+		InstallPropRerollOverride();
+	}
+}
+
+public OnMultilingualChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	if (GetConVarBool(convar))
+	{
+		ReadCommonPropData(true);
+	}
+	else
+	{
+		ClearPropNames();
+	}
+	
+}
+
+public OnRebuildAdminCache(AdminCachePart:part)
+{
+	if (part == AdminCache_Overrides && (GetConVarInt(g_PHPropMenu) == 1 || GetConVarInt(g_PHReroll) == 1))
+	{
+		CreateTimer(0.2, Timer_RestoreOverrides);
+	}
+}
+
+public Action:Timer_RestoreOverrides(Handle:timer)
+{
+	if (GetConVarInt(g_PHPropMenu) == 1)
+	{
+		InstallPropMenuOverride();
+	}
+	
+	if (GetConVarInt(g_PHReroll) == 1)
+	{
+		InstallPropRerollOverride();
+	}
+}
+
+CountRounds()
+{
+	g_RoundCurrent = 0;
+	g_RoundCount = 0;
+	new entity = -1;
+//	new prevPriority = 0;
+	new bool:roundSwitchAlways = true;
+	
+	while ((entity = FindEntityByClassname(entity, "team_control_point_round")) != -1)
+	{
+		// Check if the round isn't disabled here?
+		// Test on ph_kakariko to see if its other part is present.
+		g_RoundCount++;
+		// We'll look at round priorities again sometime in the future, ignore for now.
+		/*
+		new priority = GetEntProp(entity, Prop_Data, "m_nPriority");
+		if (prevPriority == 0)
+		{
+			prevPriority = priority;
+		}
+		else
+		if (prevPriority != priority)
+		{
+			
+			roundSwitchAlways = false;
+			break;
+		}
+		*/
+	}
+	
+	// No team_control_point_round entities means we have just 1 round
+	if (g_RoundCount == 0)
+		g_RoundCount = 1;
+
+	if (g_RoundCount % 2 == 0)
+	{
+		// For event number of rounds, never switch
+		roundSwitchAlways = false;
+	}
+	
+	g_RoundSwitchAlways = roundSwitchAlways;
+	
+#if defined LOG
+	LogMessage("[PH] Map has %d round(s), Switch teams every round: %d", g_RoundCount, g_RoundSwitchAlways);
+#endif
+}
+
 
 StartTimers(bool:noScoreTimer = false)
 {
 	if (g_hLocked == INVALID_HANDLE)
 	{
-		g_hLocked = CreateTimer(0.6, Timer_Locked, 0, TIMER_REPEAT);
+		g_hLocked = CreateTimer(0.6, Timer_Locked, _, TIMER_REPEAT);
 	}
 		
 	if (!noScoreTimer && g_hScore == INVALID_HANDLE)
 	{
-		g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+		g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	}
 
 	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
 	{
-		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, 0, TIMER_REPEAT);
+		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
+		// Also run said timer 0.1 seconds after round start.
+		CreateTimer(0.1, Timer_AntiHack, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -1393,7 +1748,7 @@ StopTimers()
 
 public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
-	if (!g_MapRunning)
+	if (!g_MapStarted)
 	{
 		return;
 	}
@@ -1520,12 +1875,6 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_SpawnPost, OnBuilderSpawned);
 	}
 	else
-	if (strcmp(classname, "tf_powerup_bottle") == 0 ||
-		strcmp(classname, "tf_weapon_spellbook") == 0)
-	{
-		SDKHook(entity, SDKHook_Spawn, OnBlockedPropItemSpawned);
-	}
-	else
 	if (strcmp(classname, "team_round_timer") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
@@ -1548,22 +1897,6 @@ public Action:OnBuilderSpawned(entity)
 	{
 		SetEntProp(entity, Prop_Send, "m_aBuildableObjectTypes", 0, _, _:TFObject_Sentry);
 	}
-	return Plugin_Continue;
-}
-
-public Action:OnBlockedPropItemSpawned(entity)
-{
-	if (!IsValidEntity(entity))
-		return Plugin_Continue;
-	
-	new owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	if (owner < 1 || owner > MaxClients || !IsClientInGame(owner))
-		return Plugin_Continue;
-	
-	new team = GetClientTeam(owner);
-	if (team == _:TFTeam_Red)
-		return Plugin_Stop;
-	
 	return Plugin_Continue;
 }
 
@@ -1641,7 +1974,14 @@ public OnCPMasterSpawnedPost(entity)
 	new timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
 	new String:setupLength[5];
-	GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));
+	if (g_Setup >= SETUP_MIN && g_Setup <= SETUP_MAX)
+	{
+		IntToString(g_Setup, setupLength, sizeof(setupLength));
+	}
+	else
+	{
+		GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));		
+	}
 	DispatchKeyValue(timer, "setup_length", setupLength);
 	//DispatchKeyValue(timer, "setup_length", "30");
 	DispatchKeyValue(timer, "reset_time", "1");
@@ -1655,7 +1995,7 @@ public OnCPMasterSpawnedPost(entity)
     
 	decl String:finishedCommand[256];
 	
-	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinnerAndForceCaps:%d:0:-1", name, _:TFTeam_Red);
+	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinnerAndForceCaps:%d:0:-1", name, TEAM_PROP);
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(timer, "AddOutput");
 	
@@ -1682,7 +2022,6 @@ public OnMapEnd()
 
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
-	g_MapRunning = false;
 	
 	ResetCVars();
 	StopTimers();
@@ -1733,7 +2072,7 @@ public OnMapStart()
 			CloseHandle(g_PropMenu);
 			g_PropMenu = INVALID_HANDLE;
 		}
-		g_PropMenu = CreateMenu(Handler_PropMenu);
+		g_PropMenu = CreateMenu(Handler_PropMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
 		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
 		SetMenuExitButton(g_PropMenu, true);
 		
@@ -1823,9 +2162,10 @@ public OnMapStart()
 			g_Relay = bool:KvGetNum(fl, "relay", 0);
 			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
 			g_RoundTime = KvGetNum(fl, "round", 175);
+			g_Setup = KvGetNum(fl, "setup", 30);
 			
 			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime);
+			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i, setup: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime, g_Setup);
 		}
 		CloseHandle(fl);
 		
@@ -1914,7 +2254,7 @@ public OnPluginEnd()
 #if defined OIMM
 	if (g_OptinMultiMod)
 	{
-		OptInMultiMod_Unregister("Prop Hunt");
+		OptInMultiMod_Unregister("prophunt");
 	}
 #endif
 }
@@ -1928,7 +2268,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	
 	if(victim > 0 && attacker > 0 && victim <= MaxClients && attacker <= MaxClients && IsClientInGame(victim) && IsClientInGame(attacker))
 	{
-		if (IsPlayerAlive(victim) && GetClientTeam(victim) == _:TFTeam_Red && GetClientTeam(attacker) == _:TFTeam_Blue && !g_Hit[victim])
+		if (IsPlayerAlive(victim) && GetClientTeam(victim) == TEAM_PROP && GetClientTeam(attacker) == TEAM_HUNTER && !g_Hit[victim])
 		{
 			new Float:pos[3];
 			GetClientAbsOrigin(victim, pos);
@@ -1936,7 +2276,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 			PH_EmitSoundToClient(attacker, "PropFound", _, SNDCHAN_WEAPON, _, _, 0.8, _, victim, pos);
 			g_Hit[victim] = true;
 		}
-		else if (g_LastProp && IsPlayerAlive(attacker) && GetClientTeam(victim) == _:TFTeam_Blue && GetClientTeam(attacker) == _:TFTeam_Red)
+		else if (g_LastProp && IsPlayerAlive(attacker) && GetClientTeam(victim) == TEAM_HUNTER && GetClientTeam(attacker) == TEAM_PROP)
 		{
 			g_LastPropDamageTime[victim] = GetTime();
 		}
@@ -1956,7 +2296,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	}
 	
 	//block prop drowning
-	if(damagetype & DMG_DROWN && victim > 0 && victim < MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == _:TFTeam_Red && attacker == 0)
+	if(damagetype & DMG_DROWN && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && GetClientTeam(victim) == TEAM_PROP && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -2071,53 +2411,63 @@ public Action:Command_propmenu(client, args)
 		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) == 0)
+	if(GetConVarInt(g_PHPropMenu) >= 0)
 	{
-		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
+		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
 			if (GetCmdArgs() == 1)
 			{
-				decl String:model[MAXMODELNAME];
-				GetCmdArg(1, model, MAXMODELNAME);
-				
-				if (!FileExists(model, true))
+				if (CanPropChange(client))
 				{
-					CReplyToCommand(client, "%t", "#TF_PH_PropModelNotFound");
-					return Plugin_Handled;
-				}
-				
-				new bool:restrict = true;
-				
-				restrict = GetConVarBool(g_PHPropMenuRestrict);
-				if (restrict)
-				{
-					new found = false;
+					decl String:model[PLATFORM_MAX_PATH];
+					GetCmdArg(1, model, sizeof(model));
 					
-					new count = GetMenuItemCount(g_PropMenu);
-					for (new i = 0; i < count; i++)
+					if (!FileExists(model, true))
 					{
-						decl String:otherModel[MAXMODELNAME];
-						GetMenuItem(g_PropMenu, i, otherModel, sizeof(otherModel));
-						if (strcmp(model, otherModel, false) == 0)
-						{
-							found = true;
-							break;
-						}
-					}
-					
-					if (!found)
-					{
-						CReplyToCommand(client, "%t", "#TF_PH_PropMenuNotFound");
+						CReplyToCommand(client, "%t", "#TF_PH_PropModelNotFound");
 						return Plugin_Handled;
 					}
+					
+					new bool:restrict = true;
+					
+					restrict = GetConVarBool(g_PHPropMenuRestrict);
+					if (restrict)
+					{
+						new found = false;
+						
+						new count = GetMenuItemCount(g_PropMenu);
+						for (new i = 0; i < count; i++)
+						{
+							decl String:otherModel[PLATFORM_MAX_PATH];
+							GetMenuItem(g_PropMenu, i, otherModel, sizeof(otherModel));
+							if (strcmp(model, otherModel, false) == 0)
+							{
+								found = true;
+								break;
+							}
+						}
+						
+						if (!found)
+						{
+							CReplyToCommand(client, "%t", "#TF_PH_PropMenuNotFound");
+							return Plugin_Handled;
+						}
+					}
+					g_RoundStartMessageSent[client] = false;
+					strcopy(g_PlayerModel[client], sizeof(g_PlayerModel[]), model);
+					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 				}
-				g_RoundStartMessageSent[client] = false;
-				strcopy(g_PlayerModel[client], MAXMODELNAME, model);
-				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+				else
+				{
+					CReplyToCommand(client, "%t", "#TF_PH_PropCantChange");
+				}
 			}
 			else
 			{
-				DisplayMenu(g_PropMenu, client, MENU_TIME_FOREVER);
+				if (GetClientMenu(client) == MenuSource_None)
+				{
+					DisplayMenu(g_PropMenu, client, MENU_TIME_FOREVER);
+				}
 			}
 		}
 		else
@@ -2144,14 +2494,21 @@ public Action:Command_propreroll(client, args)
 	}
 	if(GetConVarInt(g_PHReroll) == 0)
 	{
-		if(GetClientTeam(client) == _:TFTeam_Red && IsPlayerAlive(client))
+		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
 			if (!g_Rerolled[client])
 			{
-				g_Rerolled[client] = true;
-				g_PlayerModel[client] = "";
-				g_RoundStartMessageSent[client] = false;
-				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+				if (CanPropChange(client))
+				{
+					g_Rerolled[client] = true;
+					g_PlayerModel[client] = "";
+					g_RoundStartMessageSent[client] = false;
+					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+				}
+				else
+				{
+					CReplyToCommand(client, "%t", "#TF_PH_PropCantChange");
+				}
 			}
 			else
 			{
@@ -2174,17 +2531,35 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 {
 	switch (action)
 	{
-	case MenuAction_Select:
+		case MenuAction_Display:
+		{
+			decl String:buffer[255];
+			Format(buffer, sizeof(buffer), "%T", "#TF_PH_PropMenuName", param1);
+			
+			new Handle:panel = Handle:param2;
+			SetPanelTitle(panel, buffer);
+		}
+		
+		case MenuAction_Select:
 		{
 			if(IsClientInGame(param1))
 			{
 				if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
 				{
-					if(GetClientTeam(param1) == _:TFTeam_Red && IsPlayerAlive(param1))
+					if(GetClientTeam(param1) == TEAM_PROP && IsPlayerAlive(param1))
 					{
-						GetMenuItem(menu, param2, g_PlayerModel[param1], MAXMODELNAME);
-						g_RoundStartMessageSent[param1] = false;
-						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
+						if (CanPropChange(param1))
+						{
+							GetMenuItem(menu, param2, g_PlayerModel[param1], PLATFORM_MAX_PATH);
+							g_RoundStartMessageSent[param1] = false;
+							Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
+						}
+						else
+						{
+							CPrintToChat(param1, "%t", "#TF_PH_PropCantChange");
+							new pos = GetMenuSelectionPosition();
+							DisplayMenuAtItem(menu, param1, pos, MENU_TIME_FOREVER);
+						}
 					}
 					else
 					{
@@ -2197,7 +2572,39 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 				}
 			}
 		}
+		
+		case MenuAction_DisplayItem:
+		{
+			if (!GetConVarBool(g_PHPropMenuNames))
+			{
+				return 0;
+			}
+			
+			new String:model[PLATFORM_MAX_PATH];
+			GetMenuItem(menu, param2, model, sizeof(model));
+			
+			new String:modelName[MAXMODELNAME];
+			if (GetModelNameForClient(param1, model, modelName, sizeof(modelName)))
+			{
+				return RedrawMenuItem(modelName);
+			}
+		}
 	}
+	return 0;
+}
+
+bool:CanPropChange(client)
+{
+	if (!GetConVarBool(g_PHDamageBlocksPropChange))
+	{
+		return true;
+	}
+	
+	if (TF2_IsPlayerInCondition(client, TFCond_OnFire) || TF2_IsPlayerInCondition(client, TFCond_Bleeding) || TF2_IsPlayerInCondition(client, TFCond_Jarated) || TF2_IsPlayerInCondition(client, TFCond_Milked))
+	{
+		return false;
+	}
+	return true;
 }
 
 public OnClientPutInServer(client)
@@ -2291,12 +2698,12 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 	decl String:sample[128];
 	
 	new bool:emitted = false;
-	
+
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
-	
+
 	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
 		if(!IsSoundPrecached(sample))
@@ -2318,9 +2725,9 @@ public Action:Command_switch(client, args)
 		return Plugin_Handled;
 	}
 	g_AllowedSpawn[client] = true;
-	ChangeClientTeam(client, _:TFTeam_Red);
+	ChangeClientTeam(client, TEAM_PROP);
 	TF2_RespawnPlayer(client);
-	CreateTimer(0.5, Timer_Move, client);
+	CreateTimer(0.5, Timer_Move, GetClientUserId(client));
 	return Plugin_Handled;
 }
 
@@ -2336,10 +2743,10 @@ public Action:Command_pyro(client, args)
 	}
 	g_PlayerModel[client] = "";
 	g_AllowedSpawn[client] = true;
-	ChangeClientTeam(client, _:TFTeam_Blue);
+	ChangeClientTeam(client, TEAM_HUNTER);
 	TF2_RespawnPlayer(client);
-	CreateTimer(0.5, Timer_Move, client);
-	CreateTimer(0.8, Timer_Unfreeze, client);
+	CreateTimer(0.5, Timer_Move, GetClientUserId(client));
+	CreateTimer(0.8, Timer_Unfreeze, GetClientUserId(client));
 	return Plugin_Handled;
 }
 stock PlayersAlive (){
@@ -2429,7 +2836,7 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 	if(!g_Enabled || g_RoundOver)
 		return Plugin_Continue;
 	
-	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Blue && IsValidEntity(weapon))
+	if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_HUNTER && IsValidEntity(weapon))
 	{
 		if(strcmp(weaponname, "tf_weapon_flamethrower") == 0)
 		{
@@ -2471,7 +2878,7 @@ public OnGameFrame()
 	
 	for (new client = 1; client <= MaxClients; client++)
 	{
-		if (!IsClientInGame(client) || !g_CurrentlyFlaming[client] || GetClientTeam(client) != _:TFTeam_Blue || !IsPlayerAlive(client) || g_FlameCount[client]++ % FLY_COUNT != 0)
+		if (!IsClientInGame(client) || !g_CurrentlyFlaming[client] || GetClientTeam(client) != TEAM_HUNTER || !IsPlayerAlive(client) || g_FlameCount[client]++ % FLY_COUNT != 0)
 		{
 			continue;
 		}
@@ -2574,7 +2981,7 @@ public PreThinkHook(client)
 			}
 			
 			new buttons = GetClientButtons(client);
-			if((buttons & IN_ATTACK) == IN_ATTACK && GetClientTeam(client) == _:TFTeam_Blue)
+			if((buttons & IN_ATTACK) == IN_ATTACK && GetClientTeam(client) == TEAM_HUNTER)
 			{
 				g_Attacking[client] = true;
 			}
@@ -2583,7 +2990,7 @@ public PreThinkHook(client)
 				g_Attacking[client] = false;
 			}
 
-			if(GetClientTeam(client) == _:TFTeam_Red)
+			if(GetClientTeam(client) == TEAM_PROP)
 			{
 				// tl;dr - (LMB and not crouching OR any movement key while locked) AND not holding key
 				if(((((buttons & IN_ATTACK) == IN_ATTACK && (buttons & IN_DUCK) != IN_DUCK) ||
@@ -2659,13 +3066,13 @@ public PreThinkHook(client)
 						SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_DEBRIS_TRIGGER);
 						TF2_SetPlayerClass(client, TFClass_DemoMan, false);
 						TF2_AddCondition(client, TFCond_Charging, 2.5);
-						CreateTimer(2.5, Timer_Charge, client);
+						CreateTimer(2.5, Timer_Charge, GetClientUserId(client));
 					}
 				}
 #endif
 			}
 			else
-			if(GetClientTeam(client) == _:TFTeam_Blue && TF2_GetPlayerClass(client) == TFClass_Pyro)
+			if(GetClientTeam(client) == TEAM_HUNTER && TF2_GetPlayerClass(client) == TFClass_Pyro)
 			{
 				/*
 				if(IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUNPYRO || IsValidEntity(GetPlayerWeaponSlot(client, 1)) && GetEntProp(GetPlayerWeaponSlot(client, 1), Prop_Send, "m_iItemDefinitionIndex") == WEP_SHOTGUN_UNIQUE)
@@ -2735,6 +3142,295 @@ public Action:Command_motd(client, args)
 	return Plugin_Handled;
 }
 
+public Action:Command_config(client, args)
+{
+	if (client == 0)
+	{
+		DisplayConfigToConsole(client);
+	}
+	else
+	{
+		if (GetClientMenu(client) == MenuSource_None)
+		{
+			DisplayMenu(g_ConfigMenu, client, MENU_TIME_FOREVER);
+		}
+	}
+		
+	return Plugin_Handled;
+}
+
+DisplayConfigToConsole(client)
+{
+	decl String:propMenuStatus[18];
+	decl String:propRerollStatus[18];
+	decl String:preventFallDamage[4];
+	decl String:propChangeRestrict[4];
+	decl String:airblast[4];
+	decl String:propMenuRestrict[4];
+	new propMenu = GetConVarInt(g_PHPropMenu);
+	new propReroll = GetConVarInt(g_PHReroll);
+	
+	if (GetConVarBool(g_PHAirblast))
+	{
+		airblast = "On";
+	}
+	else
+	{
+		airblast = "Off";
+	}
+	
+	switch (propMenu)
+	{
+		case -1:
+		{
+			propMenuStatus = "Off";
+		}
+		
+		case 0:
+		{
+			propMenuStatus = "#TF_PH_Restricted";
+		}
+		
+		case 1:
+		{
+			propMenuStatus = "On";
+		}
+	}
+	
+	if (GetConVarBool(g_PHPropMenuRestrict))
+	{
+		propMenuRestrict = "On";
+	}
+	else
+	{
+		propMenuRestrict = "Off";
+	}
+	
+	if (GetConVarBool(g_PHDamageBlocksPropChange))
+	{
+		propChangeRestrict = "On";
+	}
+	else
+	{
+		propChangeRestrict = "Off";
+	}
+	
+	switch (propReroll)
+	{
+		case -1:
+		{
+			propRerollStatus = "Off";
+		}
+		
+		case 0:
+		{
+			propRerollStatus = "#TF_PH_Restricted";
+		}
+		
+		case 1:
+		{
+			propRerollStatus = "On";
+		}
+	}
+	
+	if (GetConVarBool(g_PHPreventFallDamage))
+	{
+		preventFallDamage = "On";
+	}
+	else
+	{
+		preventFallDamage = "Off";
+	}
+	
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigName");
+	ReplyToCommand(client, "---------------------");
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigVersion", PL_VERSION);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigAirblast", airblast);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenu", propMenuStatus);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenuRestrict", propMenuRestrict);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropChange", propChangeRestrict);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", GetConVarInt(g_PHSetupLength));
+#if defined STATS
+	ReplyToCommand(client, "%t", "#TF_PH_ConfigStats");
+#endif
+}
+
+public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
+{
+	switch (action)
+	{
+		case MenuAction_Display:
+		{
+			decl String:buffer[255];
+			Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigName", param1);
+			
+			new Handle:panel = Handle:param2;
+			SetPanelTitle(panel, buffer);
+		}
+		
+		case MenuAction_Select:
+		{
+			// We really just close the menu when they select something
+		}
+		
+		case MenuAction_DisplayItem:
+		{
+			decl String:infoBuf[64];
+			GetMenuItem(menu, param2, infoBuf, sizeof(infoBuf));
+			new String:buffer[255];
+			
+			if (StrEqual(infoBuf, "#version"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigVersion", param1, PL_VERSION);
+			}
+			else
+			if (StrEqual(infoBuf, "#airblast"))
+			{
+				decl String:airblast[4];
+				if (GetConVarBool(g_PHAirblast))
+				{
+					airblast = "On";
+				}
+				else
+				{
+					airblast = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigAirblast", param1, airblast);
+			}
+			else
+			if (StrEqual(infoBuf, "#propmenu"))
+			{
+				new propMenu = GetConVarInt(g_PHPropMenu);
+				
+				decl String:propMenuStatus[25];
+				
+				switch (propMenu)
+				{
+					case -1:
+					{
+						propMenuStatus = "Off";
+					}
+					
+					case 0:
+					{
+						if (CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
+						{
+							propMenuStatus = "#TF_PH_RestrictedAllowed";
+						}
+						else
+						{
+							propMenuStatus = "#TF_PH_RestrictedDenied";
+						}
+					}
+					
+					case 1:
+					{
+						propMenuStatus = "On";
+					}
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenu", param1, propMenuStatus);
+			}
+			else
+			if (StrEqual(infoBuf, "#proprestrict"))
+			{
+				decl String:propMenuRestrict[4];
+				if (GetConVarBool(g_PHPropMenuRestrict))
+				{
+					propMenuRestrict = "On";
+				}
+				else
+				{
+					propMenuRestrict = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenuRestrict", param1, propMenuRestrict);
+			}
+			else
+			if (StrEqual(infoBuf, "#propdamage"))
+			{
+				decl String:propChangeRestrict[4];
+				if (GetConVarBool(g_PHDamageBlocksPropChange))
+				{
+					propChangeRestrict = "On";
+				}
+				else
+				{
+					propChangeRestrict = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropChange", param1, propChangeRestrict);
+			}
+			else
+			if (StrEqual(infoBuf, "#propreroll"))
+			{
+				new propReroll = GetConVarInt(g_PHReroll);
+				
+				decl String:propRerollStatus[25];
+				
+				switch (propReroll)
+				{
+					case -1:
+					{
+						propRerollStatus = "Off";
+					}
+					
+					case 0:
+					{
+						if (CheckCommandAccess(param1, "propreroll", ADMFLAG_KICK))
+						{
+							propRerollStatus = "#TF_PH_RestrictedAllowed";
+						}
+						else
+						{
+							propRerollStatus = "#TF_PH_RestrictedDenied";
+						}
+					}
+					
+					case 1:
+					{
+						propRerollStatus = "On";
+					}
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropReroll", param1, propRerollStatus);
+			}
+			else
+			if (StrEqual(infoBuf, "#preventfalldamage"))
+			{
+				decl String:preventFallDamage[4];
+				if (GetConVarBool(g_PHPreventFallDamage))
+				{
+					preventFallDamage = "On";
+				}
+				else
+				{
+					preventFallDamage = "Off";
+				}
+				
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, preventFallDamage);
+			}
+			else
+			if (StrEqual(infoBuf, "#setuptime"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, GetConVarInt(g_PHSetupLength));
+			}
+#if defined STATS
+			else
+			if (StrEqual(infoBuf, "#stats"))
+			{
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigStats", param1);
+			}
+#endif
+			
+			return RedrawMenuItem(buffer);
+		}
+	}
+	return 0;
+}
 
 stock SetAlpha (target, alpha){
 	SetWeaponsAlpha(target,alpha);
@@ -2793,6 +3489,14 @@ stock SetWeaponsAlpha (target, alpha){
 				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
 				SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
 				SetEntityRenderColor(weapon, 255, 255, 255, alpha);
+				
+				// Lets hide extra wearables too
+				new extraWearable = GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
+				if(extraWearable > -1 && IsValidEdict(extraWearable))
+				{
+					SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+					SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
+				}
 			}
 		}
 	}
@@ -2883,8 +3587,11 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 #if defined DHOOKS
 	if (!g_DHooks || g_SetWinningTeamHook == -1)
 	{
-#endif		
-		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, INVALID_HANDLE, TIMER_FLAG_NO_MAPCHANGE);
+#endif	
+		if (ShouldSwitchTeams())
+		{
+			CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
+		}
 #if defined DHOOKS
 	}
 #endif		
@@ -2923,9 +3630,9 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 			if(IsDedicatedServer())
 			{
 				team = GetClientTeam(client);
-				if(team == _:TFTeam_Red || team == _:TFTeam_Blue)
+				if(team == TEAM_PROP || team == TEAM_HUNTER)
 				{
-					team = team == _:TFTeam_Red ? _:TFTeam_Blue:_:TFTeam_Red;
+					team = team == TEAM_PROP ? TEAM_HUNTER:TEAM_PROP;
 					ChangeClientTeamAlive(client, team);
 				}
 			}
@@ -2938,19 +3645,19 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	LogMessage("Team balancing...");
 #endif
 	decl String:cname[64];
-	while(GetTeamClientCount(_:TFTeam_Red) > GetTeamClientCount(_:TFTeam_Blue) + 1 )
+	while(GetTeamClientCount(TEAM_PROP) > GetTeamClientCount(TEAM_HUNTER) + 1 )
 	{
-		client = GetRandomPlayer(_:TFTeam_Red);
+		client = GetRandomPlayer(TEAM_PROP);
 		GetClientName(client, cname, sizeof(cname));
 		CPrintToChatAll("%t", "#TF_PH_BalanceBlu", cname);
-		ChangeClientTeamAlive(client, _:TFTeam_Blue);
+		ChangeClientTeamAlive(client, TEAM_HUNTER);
 	}
-	while(GetTeamClientCount(_:TFTeam_Blue) > GetTeamClientCount(_:TFTeam_Red) +1 )
+	while(GetTeamClientCount(TEAM_HUNTER) > GetTeamClientCount(TEAM_PROP) +1 )
 	{
-		client = GetRandomPlayer(_:TFTeam_Blue);
+		client = GetRandomPlayer(TEAM_HUNTER);
 		GetClientName(client, cname, sizeof(cname));
 		CPrintToChatAll("%t", "#TF_PH_BalanceRed", cname);
-		ChangeClientTeamAlive(client, _:TFTeam_Red);
+		ChangeClientTeamAlive(client, TEAM_PROP);
 	}
 #if defined LOG
 	LogMessage("Complete");
@@ -2972,15 +3679,15 @@ public Action:Timer_ChangeTeam(Handle:timer)
 			continue;
 		}
 		
-		if (GetClientTeam(client) == _:TFTeam_Blue)
+		if (GetClientTeam(client) == TEAM_HUNTER)
 		{
-			ChangeClientTeamAlive(client, _:TFTeam_Red);
+			ChangeClientTeamAlive(client, TEAM_PROP);
 		}
 		else
-		if (GetClientTeam(client) == _:TFTeam_Red)
+		if (GetClientTeam(client) == TEAM_PROP)
 		{
 			RemoveAnimeModel(client);
-			ChangeClientTeamAlive(client, _:TFTeam_Blue);
+			ChangeClientTeamAlive(client, TEAM_HUNTER);
 		}
 		
 	}
@@ -3001,7 +3708,7 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 	// checking for the first time this calls (pre-setup), i think
 	if(reset && g_RoundOver)
 	{
-		new team, zteam=_:TFTeam_Blue;
+		new team, zteam=TEAM_HUNTER;
 		for(new client=1; client <= MaxClients; client++)
 		{
 			if(IsClientInGame(client))
@@ -3013,7 +3720,7 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 				if(team == TEAM_SPEC && !g_Spec[client])
 				{
 					ChangeClientTeam(client, zteam);
-					zteam = zteam == _:TFTeam_Blue ? _:TFTeam_Red:_:TFTeam_Blue;
+					zteam = zteam == TEAM_HUNTER ? TEAM_PROP:TEAM_HUNTER;
 				}
 
 			}
@@ -3113,8 +3820,6 @@ TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	g_RemoveRedWeps = false;
-	
 	StopTimers();
 
 	switch (g_RoundChange)
@@ -3123,12 +3828,14 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		{
 			g_Enabled = true;
 			SetCVars();
-#if defined DHOOKS
-			RegisterDHooks();
-#endif
+// Moved to after g_Enabled check
+//#if defined DHOOKS
+//			RegisterDHooks();
+//#endif
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
+			g_RoundCurrent = 0;
 		}
 		
 		case RoundChange_Disable:
@@ -3147,6 +3854,12 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
+	// This is being called because TF2 sometimes destroys the gamerules object when there are 0-1 players at round end.
+	// This has the side effect of unsetting our hooks.  Luckily, we have checks in place to prevent double hooking.
+#if defined DHOOKS
+	RegisterDHooks();
+#endif
+	
 	g_inPreRound = true;
 	
 	// This is now in round start after an issue was reported with last prop not resetting in 3.0.2
@@ -3160,7 +3873,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		if (IsClientInGame(client) && !IsFakeClient(client))
 		{
 			// For some reason, this has to be set every round or the player GUI messes up
-			SendConVarValue(client, FindConVar("tf_arena_round_time"), "600");
+			SendConVarValue(client, g_hArenaRoundTime, "600");
 		}
 	}
 	// Delay freeze by a frame
@@ -3193,23 +3906,15 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	AcceptEntityInput(ent, "SetRedTeamGoalString");
 	SetVariantString("1");
 	AcceptEntityInput(ent, "SetRedTeamRole");
-
 }
 
 public Action:Timer_teamplay_round_start(Handle:timer)
 {
-	g_RemoveRedWeps = true;
-	
 	for (new i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsClientObserver(i))
 		{
 			SetEntityMoveType(i, MOVETYPE_NONE);
-			
-			if (GetClientTeam(i) == _:TFTeam_Red)
-			{
-				TF2_RegeneratePlayer(i);
-			}
 		}
 	}
 }
@@ -3221,7 +3926,6 @@ public Event_teamplay_restart_round(Handle:event, const String:name[], bool:dont
 
 public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
@@ -3229,6 +3933,8 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	
 	if (!g_Enabled)
 		return;
+	
+	g_RoundCurrent++;
 	
 	StartTimers(true);
 	
@@ -3253,7 +3959,7 @@ public Action:Timer_arena_round_start(Handle:timer)
 	{
 		if(IsClientInGame(client) && IsPlayerAlive(client))
 		{
-			if(GetClientTeam(client) == _:TFTeam_Red)
+			if(GetClientTeam(client) == TEAM_PROP)
 			{
 				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 				SetEntityMoveType(client, MOVETYPE_WALK);
@@ -3288,8 +3994,8 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	if (!g_Enabled)
 		return;
 	
-	new red = _:TFTeam_Red - 2;
-	new blue = _:TFTeam_Blue - 2;
+	new red = TEAM_PROP - 2;
+	new blue = TEAM_HUNTER - 2;
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	// Lets remove this since we wipe their model later anyway
@@ -3317,7 +4023,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 #endif
 		g_Hit[client] = false;
 
-		if(GetClientTeam(client) == _:TFTeam_Blue)
+		if(GetClientTeam(client) == TEAM_HUNTER)
 		{
 			if (!g_RoundStartMessageSent[client])
 			{
@@ -3327,7 +4033,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 #if defined SHINX
 
 			new TFClassType:clientClass = TF2_GetPlayerClass(client);
-			if (g_classLimits[blue][clientClass] != -1 && GetClassCount(clientClass, _:TFTeam_Blue) > g_classLimits[blue][clientClass])
+			if (g_classLimits[blue][clientClass] != -1 && GetClassCount(clientClass, TEAM_HUNTER) > g_classLimits[blue][clientClass])
 			{
 				if(g_classLimits[blue][clientClass] == 0)
 				{
@@ -3356,7 +4062,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 		}
 		else
-		if(GetClientTeam(client) == _:TFTeam_Red)
+		if(GetClientTeam(client) == TEAM_PROP)
 		{
 			if(g_RoundOver)
 			{
@@ -3383,7 +4089,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 public Action:Event_player_death(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (!g_Enabled)
+	if (!g_Enabled || g_inPreRound)
 		return Plugin_Continue;
 	
 	// This should be a separate event now, but we're leaving this in just in case
@@ -3397,14 +4103,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	g_CurrentlyFlaming[client] = false;
 	g_FlameCount[client] = 0;
 	
-	if(IsClientInGame(client) && GetClientTeam(client) == _:TFTeam_Red)
+	if(IsClientInGame(client) && GetClientTeam(client) == TEAM_PROP)
 	{
 #if defined LOG
 		LogMessage("[PH] Player death %N", client);
 #endif
 		//RemoveAnimeModel(client);
 
-		CreateTimer(0.1, Timer_Ragdoll, client);
+		CreateTimer(0.1, Timer_Ragdoll, GetClientUserId(client));
 
 		SDKUnhook(client, SDKHook_OnTakeDamage, TakeDamageHook);
 		SDKUnhook(client, SDKHook_PreThink, PreThinkHook);
@@ -3431,13 +4137,13 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	new playas = 0;
 	for(new i=1; i <= MaxClients; i++)
 	{
-		if(IsClientInGame(i) /*&& !IsFakeClient(i)*/ && IsPlayerAlive(i) && GetClientTeam(i) == _:TFTeam_Red)
+		if(IsClientInGame(i) /*&& !IsFakeClient(i)*/ && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_PROP)
 		{
 			playas++;
 		}
 	}
 	
-	if (GetClientTeam(client) == _:TFTeam_Red)
+	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		if(!g_RoundOver)
 		{
@@ -3479,7 +4185,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		}
 	}
 
-	if(!g_LastProp && playas == 2 && !g_RoundOver && GetClientTeam(client) == _:TFTeam_Red)
+	if(!g_LastProp && playas == 2 && !g_RoundOver && GetClientTeam(client) == TEAM_PROP)
 	{
 		g_LastProp = true;
 		PH_EmitSoundToAll("OneAndOnly", _, _, SNDLEVEL_AIRCRAFT);
@@ -3488,14 +4194,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		{
 			if(IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
 			{
-				if(GetClientTeam(client2) == _:TFTeam_Red)
+				if(GetClientTeam(client2) == TEAM_PROP)
 				{
 					g_LastPropPlayer = client2;
 					TF2_RegeneratePlayer(client2);
-					CreateTimer(0.1, Timer_WeaponAlpha, client2);
+					CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
 				}
 				else
-				if(GetClientTeam(client2) == _:TFTeam_Blue)
+				if(GetClientTeam(client2) == TEAM_HUNTER)
 				{
 					TF2_AddCondition(client2, TFCond_Jarated, 15.0);
 				}
@@ -3512,13 +4218,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 ////////////////////////////////////////////////////
 
 
-public Action:Timer_WeaponAlpha(Handle:timer, any:client)
+public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client) && IsPlayerAlive(client))
-	SetWeaponsAlpha(client, 0);
+	new client = GetClientOfUserId(userid);
+	if(client != 0 && IsClientInGame(client) && IsPlayerAlive(client))
+		SetWeaponsAlpha(client, 0);
 }
 
-public Action:Timer_Info(Handle:timer, any:client)
+public Action:Timer_Info(Handle:timer)
 {
 	g_Message_bit++;
 
@@ -3618,6 +4325,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		FakeClientCommand(client, "slot3");
 		FakeClientCommand(client, "slot0");
 		*/
+		
 		decl String:pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
 		DispatchKeyValue(client, "targetname", pname);
@@ -3628,7 +4336,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		new propData[PropData];
 		
 		// fire in a nice random model
-		decl String:model[MAXMODELNAME];
+		decl String:model[PLATFORM_MAX_PATH];
 		new String:offset[32] = "0 0 0";
 		new String:rotation[32] = "0 0 0";
 		new skin = 0;		
@@ -3637,6 +4345,9 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			model = g_PlayerModel[client];
 			modelIndex = FindStringInArray(g_ModelName, model);
+#if defined LOG
+			LogMessage("Change user model to %s", model);
+#endif
 		}
 		else
 		{
@@ -3649,11 +4360,14 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
-			if (!g_RoundStartMessageSent[client])
-			{
-				CPrintToChat(client, "%t", "#TF_PH_NowDisguised", propData[PropData_Name]);
-				g_RoundStartMessageSent[client] = true;
-			}
+		}
+
+		if (!g_RoundStartMessageSent[client])
+		{
+			new String:modelName[MAXMODELNAME];
+			GetModelNameForClient(client, model, modelName, sizeof(modelName));
+			CPrintToChat(client, "%t", "#TF_PH_NowDisguised", modelName);
+			g_RoundStartMessageSent[client] = true;
 		}
 		
 		if (modelIndex > -1)
@@ -3726,7 +4440,7 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
-		if(g_RotLocked[client] && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Red)
+		if(g_RotLocked[client] && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
 		{
 			SetHudTextParamsEx(0.05, 0.05, 0.7, { /*0,204,255*/ 220, 90, 0, 255}, {0,0,0,0}, 1, 0.2, 0.2, 0.2);
 			ShowSyncHudText(client, g_Text4, "PropLock Engaged");
@@ -3736,8 +4450,8 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 
 public Action:Timer_AntiHack(Handle:timer, any:entity)
 {
-	new red = _:TFTeam_Red - 2;
-	if(!g_RoundOver && !g_LastProp)
+	new red = TEAM_PROP - 2;
+	if(!g_RoundOver)
 	{
 		decl String:name[64];
 		for(new client=1; client <= MaxClients; client++)
@@ -3749,7 +4463,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 					QueryClientConVar(client, "r_staticpropinfo", QueryStaticProp);
 				}
 				
-				if(GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == _:TFTeam_Red && TF2_GetPlayerClass(client) == g_defaultClass[red])
+				if(!g_LastProp && GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == TEAM_PROP && TF2_GetPlayerClass(client) == g_defaultClass[red])
 				{
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
@@ -3758,7 +4472,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
-						TF2_RemoveAllWeapons(client);
+						//TF2_RemoveAllWeapons(client);
 						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
 					}
 				}
@@ -3783,25 +4497,27 @@ public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, con
 	KickClient(client, "r_staticpropinfo detection was blocked");
 }
 
-public Action:Timer_Ragdoll(Handle:timer, any:client)
+public Action:Timer_Ragdoll(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client))
-	{
-		new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
-		if(rag > MaxClients && IsValidEntity(rag))
-		AcceptEntityInput(rag, "Kill");
-	}
+	new client = GetClientOfUserId(userid);
+	if (client < 1)
+		return Plugin_Handled;
+	
+	new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+	if(rag > MaxClients && IsValidEntity(rag))
+	AcceptEntityInput(rag, "Kill");
+
 	RemoveAnimeModel(client);
 	
 	return Plugin_Handled;
 }
 
-public Action:Timer_Score(Handle:timer, any:entity)
+public Action:Timer_Score(Handle:timer)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
 #if defined STATS || defined LOCALSTATS
-		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == _:TFTeam_Red)
+		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
 		{
 		#if defined STATS
 			AlterScore(client, 2, ScReason_Time, 0);
@@ -3832,7 +4548,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	{
 		CloseHandle(g_hScore);
 	}
-	g_hScore = CreateTimer(55.0, Timer_Score, 0, TIMER_REPEAT);
+	g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	TriggerTimer(g_hScore);
 	
 #if defined LOG
@@ -3875,10 +4591,11 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 }
 
 #if defined CHARGE
-public Action:Timer_Charge(Handle:timer, any:client)
+public Action:Timer_Charge(Handle:timer, any:userid)
 {
-	new red = _:TFTeam_Red-2;
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(userid);
+	new red = TEAM_PROP-2;
+	if(client > 0 && IsPlayerAlive(client))
 	{
 		//SetEntData(client, g_offsCollisionGroup, COLLISION_GROUP_PLAYER, _, true);
 		SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
@@ -3896,7 +4613,7 @@ public TimeEnd(const String:output[], caller, activator, Float:delay)
 #endif
 	if(!g_RoundOver)
 	{
-		ForceTeamWin(_:TFTeam_Red);
+		ForceTeamWin(TEAM_PROP);
 		g_RoundOver = true;
 		g_inPreRound = true;
 	}
@@ -3911,7 +4628,7 @@ public Action:Timer_TimeUp(Handle:timer, any:lol)
 #endif
 	if(!g_RoundOver)
 	{
-		ForceTeamWin(_:TFTeam_Red);
+		ForceTeamWin(TEAM_PROP);
 		g_RoundOver = true;
 		g_inPreRound = true;
 	}
@@ -3930,29 +4647,34 @@ public Action:Timer_AfterWinPanel(Handle:timer, any:lol)
 }
 */
 
-public Action:Timer_Unfreeze(Handle:timer, any:client)
+public Action:Timer_Unfreeze(Handle:timer, any:userid)
 {
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(userid);
+	if(client > 0 && IsPlayerAlive(client))
 		SetEntityMoveType(client, MOVETYPE_WALK);
 	return Plugin_Handled;
 }
 
-public Action:Timer_Move(Handle:timer, any:client)
+public Action:Timer_Move(Handle:timer, any:userid)
 {
-	g_AllowedSpawn[client] = false;
-	if(IsClientInGame(client) && IsPlayerAlive(client))
+	new client = GetClientOfUserId(userid);
+	if (client > 0)
 	{
-		new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
-		if(IsValidEntity(rag))
-		AcceptEntityInput(rag, "Kill");
-		SetEntityMoveType(client, MOVETYPE_WALK);
-		if(GetClientTeam(client) == _:TFTeam_Blue)
+		g_AllowedSpawn[client] = false;
+		if(IsPlayerAlive(client))
 		{
-			CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
-		}
-		else
-		{
-			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+			if(IsValidEntity(rag))
+			AcceptEntityInput(rag, "Kill");
+			SetEntityMoveType(client, MOVETYPE_WALK);
+			if(GetClientTeam(client) == TEAM_HUNTER)
+			{
+				CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
+			}
+			else
+			{
+				CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			}
 		}
 	}
 	return Plugin_Handled;
@@ -3977,18 +4699,26 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Stop;
 	}
 	
-	if (GetClientTeam(client) == _:TFTeam_Red)
+	// Block canteens and spellbooks for all players as the game will only check them ONCE
+	// If they're ever shown, they will only end up in this block again if a different action item is equipped
+	if (StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
+	{
+		return Plugin_Stop;
+	}
+	
+	if (GetClientTeam(client) == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
-		// If g_RemoveRedWeps is set that is (which it is most of the time)
-		if (!g_LastProp && g_RemoveRedWeps)
+		if (!g_LastProp)
 		{
 			return Plugin_Stop;
 		}
-		
-		// Block wearables, action items, canteens, and spellbooks for Props
+	
+		// Block wearablesfor Props
 		// From testing, Action items still work even if you block them
-		if (StrEqual(classname, "tf_wearable", false) || StrEqual(classname, "tf_powerup_bottle", false) || StrEqual(classname, "tf_weapon_spellbook", false))
+		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
+		//  was open before round start and can only be used once
+		if (StrEqual(classname, "tf_wearable", false))
 		{
 			return Plugin_Stop;
 		}
@@ -4139,6 +4869,11 @@ public MultiMod_Status(bool:enabled)
 {
 	SetConVarBool(g_PHEnable, enabled);
 }
+
+public MultiMod_TranslateName(client, String:translation[], maxlength)
+{
+	Format(translation, maxlength, "%T", "#TF_PH_ModeName", client);
+}
 #endif
 
 public bool:ValidateMap(const String:map[])
@@ -4150,4 +4885,109 @@ public bool:ValidateMap(const String:map[])
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
 
 	return FileExists(confil, true);
+}
+
+// These functions are based on versions taken from CS:S/CS:GO Hide and Seek
+GetLanguageID(const String:langCode[])
+{
+	return FindStringInArray(g_ModelLanguages, langCode);
+}
+
+GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
+{
+	decl String:langCode[MAXLANGUAGECODE];
+	GetLanguageInfo(GetClientLanguage(client), langCode, sizeof(langCode));
+#if defined LOG
+	LogMessage("Client is using language code %s", langCode);
+#endif
+	// is client's prefered language available?
+	new langID = GetLanguageID(langCode);
+	if(langID != -1)
+	{
+		strcopy(languageCode, maxlen, langCode);
+		return langID; // yes.
+	}
+	else
+	{
+#if defined LOG
+		LogMessage("PH language code \"%s\" not found.", langCode);
+#endif
+		GetLanguageInfo(GetServerLanguage(), langCode, sizeof(langCode));
+#if defined LOG
+		LogMessage("Falling back to server language code \"%s\".", langCode);
+#endif
+		// is default server language available?
+		langID = GetLanguageID(langCode);
+		if(langID != -1)
+		{
+			strcopy(languageCode, maxlen, langCode);
+			return langID; // yes.
+		}
+		else
+		{
+#if defined LOG
+			LogMessage("PH language \"%s\" not found, Falling back to \"en\".", langCode);
+#endif
+			// default to english
+			langID = GetLanguageID("en");
+			
+			if (langID != -1)
+			{
+				strcopy(languageCode, maxlen, "en");
+				return langID;
+			}
+			
+			// english not found? happens on custom map configs e.g.
+			// use the first language available
+			// this should always work, since we would have SetFailState() on parse
+			if(GetArraySize(g_ModelLanguages) > 0)
+			{
+#if defined LOG
+				LogMessage("PH language \"en\" not found, Falling back to lang 0.");
+#endif
+				GetArrayString(g_ModelLanguages, 0, languageCode, maxlen);
+				return 0;
+			}
+		}
+	}
+	// this should never happen
+	return -1;
+}
+
+bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxlen)
+{
+	if (GetConVarBool(g_PHMultilingual))
+	{
+		decl String:langCode[MAXLANGUAGECODE];
+		
+		GetClientLanguageID(client, langCode, sizeof(langCode));
+#if defined LOG
+		LogMessage("[PH] Retrieving %s name for %s", langCode, modelName);
+#endif	
+		new Handle:languageTrie;
+		if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE && GetTrieString(languageTrie, langCode, name, maxlen))
+		{
+			return true;
+		}
+		else
+		{
+			strcopy(name, maxlen, modelName);
+			return false;
+		}
+	}
+	else
+	{
+		new propData[PropData];
+		
+		if (GetTrieArray(g_PropData, modelName, propData[0], sizeof(propData)))
+		{
+			strcopy(name, maxlen, propData[PropData_Name]);
+			return true;
+		}
+		else
+		{
+			strcopy(name, maxlen, modelName);
+			return false;
+		}
+	}
 }

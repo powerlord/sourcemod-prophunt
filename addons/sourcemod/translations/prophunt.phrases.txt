@@ -2,16 +2,16 @@
 {
 	"#TF_PH_CPBonus"
 	{
-		"en"        "{default}Control point bonus! {lightgreen}Health filled."
+		"en"		"{default}Control point bonus! {lightgreen}Health filled."
 	}
 	"#TF_PH_WeaponPunish"
 	{
-		"#format"    "{1:s}"
-		"en"        "{green}Punished {1} for possession of a weapon on RED."
+		"#format"	"{1:s}"
+		"en"		"{green}Punished {1} for possession of a weapon on RED."
 	}
 	"#TF_PH_CPBonusRefreshed"
 	{
-		"en"        "{lightgreen}Control Point Bonus refreshed!"
+		"en"		"{lightgreen}Control Point Bonus refreshed!"
 	}
 	"#TF_PH_BluHelp"
 	{
@@ -31,33 +31,33 @@
 	}
 	"#TF_PH_AlterScore_TeamWin"
 	{
-        "#format"    "{1:i}"
-		"en"		 "{default}Victory! Your team gains {green}{1}{default} point(s)."
+		"#format"	"{1:i}"
+		"en"		"{default}Victory! Your team gains {green}{1}{default} point(s)."
 	}
 	"#TF_PH_AlterScore_TeamLose"
 	{
-        "#format"    "{1:i}"
-		"en"		 "{default}You failed! You team loses {green}{1}{default} point(s)."
+		"#format"	"{1:i}"
+		"en"		"{default}You failed! You team loses {green}{1}{default} point(s)."
 	}
 	"#TF_PH_AlterScore_TimeAward"
 	{
-        "#format"    "{1:i}"
-		"en"		 "{default}Survival award! You gain {green}{1}{default} point(s)."
+		"#format"	"{1:i}"
+		"en"		"{default}Survival award! You gain {green}{1}{default} point(s)."
 	}
 	"#TF_PH_AlterScore_Death"
 	{
-		"#format"    "{1:s},{2:i}"
-		"en"		 "{default}You were killed by {green}{1}{default}! You lose {green}{2}{default} point(s)."
+		"#format"	"{1:s},{2:i}"
+		"en"		"{default}You were killed by {green}{1}{default}! You lose {green}{2}{default} point(s)."
 	}
 	"#TF_PH_AlterScore_Kill"
 	{
-		"#format"    "{1:s},{2:i}"
-		"en"		 "{default}You killed {green}{1}{default}! You gain {green}{2}{default} point(s)."
+		"#format"	"{1:s},{2:i}"
+		"en"		"{default}You killed {green}{1}{default}! You gain {green}{2}{default} point(s)."
 	}
 	"#TF_PH_AlterScore_Assist"
 	{
-		"#format"    "{1:s},{2:i}"
-		"en"		 "{default}You assisted in killing {green}{1}{default}! You gain {green}{2}{default} point(s)."
+		"#format"	"{1:s},{2:i}"
+		"en"		"{default}You assisted in killing {green}{1}{default}! You gain {green}{2}{default} point(s)."
 	}
 	"#TF_PH_Stats_Top10"
 	{
@@ -73,32 +73,32 @@
 	}
 	"#TF_PH_Stats_PersonalRank"
 	{
-		"#format"    "{1:i}"
+		"#format"	"{1:i}"
 		"en"		"Rank: {1}"
 	}
 	"#TF_PH_Stats_PersonalWins"
 	{
-		"#format"    "{1:i}"
+		"#format"	"{1:i}"
 		"en"		"Wins: {1}"
 	}
 	"#TF_PH_Stats_PersonalLosses"
 	{
-		"#format"    "{1:i}"
+		"#format"	"{1:i}"
 		"en"		"Losses: {1}"
 	}
 	"#TF_PH_Stats_PersonalWinLoss"
 	{
-		"#format"    "{1:s}"
+		"#format"	"{1:s}"
 		"en"		"Win/Loss Ratio: {1}"
 	}
 	"#TF_PH_Stats_PersonalScore"
 	{
-		"#format"    "{1:i}"
+		"#format"	"{1:i}"
 		"en"		"Score: {1}"
 	}
 	"#TF_PH_Stats_PersonalTime"
 	{
-		"#format"    "{1:i}"
+		"#format"	"{1:i}"
 		"en"		"Time played: {1} hour(s)"
 	}
 	"#TF_PH_PluginReload"
@@ -107,22 +107,22 @@
 	}
 	"#TF_PH_NowDisguised"
 	{
-		"#format"    "{1:s}"
+		"#format"	"{1:s}"
 		"en"		"{default}You are now disguised as a: {lightgreen}{1}"
 	}
 	"#TF_PH_Stats_StatsMe"
 	{
-		"#format"    "{1:s},{2:i},{3:i},{4:i},{5:i},{6:i}"
+		"#format"	"{1:s},{2:i},{3:i},{4:i},{5:i},{6:i}"
 		"en"		"{1} is on rank {2} with {3} score ({4} wins and {5} losses). Time played {6} hours."
 	}
 	"#TF_PH_BalanceBlu"
 	{
-		"#format"   "{1:s}"
+		"#format"	"{1:s}"
 		"en"		"Moving {1} to Hunters (BLU) to balance the teams."
 	}
 	"#TF_PH_BalanceRed"
 	{
-		"#format"   "{1:s}"
+		"#format"	"{1:s}"
 		"en"		"Moving {1} to Props (RED) to balance the teams."
 	}
 	"#TF_PH_ClassBlocked"
@@ -135,7 +135,7 @@
 	}
 	"#TF_PH_ModeName"
 	{
-		"en"		"PropHunt Redux"
+		"en"		"PropHunt"
 	}
 	"#TF_PH_PropMenuNotRedOrAlive"
 	{
@@ -165,4 +165,73 @@
 	{
 		"en"		"You already rerolled this round."
 	}
+	"#TF_PH_PropCantChange"
+	{
+		"en"		"Can't change props while on fire, bleeding, or jarated."
+	}
+	"#TF_PH_PropMenuName"
+	{
+		"en"		"PropHunt Prop Menu"
+	}
+	"#TF_PH_Restricted"
+	{
+		"en"		"Restricted"
+	}
+	"#TF_PH_RestrictedAllowed"
+	{
+		"en"		"Restricted - Allowed"
+	}
+	"#TF_PH_RestrictedDenied"
+	{
+		"en"		"Restricted - Denied"
+	}
+	"#TF_PH_ConfigName"
+	{
+		"en"		"PropHunt Configuration"
+	}
+	"#TF_PH_ConfigVersion"
+	{
+		"#format"	"{1:s}"
+		"en"		"PropHunt Redux Version: {1}"
+	}
+	"#TF_PH_ConfigAirblast"
+	{
+		"#format"	"{1:t}"
+		"en"		"Airblast: {1}"
+	}
+	"#TF_PH_ConfigPropMenu"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Menu: {1}"
+	}
+	"#TF_PH_ConfigPropMenuRestrict"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Menu Restrict: {1}"
+	}
+	"#TF_PH_ConfigPropChange"
+	{
+		"#format"	"{1:t}"
+		"en"		"Burning/Bleeding Blocks Prop Change: {1}"
+	}
+	"#TF_PH_ConfigPropReroll"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prop Reroll: {1}"
+	}
+	"#TF_PH_ConfigPreventFallDamage"
+	{
+		"#format"	"{1:t}"
+		"en"		"Prevent Fall Damage: {1}"
+	}
+	"#TF_PH_ConfigSetupTime"
+	{
+		"#format"	"{1:d}"
+		"en"		"Setup Time: {1}"
+	}
+	"#TF_PH_ConfigStats"
+	{
+		"en"		"Server is Stats Tracked. /ph_stats to view"
+	}
+
 }
