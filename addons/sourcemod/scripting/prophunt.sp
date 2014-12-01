@@ -91,11 +91,6 @@
 // Default: ON
 #define DHOOKS
 
-// Include support for the game sounds functions?
-// Note: Requires SourceMod 1.6.1 or newer.
-// Default: ON
-#define GAMESOUNDS
-
 // Give last prop a scattergun and apply jarate to all pyros on last prop alive
 // Default: ON
 #define SCATTERGUN
@@ -1401,9 +1396,7 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
 				
-#if defined GAMESOUNDS
 				PrecacheScriptSound(soundString);
-#endif
 				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
@@ -2682,17 +2675,13 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
-#if defined GAMESOUNDS
 		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
 		{
-#endif
 			new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
 			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
 			SetEventString(broadcastEvent, "sound", sample);
 			FireEvent(broadcastEvent);
-#if defined GAMESOUNDS
 		}
-#endif
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
@@ -2710,12 +2699,10 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 	
 	new bool:emitted = false;
 
-#if defined GAMESOUNDS
 	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
-#endif
 
 	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
