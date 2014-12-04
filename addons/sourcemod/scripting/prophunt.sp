@@ -4311,7 +4311,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		//TF2_RegeneratePlayer(client);
+		TF2_RegeneratePlayer(client);
 		
 #if defined LOG
 		LogMessage("[PH] do equip %N", client);
