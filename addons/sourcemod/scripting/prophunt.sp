@@ -2678,7 +2678,7 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 		if (!EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime))
 		{
 			new Handle:broadcastEvent = CreateEvent("teamplay_broadcast_audio");
-			SetEventInt(broadcastEvent, "team", -1); // despite documentation saying otherwise, it's team -1 for all (docs say team 0)
+			SetEventInt(broadcastEvent, "team", 0); // despite documentation saying otherwise, it's team -1 for all (docs say team 0). Edit: changed from -1 to 0 in a 2014 update
 			SetEventString(broadcastEvent, "sound", sample);
 			FireEvent(broadcastEvent);
 		}
@@ -4714,7 +4714,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			return Plugin_Stop;
 		}
 	
-		// Block wearablesfor Props
+		// Block wearables for Props
 		// From testing, Action items still work even if you block them
 		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
 		//  was open before round start and can only be used once
