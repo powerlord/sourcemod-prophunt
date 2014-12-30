@@ -61,7 +61,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0 alpha 1"
+#define PL_VERSION "3.4.0 alpha 2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -250,6 +250,7 @@ enum
 }
 
 new bool:g_RoundOver = true;
+new bool:g_inSetup = false;
 new bool:g_inPreRound = true;
 
 new bool:g_LastProp;
@@ -346,6 +347,7 @@ new Handle:g_PHSetupLength = INVALID_HANDLE;
 new Handle:g_PHDamageBlocksPropChange = INVALID_HANDLE;
 new Handle:g_PHPropMenuNames = INVALID_HANDLE;
 new Handle:g_PHMultilingual = INVALID_HANDLE;
+new Handle:g_PHRespawnDuringSetup = INVALID_HANDLE;
 
 new String:g_AdText[128] = "";
 
@@ -503,6 +505,12 @@ new Handle:g_hSwitchTeams;
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	MarkNativeAsOptional("Steam_SetGameDescription");
+	
+	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
+	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
+	
+	RegPluginLibrary("prophuntredux");
+	
 	return APLRes_Success;
 }
 
@@ -564,6 +572,7 @@ public OnPluginStart()
 	g_PHDamageBlocksPropChange = CreateConVar("ph_burningblockspropchange", "1", "Block Prop Change while players are bleeding, jarated, or on fire? (Fixes bugs)", _, true, 0.0, true, 1.0);
 	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu? This is disabled by default for compatibility reasons.", _, true, 0.0, true, 1.0);
 	g_PHMultilingual = CreateConVar("ph_multilingual", "0", "Use multilingual support? Uses more Handles if enabled. Disabled by default as we have no alternate languages (yet)", _, true, 0.0, true, 1.0);
+	g_PHRespawnDuringSetup = CreateConVar("ph_respawnduringsetup", "1", "If a player dies during setup, should we respawn them?", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -613,6 +622,7 @@ public OnPluginStart()
 	HookEvent("arena_win_panel", Event_arena_win_panel);
 	HookEvent("post_inventory_application", Event_post_inventory_application);
 	HookEvent("teamplay_broadcast_audio", Event_teamplay_broadcast_audio, EventHookMode_Pre);
+	HookEvent("teamplay_round_start", Event_teamplay_round_start_pre, EventHookMode_Pre);
 	HookEvent("teamplay_round_start", Event_teamplay_round_start);
 	HookEvent("teamplay_restart_round", Event_teamplay_restart_round);
 	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished); // No longer used since 2.0.3 or so because of issues with certain maps
@@ -1968,15 +1978,18 @@ public OnMapStart()
 		}
 		CloseHandle(fl);
 		
-		decl String:tidyname[2][32], String:maptidyname[128];
-		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
-		Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
-		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
+		if (!FindConfigFileForMap(g_Mapname, confil, sizeof(confil)))
+		{
+			LogMessage("[PH] Config file for map %s not found. Disabling plugin.", g_Mapname);
+			g_Enabled = false;
+			return;
+		}
+		
 		fl = CreateKeyValues("prophuntmapconfig");
 		
 		if(!FileToKeyValues(fl, confil))
 		{
-			LogMessage("[PH] Config file for map %s not found at %s. Disabling plugin.", maptidyname, confil);
+			LogMessage("[PH] Config file for map %s at %s could not be opened. Disabling plugin.", g_Mapname, confil);
 			CloseHandle(fl);
 			g_Enabled = false;
 			return;
@@ -2040,6 +2053,7 @@ public OnMapStart()
 	}
 	g_LastPropPlayer = 0;
 	g_RoundOver = true;
+	g_inSetup = false;
 	//g_inPreRound = true;
 	
 	// Clear the replacement weapon list
@@ -3482,15 +3496,8 @@ TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
 	}
 }
 
-public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (HasSwitchedTeams())
-	{
-		SwitchTeamScoresClassic();
-	}
-	
-	StopTimers();
-
 	switch (g_RoundChange)
 	{
 		case RoundChange_Enable:
@@ -3512,6 +3519,18 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 			g_RoundChange = RoundChange_NoChange;			
 		}
 	}
+	
+	return Plugin_Continue;
+}
+
+public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if (HasSwitchedTeams())
+	{
+		SwitchTeamScoresClassic();
+	}
+	
+	StopTimers();
 	
 	if (!g_Enabled)
 		return;
@@ -3591,6 +3610,8 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	
 	if (!g_Enabled)
 		return;
+	
+	g_inSetup = true;
 	
 	g_RoundCurrent++;
 	
@@ -3766,6 +3787,12 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		SDKUnhook(client, SDKHook_PreThink, PreThinkHook);
 	}
 
+	if(g_inSetup && GetConVarBool(g_PHRespawnDuringSetup))
+	{
+		CreateTimer(0.1, Timer_Respawn, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+		return Plugin_Continue;
+	}
+	
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
 	
@@ -3865,6 +3892,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 ///////////////////  TIMERS  ////////////////////////
 ////////////////////////////////////////////////////
 
+public Action:Timer_Respawn(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (client > 0)
+	{
+		TF2_RespawnPlayer(client);
+	}
+}
 
 public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
@@ -4167,8 +4202,11 @@ public Action:Timer_Score(Handle:timer)
 	CPrintToChatAll("%t", "#TF_PH_CPBonusRefreshed");
 }
 
+// Currently not connected to anything
+// Turns out the teamplay_update_timer event isn't strictly necessary
 public OnSetupStart(const String:output[], caller, activator, Float:delay)
 {
+	g_inSetup = true;
 	new Handle:event = CreateEvent("teamplay_update_timer");
 	if (event != INVALID_HANDLE)
 	FireEvent(event);
@@ -4188,6 +4226,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	LogMessage("[PH] Setup_Finish");
 #endif
 	g_RoundOver = false;
+	g_inSetup = false;
 
 	for(new client2=1; client2 <= MaxClients; client2++)
 	{
@@ -4430,13 +4469,7 @@ public MultiMod_TranslateName(client, String:translation[], maxlength)
 
 public bool:ValidateMap(const String:map[])
 {
-	// As per SourceMod standard, anything dealing with map names should now be PLATFORM_MAX_PATH long
-	new String:confil[PLATFORM_MAX_PATH], String:tidyname[2][PLATFORM_MAX_PATH], String:maptidyname[PLATFORM_MAX_PATH];
-	ExplodeString(map, "_", tidyname, sizeof(tidyname), sizeof(tidyname[]));
-	Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
-	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
-
-	return FileExists(confil, true);
+	return FindConfigFileForMap(map);
 }
 
 // These functions are based on versions taken from CS:S/CS:GO Hide and Seek
@@ -4599,4 +4632,100 @@ stock SwitchTeamScores(redScore, bluScore)
 	SetVariantInt(redScore - bluScore);
 	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
 	
+}
+
+bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen = 0)
+{
+	new String:mapPiece[PLATFORM_MAX_PATH];
+	RemoveMapPath(map, mapPiece, sizeof(mapPiece));
+	
+	new String:confil[PLATFORM_MAX_PATH];
+	
+	// Optimization so we don't immediately rebuild the whole string after ExplodeString
+	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", mapPiece);
+	if (FileExists(confil))
+	{
+		strcopy(destination, maxlen, confil);
+		return true;
+	}
+	
+	new String:fileParts[4][PLATFORM_MAX_PATH];
+	new count = ExplodeString(mapPiece, "_", fileParts, sizeof(fileParts), sizeof(fileParts[])) - 1;
+	
+	while (count > 0)
+	{
+		mapPiece[0] = '\0';
+		ImplodeStrings(fileParts, count, "_", mapPiece, sizeof(mapPiece));
+		
+		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", mapPiece);
+		
+		if (FileExists(confil))
+		{
+			strcopy(destination, maxlen, confil);
+			return true;
+		}
+		
+		count--;
+	}
+	
+	destination[0] = '\0'; // In case of decl
+	return false;
+}
+
+/**
+ * Remove the path from the map name
+ * This was intended to remove workshop paths.
+ * Used internally by MapEqual and FindMapStringInArray.
+ * 
+ * @param map			Map name
+ * @param destination	String to copy map name to
+ * @param maxlen		Length of destination string
+ * 
+ * @return			True if path was removed, false if map and destination are the same
+ */
+stock bool:RemoveMapPath(const String:map[], String:destination[], maxlen)
+{
+	if (strlen(map) < 1)
+	{
+		ThrowError("Bad map name: %s", map);
+	}
+	
+	// UNIX paths
+	new pos = FindCharInString(map, '/', true);
+	if (pos == -1)
+	{
+		// Windows paths
+		pos = FindCharInString(map, '\\', true);
+		if (pos == -1)
+		{
+			// Copy the path out unchanged, but return false
+			// This was added by request, but also simplifies MapEqual a LOT
+			strcopy(destination, maxlen, map);
+			return false;
+		}
+	}
+
+	// pos + 1 is because pos is the last / or \ location and we want to start one char further
+	// maxlen is because strcopy will auto-stop if it hits '\0' before maxlen
+	strcopy(destination, maxlen, map[pos+1]);
+	
+	return true;
+}
+
+// Natives
+
+public Native_ValidateMap(Handle:plugin, numParams)
+{
+	new mapLength;
+	GetNativeStringLength(1, mapLength);
+	
+	new String:map[mapLength+1];
+	GetNativeString(1, map, mapLength+1);
+	
+	return ValidateMap(map);
+}
+
+public Native_IsRunning(Handle:plugin, numParams)
+{
+	return g_Enabled;
 }
