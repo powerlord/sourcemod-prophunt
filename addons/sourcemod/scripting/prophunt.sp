@@ -3286,6 +3286,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		return;
 
 	// We use this value for non-stats things now, too.
+	// Except now we're trying a different solution
 	new winner = GetEventInt(event, "winning_team");
 
 #if defined STATS
@@ -3294,7 +3295,9 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 
 	if (Internal_ShouldSwitchTeams())
 	{
-		
+		/*
+		 * Check if we need this or if classic works
+		  
 		new redScore;
 		new bluScore;
 		
@@ -3317,14 +3320,16 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 			redScore = GetEventInt(event, "red_score_prev");
 			bluScore = GetEventInt(event, "blue_score_prev");
 		}
-		
+		SwitchTeamScores(redScore, bluScore);
+
+		*/
+
 #if defined SWITCH_TEAMS
 		// This is OK as arena_win_panel is fired *after* SetWinningTeam is called.
 		SetSwitchTeams(true);
 #else
 		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
 #endif
-		SwitchTeamScores(redScore, bluScore);
 	}
 	
 	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
@@ -3479,6 +3484,11 @@ TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	if (HasSwitchedTeams())
+	{
+		SwitchTeamScoresClassic();
+	}
+	
 	StopTimers();
 
 	switch (g_RoundChange)
@@ -4534,6 +4544,11 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 	}
 }
 
+bool:HasSwitchedTeams()
+{
+	return bool:GameRules_GetProp("m_bSwitchedTeamsThisRound");
+}
+
 SetSwitchTeams(bool:bSwitchTeams)
 {
 	// Note, this doesn't switch team scores... those are switched when SetWinner is called in the game
@@ -4544,7 +4559,29 @@ SetSwitchTeams(bool:bSwitchTeams)
 // Manually switch the scores.
 // The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
 // This is what DHooks did, but Arena confused it anyway and it only sometimes worked
-SwitchTeamScores(redScore, bluScore)
+SwitchTeamScoresClassic()
+{
+	new propScore = GetTeamScore(TEAM_PROP);
+	new hunterScore = GetTeamScore(TEAM_HUNTER);
+	
+	if (propScore == 0 && hunterScore == 0)
+	{
+		return;
+	}
+	
+#if defined LOG
+	LogMessage("[PH] Swapping team scores: Props: %d, Hunters: %d", propScore, hunterScore);
+#endif
+
+	SetTeamScore(TEAM_PROP, hunterScore);
+	SetTeamScore(TEAM_HUNTER, propScore);
+}
+
+// Only needed if SwitchTeamScoresClassic doesn't work (needs testing)
+// Manually switch the scores.
+// The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
+// This is what DHooks did, but Arena confused it anyway and it only sometimes worked
+stock SwitchTeamScores(redScore, bluScore)
 {
 	/*
 	 * Switch team scores
@@ -4561,4 +4598,5 @@ SwitchTeamScores(redScore, bluScore)
 	
 	SetVariantInt(redScore - bluScore);
 	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
+	
 }
