@@ -62,6 +62,10 @@
 #define MAXLANGUAGECODE 4
 
 #define PL_VERSION "3.4.0 alpha 2"
+
+// sv_tags has a 255 limit
+#define SV_TAGS_SIZE 255 
+
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -328,10 +332,12 @@ new Handle:g_Text2 = INVALID_HANDLE;
 new Handle:g_Text3 = INVALID_HANDLE;
 new Handle:g_Text4 = INVALID_HANDLE;
 
+// PropHunt Redux Menus
 //new Handle:g_RoundTimer = INVALID_HANDLE;
 new Handle:g_PropMenu = INVALID_HANDLE;
 new Handle:g_ConfigMenu = INVALID_HANDLE;
 
+// PropHunt Redux CVars
 new Handle:g_PHEnable = INVALID_HANDLE;
 new Handle:g_PHPropMenu = INVALID_HANDLE;
 new Handle:g_PHPropMenuRestrict = INVALID_HANDLE;
@@ -403,9 +409,12 @@ new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
 
+// Regular convars
 #if !defined SWITCH_TEAMS
 new Handle:g_hBonusRoundTime;
 #endif
+new Handle:g_hTags;
+
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
@@ -504,6 +513,12 @@ new Handle:g_hSwitchTeams;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
+	if (GetEngineVersion() != Engine_TF2)
+	{
+		strcopy(error, err_max, "PropHunt Redux only works on Team Fortress 2.");
+		return APLRes_Failure;
+	}
+	
 	MarkNativeAsOptional("Steam_SetGameDescription");
 	
 	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
@@ -596,6 +611,8 @@ public OnPluginStart()
 #if !defined SWITCH_TEAMS
 	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
 #endif
+
+	g_hTags = FindConVar("sv_tags");
 	
 	HookConVarChange(g_PHEnable, OnEnabledChanged);
 	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
@@ -615,6 +632,7 @@ public OnPluginStart()
 
 	AddServerTag("PropHunt");
 
+	// Events
 	HookEvent("player_spawn", Event_player_spawn);
 	HookEvent("player_team", Event_player_team);
 	HookEvent("player_death", Event_player_death, EventHookMode_Pre);
@@ -1425,6 +1443,11 @@ public OnConfigsExecuted()
 	if (g_Enabled)
 	{
 		SetCVars();
+		Internal_AddServerTag();
+	}
+	else
+	{
+		Internal_RemoveServerTag();
 	}
 	
 	UpdateGameDescription(true);
@@ -3508,6 +3531,8 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;
 			g_RoundCurrent = 0;
+			
+			Internal_AddServerTag();
 		}
 		
 		case RoundChange_Disable:
@@ -3517,6 +3542,8 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 			
 			UpdateGameDescription();
 			g_RoundChange = RoundChange_NoChange;			
+
+			Internal_RemoveServerTag();
 		}
 	}
 	
@@ -4728,4 +4755,84 @@ public Native_ValidateMap(Handle:plugin, numParams)
 public Native_IsRunning(Handle:plugin, numParams)
 {
 	return g_Enabled;
+}
+
+Internal_AddServerTag()
+{
+	new String:tags[SV_TAGS_SIZE+1];
+	GetConVarString(g_hTags, tags, sizeof(tags));
+	
+	if (StrContains(tags, "PropHunt", false) == -1)
+	{
+		new String:tagArray[20][SV_TAGS_SIZE+1];
+		new count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
+
+		if (count < sizeof(tagArray))
+		{
+			tagArray[count] = "PropHunt";
+			
+			ImplodeStrings(tagArray, count+1, ",", tags, sizeof(tags));
+			SetConVarString(g_hTags, tags);
+		}
+	}
+}
+
+Internal_RemoveServerTag()
+{
+	new String:tags[SV_TAGS_SIZE+1];
+	GetConVarString(g_hTags, tags, sizeof(tags));
+	
+	if (StrContains(tags, "PropHunt", false) == -1)
+	{
+		new String:tagArray[20][SV_TAGS_SIZE+1];
+		new count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
+
+		for (new i = count - 1; i >= 0; i--)
+		{
+			TrimString(tagArray[i]);
+			if (StrEqual(tagArray[i], "PropHunt", false))
+			{
+				count--;
+
+				// Move all elements above this one down by one
+				for (new j = i; j < count; j++)
+				{
+					tagArray[j] = tagArray[j+1];
+				}
+			}
+		}
+		
+		ImplodeStrings(tagArray, count, ",", tags, sizeof(tags));
+		SetConVarString(g_hTags, tags);
+	}
+	
+}
+
+// Below this point are the forward calls
+// They're here so we have the code to call them organized.
+
+stock DbRound(winner)
+{
+	Call_StartForward(g_fStatsRoundWin);
+	Call_PushCell(winner);
+	Call_Finish();
+}
+
+stock AlterScore(client, SCReason:reason)
+{
+	Call_StartForward(g_fStatsAlterScore);
+	Call_PushCell(client);
+	Call_PushCell(reason);
+	Call_Finish();
+}
+
+stock PlayerKilled(clientID, attackerID, assisterID, weaponid, const String:weapon[])
+{
+	Call_StartForward(g_fStatsPlayerKilled);
+	Call_PushCell(clientID);
+	Call_PushCell(attackerID);
+	Call_PushCell(assisterID);
+	Call_PushCell(weaponID);
+	Call_PushString(weapon);
+	Call_Finish();
 }

@@ -42,12 +42,17 @@
 
 // PropHunt Redux 3.4+ series
 
+#include <tf2>
+
+#define TEAM_PROP _:TFTeam_Red
+#define TEAM_HUNTER _:TFTeam_Blue
+
 enum ScReason
 {
 	ScReason_TeamWin = 0,
 	ScReason_TeamLose,
-	ScReason_Death, // Not used in default scoring
-	ScReason_Kill, // Not used in default scoring
+	ScReason_Death, // Not used in default scoring, passed as PropHuntRedux_Stats_PlayerKilled instead
+	ScReason_Kill, // Not used in default scoring, passed as PropHuntRedux_Stats_PlayerKilled instead
 	ScReason_Time,
 	ScReason_Friendly // Not used in default scoring, friendly fire has been disabled by default in PH for years.
 };
@@ -68,22 +73,24 @@ native bool:PropHuntRedux_IsRunning();
  */
 native bool:PropHuntRedux_ValidateMap(const String:map[]);
 
-functag public PropHuntRedux_Stats_Init();
-functag public PropHuntRedux_Stats_Uninit();
+//functag public PropHuntRedux_Stats_Init();
+//functag public PropHuntRedux_Stats_Uninit();
 
-functag public PropHuntRedux_Stats_RoundWin(winner);
+//functag public PropHuntRedux_Stats_RoundWin(winner);
 
-// Note that score is no longer passed.  The stats plugin should decide when this is passed.
+// Note that score is no longer passed.  The stats plugin should decide what the score is.
 // In classic PH stats, time is 2 points, win is 3 points, lose is -1 point.
 // In Redux, time is awarded to props once when Setup ends and then every 55 seconds afterwards until round end.
 // This replaces the "awarded every 55 seconds" behavior that happened regardless of what was going on.
-functag public PropHuntRedux_Stats_AlterScore(client, SCReason:reason);
+//functag public PropHuntRedux_Stats_AlterScore(client, SCReason:reason);
+
+//functag public PropHuntRedux_Stats_PlayerKilled(clientID, attackerID, assisterID, weaponid, const String:weapon[]);
 
 // Note: Not finished, stopped here
 // We still need a native to register stuff and possibly more stats functions
 
-//functag public PropHuntRedux_StatsClientConnected(client);
-//functag public PropHuntRedux_StatsClientDisconnected(client);
+//functag public PropHuntRedux_Stats_ClientConnected(client);
+//functag public PropHuntRedux_Stats_ClientDisconnected(client);
 
 public SharedPlugin:__pl_prophunt_redux = 
 {
