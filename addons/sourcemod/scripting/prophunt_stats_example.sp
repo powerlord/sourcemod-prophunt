@@ -38,12 +38,24 @@
 
 #define VERSION "1.0.0"
 
+#define DATABASE "prophuntstats"
+
 new Handle:g_Cvar_Enabled;
 
 new Handle:g_hDb;
 new Handle:g_hScoreTimer;
 
 new bool:isPropHuntRound = false;
+
+enum DBType
+{
+	DBType_Unknown,
+	DBType_MySQL,
+	DBType_SQLite,
+	DBType_PostgreSQL
+}
+
+new DBType:g_DBType;
 
 public Plugin:myinfo = {
 	name			= "PropHunt Stats Example",
@@ -64,12 +76,40 @@ public OnPluginStart()
 	
 	// DB Connect logic here
 	new String:error[255];
-	g_hDb = SQL_Connect("prophuntstats", true, error, sizeof(error));
+	
+	if (!SQL_CheckConfig(DATABASE))
+	{
+		SetFailState("No database configuration for %s", DATABASE);
+	}
+	
+	// We want a persistent connection as we continually do updates (minimum of every 55 seconds)
+	g_hDb = SQL_Connect(DATABASE, true, error, sizeof(error));
 	
 	if (g_hDb == INVALID_HANDLE)
 	{
 		SetFailState("Error connecting to database: %s", error);
 	}
+	
+	new String:driver[64];
+	SQL_ReadDriver(g_hDb, driver, sizeof(driver));
+	
+	if (StrEqual(driver, "mysql", false))
+	{
+		g_DBType = DBType_MySQL;
+	}
+	else if (StrEqual(driver, "sqlite", false))
+	{
+		g_DBType = DBType_SQLite;
+	}
+	else if (StrEqual(driver, "pgsql", false))
+	{
+		g_DBType = DBType_PostgreSQL;
+	}
+	
+	RegConsoleCmd("rank", Cmd_Rank);
+	RegConsoleCmd("statsme", Cmd_StateMe);
+	RegConsoleCmd("top10", Cmd_Top10);
+	RegConsoleCmd("stats", Cmd_Stats);
 }
 
 public OnPluginEnd()
