@@ -40,6 +40,9 @@
 
 #define DATABASE "prophuntstats"
 
+const SQLNameLength = MAX_NAME_LENGTH*2+1;
+const Steam2IdLength = 20; // STEAM_0:0:1234567890 <-- this is 1 larger than currently needed, but just to make sure...
+
 new Handle:g_Cvar_Enabled;
 
 new Handle:g_hDb;
@@ -67,6 +70,9 @@ public Plugin:myinfo = {
 
 public OnPluginStart()
 {
+	LoadTranslations("common.phrases");
+	LoadTranslations("prophunt.phrases");
+	
 	CreateConVar("prophunt_stats_example_version", VERSION, "PropHunt Stats Example version", FCVAR_PLUGIN|FCVAR_NOTIFY|FCVAR_DONTRECORD|FCVAR_SPONLY);
 	g_Cvar_Enabled = CreateConVar("prophunt_stats_example_enable", "1", "Enable PropHunt Stats Example?", FCVAR_PLUGIN|FCVAR_NOTIFY|FCVAR_DONTRECORD, true, 0.0, true, 1.0);
 	
@@ -74,6 +80,16 @@ public OnPluginStart()
 	HookEvent("teamplay_round_win", Event_RoundWin);
 	HookEvent("player_death", Event_PlayerDeath);
 	
+	RegConsoleCmd("rank", Cmd_Rank);
+	RegConsoleCmd("statsme", Cmd_StatsMe);
+	RegConsoleCmd("top10", Cmd_Top10);
+	RegConsoleCmd("stats", Cmd_Stats);
+	
+	DBConnect();
+}
+
+DBConnect()
+{
 	// DB Connect logic here
 	new String:error[255];
 	
@@ -87,7 +103,8 @@ public OnPluginStart()
 	
 	if (g_hDb == INVALID_HANDLE)
 	{
-		SetFailState("Error connecting to database: %s", error);
+		LogError("%T: %s", "Could not connect to database", LANG_SERVER, error);
+		return;
 	}
 	
 	new String:driver[64];
@@ -105,11 +122,6 @@ public OnPluginStart()
 	{
 		g_DBType = DBType_PostgreSQL;
 	}
-	
-	RegConsoleCmd("rank", Cmd_Rank);
-	RegConsoleCmd("statsme", Cmd_StateMe);
-	RegConsoleCmd("top10", Cmd_Top10);
-	RegConsoleCmd("stats", Cmd_Stats);
 }
 
 public OnPluginEnd()
@@ -121,6 +133,130 @@ public OnMapStart()
 {
 	// assume false until round start
 	isPropHuntRound = false;
+}
+
+public OnClientPostAdminCheck(client)
+{
+	if (!IsClientInGame(client) || IsFakeClient(client))
+	{
+		return;
+	}
+	
+	new String:steamid[Steam2IdLength+1];
+	if (!GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid)))
+	{
+		return;
+	}
+	
+	new escapedSteamidLength = strlen(steamid)*2+1;
+	new String:escapedSteamid[escapedSteamidLength];
+	SQL_EscapeString(g_hDb, steamid, escapedSteamid, escapedSteamidLength);
+	
+	new userId = GetClientUserId(client);
+	
+	new Handle:data = CreateDataPack();
+	WritePackCell(data, userId);
+	WritePackString(data, escapedSteamid);
+	
+	new String:query[256];
+	Format(query, sizeof(query), "SELECT steamid FROM players WHERE steamid = '%s'", escapedSteamid);
+	SQL_TQuery(g_hDb, Query_DoesUserExist, query, data, DBPrio_High);
+}
+
+public Query_DoesUserExist(Handle:owner, Handle:hndl, const String:error[], any:data)
+{
+	if (hndl == INVALID_HANDLE)
+	{
+		LogError("Database error during user lookup: %s", error);
+		CloseHandle(data);
+		return;
+	}
+	
+	ResetPack(data);
+	
+	new userid = ReadPackCell(data);
+	new client = GetClientOfUserId(userid);
+		
+	// Check if client disconnected
+	if (client == 0)
+	{
+		CloseHandle(data);
+		return;
+	}
+	
+	new String:escapedSteamid[Steam2IdLength*2+1];
+	ReadPackString(data, escapedSteamid, sizeof(escapedSteamid));
+	
+	CloseHandle(data);
+
+	if (!SQL_GetRowCount(hndl))
+	{
+		new String:name[MAX_NAME_LENGTH+1];
+		GetClientName(client, name, sizeof(name));
+		
+		new escapedNameLength = strlen(name)*2+1;
+		new String:escapedName[escapedNameLength];
+		SQL_EscapeString(g_hDb, name, escapedName, escapedNameLength);
+
+		new String:query[384];
+		Format(query, sizeof(query), "INSERT INTO players (steamid, name)", escapedSteamid, escapedName);
+		SQL_TQuery(g_hDb, Query_CreateUser, query, userid, DBPrio_High);
+	}
+	
+}
+
+public Query_CreateUser(Handle:owner, Handle:hndl, const String:error[], any:data)
+{
+	if (hndl == INVALID_HANDLE)
+	{
+		LogError("Database error during user creation: %s", error);
+		return;
+	}
+}
+
+public OnClientDisconnect_Post(client)
+{
+	
+}
+
+public Action:Cmd_Rank(client, args)
+{
+	if (client == 0)
+	{
+		ReplyToCommand(client, "%t", "Command is in-game only");
+		return Plugin_Handled;
+	}
+	
+	new String:steamid[Steam2IdLength+1];
+	if (!GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid)))
+	{
+		ReplyToCommand(client, "%t", "Target is not in game");
+		return Plugin_Handled;
+	}
+	
+	new escapedSteamidLength = strlen(steamid)*2+1;
+	new String:escapedSteamid[escapedSteamidLength];
+	SQL_EscapeString(g_hDb, steamid, escapedSteamid, escapedSteamidLength);
+	
+	new userId = GetClientUserId(client);
+	
+	// This query probably works in MySQL, but likely not in SQLite
+	new String:query[392];
+	Format(query, sizeof(query), "SELECT points, wins, losses, a.rank, time FROM players, (SELECT COUNT(*)+1 as rank FROM players WHERE points > (SELECT points FROM players WHERE steamid = '%s')) WHERE steamid = '%s'");
+	
+	return Plugin_Handled;
+}
+
+public Action:Cmd_StatsMe(client, args)
+{
+}
+
+public Action:Cmd_Top10(client, args)
+{
+}
+
+public Action:Cmd_Stats(client, args)
+{
 }
 
 public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
