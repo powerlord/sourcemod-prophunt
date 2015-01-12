@@ -48,7 +48,12 @@ new Handle:g_Cvar_Enabled;
 new Handle:g_hDb;
 new Handle:g_hScoreTimer;
 
+new Handle:g_hUsersCreating;
+
 new bool:isPropHuntRound = false;
+
+new g_PointCount[MAXPLAYERS+1];
+new g_ClientTime[MAXPLAYERS+1];
 
 enum DBType
 {
@@ -86,6 +91,8 @@ public OnPluginStart()
 	RegConsoleCmd("stats", Cmd_Stats);
 	
 	DBConnect();
+	
+	g_hUsersCreating = CreateArray(ByteCountToCells(Steam2IdLength + 1));
 }
 
 DBConnect()
@@ -106,6 +113,8 @@ DBConnect()
 		LogError("%T: %s", "Could not connect to database", LANG_SERVER, error);
 		return;
 	}
+	
+	SQL_SetCharset(g_hDb, "utf8");
 	
 	new String:driver[64];
 	SQL_ReadDriver(g_hDb, driver, sizeof(driver));
@@ -148,19 +157,22 @@ public OnClientPostAdminCheck(client)
 		return;
 	}
 	
-	new escapedSteamidLength = strlen(steamid)*2+1;
-	new String:escapedSteamid[escapedSteamidLength];
-	SQL_EscapeString(g_hDb, steamid, escapedSteamid, escapedSteamidLength);
+	if (FindStringInArray(g_hUsersCreating, steamid) != -1)
+	{
+		new escapedSteamidLength = strlen(steamid)*2+1;
+		new String:escapedSteamid[escapedSteamidLength];
+		SQL_EscapeString(g_hDb, steamid, escapedSteamid, escapedSteamidLength);
+		
+		new userId = GetClientUserId(client);
+		
+		new Handle:data = CreateDataPack();
+		WritePackCell(data, userId);
+		WritePackString(data, escapedSteamid);
 	
-	new userId = GetClientUserId(client);
-	
-	new Handle:data = CreateDataPack();
-	WritePackCell(data, userId);
-	WritePackString(data, escapedSteamid);
-	
-	new String:query[256];
-	Format(query, sizeof(query), "SELECT steamid FROM players WHERE steamid = '%s'", escapedSteamid);
-	SQL_TQuery(g_hDb, Query_DoesUserExist, query, data, DBPrio_High);
+		new String:query[256];
+		Format(query, sizeof(query), "SELECT steamid FROM players WHERE steamid = '%s'", escapedSteamid);
+		SQL_TQuery(g_hDb, Query_DoesUserExist, query, data, DBPrio_High);
+	}
 }
 
 public Query_DoesUserExist(Handle:owner, Handle:hndl, const String:error[], any:data)
@@ -184,13 +196,22 @@ public Query_DoesUserExist(Handle:owner, Handle:hndl, const String:error[], any:
 		return;
 	}
 	
-	new String:escapedSteamid[Steam2IdLength*2+1];
-	ReadPackString(data, escapedSteamid, sizeof(escapedSteamid));
+	new String:steamid[Steam2IdLength+1];
+	ReadPackString(data, steamid, sizeof(steamid));
 	
-	CloseHandle(data);
-
 	if (!SQL_GetRowCount(hndl))
 	{
+		if (FindStringInArray(g_hUsersCreating, steamid) != -1)
+		{
+			CloseHandle(data);
+			
+			return;
+		}
+		
+		new escapedSteamidLength = strlen(steamid)*2+1;
+		new String:escapedSteamid[escapedSteamidLength];
+		SQL_EscapeString(g_hDb, steamid, escapedSteamid, escapedSteamidLength);
+		
 		new String:name[MAX_NAME_LENGTH+1];
 		GetClientName(client, name, sizeof(name));
 		
@@ -198,9 +219,33 @@ public Query_DoesUserExist(Handle:owner, Handle:hndl, const String:error[], any:
 		new String:escapedName[escapedNameLength];
 		SQL_EscapeString(g_hDb, name, escapedName, escapedNameLength);
 
+		new time = GetTime();
 		new String:query[384];
-		Format(query, sizeof(query), "INSERT INTO players (steamid, name)", escapedSteamid, escapedName);
-		SQL_TQuery(g_hDb, Query_CreateUser, query, userid, DBPrio_High);
+		
+		switch (g_DBType)
+		{
+			case DBType_MySQL:
+			{
+				Format(query, sizeof(query), "INSERT IGNORE INTO players (steamid, name, created_on)", escapedSteamid, escapedName, time);
+			}
+			
+			case DBType_SQLite:
+			{
+				Format(query, sizeof(query), "INSERT OR IGNORE INTO players (steamid, name, created_on)", escapedSteamid, escapedName, time);
+				
+			}
+			
+			default:
+			{
+				// In Postgres, use a rule to ignore dupes: http://stackoverflow.com/a/6176044/15880
+				Format(query, sizeof(query), "INSERT INTO players (steamid, name, created_on)", escapedSteamid, escapedName, time);
+			}
+			
+		}
+		
+		SQL_TQuery(g_hDb, Query_CreateUser, query, data, DBPrio_High);
+		
+		PushArrayString(g_hUsersCreating, steamid);
 	}
 	
 }
@@ -212,6 +257,21 @@ public Query_CreateUser(Handle:owner, Handle:hndl, const String:error[], any:dat
 		LogError("Database error during user creation: %s", error);
 		return;
 	}
+	
+	ResetPack(data);
+	
+	ReadPackCell(data); // We don't want the userid this time
+	
+	new String:steamid[Steam2IdLength+1];
+	ReadPackString(data, steamid, sizeof(steamid));
+	
+	new pos = FindStringInArray(g_hUsersCreating, steamid);
+	if (pos > -1)
+	{
+		RemoveFromArray(g_hUsersCreating, pos);
+	}
+	
+	CloseHandle(data);
 }
 
 public OnClientDisconnect_Post(client)

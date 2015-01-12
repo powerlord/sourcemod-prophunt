@@ -73,6 +73,22 @@ native bool:PropHuntRedux_IsRunning();
  */
 native bool:PropHuntRedux_ValidateMap(const String:map[]);
 
+/**
+ * Get the model of a prop.
+ * 
+ * @return	true if client is/was a prop and has a model, false otherwise
+ */
+native bool:PropHuntRedux_GetPropModel(client, String:model[], maxlen);
+
+/**
+ * Get the name of the model of a prop player.
+ * 
+ * Note: Defaults to the server language (likely English)
+ * 
+ * @return	true if client is/was a prop and has a model, false otherwise
+ */
+native bool:PropHuntRedux_GetPropModelName(client, String:name[], maxlen, targetClient=LANG_SERVER);
+
 //functag public PropHuntRedux_Stats_Init();
 //functag public PropHuntRedux_Stats_Uninit();
 

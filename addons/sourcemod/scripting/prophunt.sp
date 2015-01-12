@@ -523,6 +523,8 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	
 	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
 	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
+	CreateNative("PropHuntRedux_GetPropModel", Native_GetModel);
+	CreateNative("PropHuntRedux_GetPropModelName", Native_GetModelName);
 	
 	RegPluginLibrary("prophuntredux");
 	
@@ -4508,7 +4510,17 @@ GetLanguageID(const String:langCode[])
 GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 {
 	decl String:langCode[MAXLANGUAGECODE];
-	GetLanguageInfo(GetClientLanguage(client), langCode, sizeof(langCode));
+	new languageID;
+	if (client == LANG_SERVER)
+	{
+		languageID = GetServerLanguage();
+	}
+	else
+	{
+		languageID = GetClientLanguage(client);
+	}
+	
+	GetLanguageInfo(languageID, langCode, sizeof(langCode));
 #if defined LOG
 	LogMessage("Client is using language code %s", langCode);
 #endif
@@ -4755,6 +4767,40 @@ public Native_ValidateMap(Handle:plugin, numParams)
 public Native_IsRunning(Handle:plugin, numParams)
 {
 	return g_Enabled;
+}
+
+public Native_GetModel(Handle:plugin, numParams)
+{
+	new client = GetNativeCell(1);
+	
+	if (!IsClientInGame(client) || GetClientTeam(client) != TEAM_PROP || strlen(g_PlayerModel[client]) == 0)
+	{
+		return false;
+	}
+	
+	SetNativeString(2, g_PlayerModel[client], GetNativeCell(3));
+	
+	return true;
+}
+
+public Native_GetModelName(Handle:plugin, numParams)
+{
+	new client = GetNativeCell(1);
+	
+	if (!IsClientInGame(client) || GetClientTeam(client) != TEAM_PROP || strlen(g_PlayerModel[client]) == 0)
+	{
+		return false;
+	}
+	
+	new targetClient = GetNativeCell(4);
+	
+	new length = GetNativeCell(3);
+	new String:model[length];
+	
+	GetModelNameForClient(targetClient, g_PlayerModel[client], model, length);
+	
+	SetNativeString(2, model, length);
+	return true;
 }
 
 Internal_AddServerTag()
