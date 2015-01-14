@@ -49,6 +49,7 @@
 #include <steamtools>
 #include <tf2_stocks>
 #include <tf2>
+#include <morecolors>
 #pragma semicolon 1
 
 #define VERSION "1.0.0"
@@ -273,12 +274,27 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	GetEventString(event, "weapon_logclassname", weapon, sizeof(weapon));
 	
 	new client = GetClientOfUserId(clientID);
-	new attacker = GetClientOfUserId(attackerID);
-	new assister = GetClientOfUserId(assisterID);
+	new attacker;
+	if (attackerID > 0)
+	{
+		attacker = GetClientOfUserId(attackerID);
+	}
+	
+	new assister;
+	if (assisterID > 0)
+	{
+		assister = GetClientOfUserId(assisterID);
+	}
 	
 	new String:url[255];
 	Format(url, sizeof(url), "%s/playerkill", server);
 	
+	new String:clientName[MAX_NAME_LENGTH+1];
+	new String:attackerName[MAX_NAME_LENGTH+1];
+	new String:assisterName[MAX_NAME_LENGTH+1];
+	
+	GetClientName(client, clientName, sizeof(clientName));
+		
 	// Note that in the original, this method had no less than 3 DB calls in it.  However, I want to do just one REST call.
 
 	new HTTPRequestHandle:request = Steam_CreateHTTPRequest(HTTPMethod_POST, url);
@@ -287,6 +303,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	Steam_SetHTTPRequestGetOrPostParameter(request, "clientSteamId", g_sSteam2IDs[client]);
 	if (attacker > 0)
 	{
+		GetClientName(attacker, attackerName, sizeof(attackerName));
 		Steam_SetHTTPRequestGetOrPostParameter(request, "attackerSteamId", g_sSteam2IDs[attacker]);
 		new team = GetClientTeam(attacker);
 		new String:strTeam[2];
@@ -298,6 +315,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	
 	if (assister > 0)
 	{
+		GetClientName(assister, assisterName, sizeof(assisterName));
 		Steam_SetHTTPRequestGetOrPostParameter(request, "assisterSteamId", g_sSteam2IDs[assister]);
 	}
 	
@@ -319,9 +337,13 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 	PropHuntRedux_GetPropModel(client, propModel, sizeof(propModel));
 
 	new Handle:data = CreateDataPack();
+	
 	WritePackCell(data, clientID);
 	WritePackCell(data, attackerID);
 	WritePackCell(data, assisterID);
+	WritePackString(data, clientName);
+	WritePackString(data, attackerName);
+	WritePackString(data, assisterName);
 		
 	// TODO Check to see what other fields we're missing.
 	Steam_SendHTTPRequest(request, Response_PlayerKilled, data); // different method so we can print score changes
@@ -337,6 +359,33 @@ public Response_PlayerKilled(HTTPRequestHandle:response, bool:requestSuccessful,
 	
 	ResetPack(data);
 	
+	new clientID = ReadPackCell(data);
+	new attackerID = ReadPackCell(data);
+	new assisterID = ReadPackCell(data);
+	
+	new client = GetClientOfUserId(clientID);
+	new attacker;
+	
+	if (attackerID > 0)
+	{
+		attacker = GetClientOfUserId(attackerID);
+	}
+	
+	new assister;
+	
+	if (assisterID > 0)
+	{
+		assister = GetClientOfUserId(assisterID);
+	}
+
+	new String:clientName[MAX_NAME_LENGTH+1];
+	new String:attackerName[MAX_NAME_LENGTH+1];
+	new String:assisterName[MAX_NAME_LENGTH+1];
+	
+	ReadPackString(data, clientName, sizeof(clientName));
+	ReadPackString(data, attackerName, sizeof(attackerName));
+	ReadPackString(data, assisterName, sizeof(assisterName));
+	
 	new bufferSize = Steam_GetHTTPResponseBodySize(response);
 	new String:buffer[bufferSize];
 	Steam_GetHTTPResponseBodyData(response, buffer, bufferSize);
@@ -344,6 +393,20 @@ public Response_PlayerKilled(HTTPRequestHandle:response, bool:requestSuccessful,
 	new Handle:kvBuffer;
 	if (StringToKeyValues(kvBuffer, buffer, "PropHuntKillResponse"))
 	{
+		new clientPoints = KvGetNum(kvBuffer, "clientPoints", -1);
+		new killerPoints = KvGetNum(kvBuffer, "killerPoints", 2);
+		new assisterPoints = KvGetNum(kvBuffer, "assisterPoints", 1);
+		
+		if (client > 0)
+			CPrintToChat(client, "%t", "#TF_PH_AlterScore_Death", attackerName, clientPoints*-1);
+		
+		if (attacker > 0)
+			CPrintToChat(attacker, "%t", "#TF_PH_AlterScore_Kill", clientName, killerPoints);
+		
+		if (assister > 0)
+			CPrintToChat(assister, "%t", "#TF_PH_AlterScore_Assist", clientName, assisterPoints);
+		
+		
 		// Do stuff with the keyvalues
 	}
 }
