@@ -256,6 +256,8 @@ enum
 new bool:g_RoundOver = true;
 new bool:g_inSetup = false;
 new bool:g_inPreRound = true;
+new bool:g_PlayerDied = false;
+new Float:g_flRoundStart = 0.0;
 
 new bool:g_LastProp;
 new bool:g_Attacking[MAXPLAYERS+1];
@@ -401,13 +403,15 @@ new g_EnableRoundWaitTime;
 new Handle:g_hWaitingForPlayerTime;
 new g_WaitingForPlayerTime;
 new Handle:g_hArenaUseQueue;
-new g_ArenaUseQueue;
+new bool:g_ArenaUseQueue;
 new Handle:g_hShowVoiceIcons;
 new g_ShowVoiceIcons;
 new Handle:g_hSolidObjects;
 new g_SolidObjects;
 new Handle:g_hArenaPreroundTime;
 new g_ArenaPreroundTime;
+new Handle:g_hArenaFirstBlood;
+new bool:g_ArenaFirstBlood;
 
 // Regular convars
 #if !defined SWITCH_TEAMS
@@ -609,6 +613,7 @@ public OnPluginStart()
 	g_hShowVoiceIcons = FindConVar("mp_show_voice_icons");
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
+	g_hArenaFirstBlood = FindConVar("tf_arena_first_blood");
 	
 #if !defined SWITCH_TEAMS
 	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
@@ -1318,6 +1323,8 @@ config_parseSounds()
 				decl String:soundString[128];
 				KvGetString(g_ConfigKeyValues, "game", soundString, sizeof(soundString));
 				
+				PrecacheScriptSound(soundString);
+				
 				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
 			}
 		}
@@ -1342,8 +1349,8 @@ SetCVars(){
 	g_ArenaRoundTime = GetConVarInt(g_hArenaRoundTime);
 	SetConVarInt(g_hArenaRoundTime, 0, true);
 	
-	g_ArenaUseQueue = GetConVarInt(g_hArenaUseQueue);
-	SetConVarInt(g_hArenaUseQueue, 0, true);
+	g_ArenaUseQueue = GetConVarBool(g_hArenaUseQueue);
+	SetConVarBool(g_hArenaUseQueue, false, true);
 
 	g_ArenaMaxStreak = GetConVarInt(g_hArenaMaxStreak);
 	SetConVarInt(g_hArenaMaxStreak, 4, true);
@@ -1391,6 +1398,9 @@ SetCVars(){
 	g_SolidObjects = GetConVarInt(g_hSolidObjects);
 	SetConVarInt(g_hSolidObjects, 0, true);
 	
+	g_ArenaFirstBlood = GetConVarBool(g_hArenaFirstBlood);
+	SetConVarBool(g_hArenaFirstBlood, false, true);
+	
 	g_CvarsSet = true;
 }
 
@@ -1406,7 +1416,7 @@ ResetCVars()
 	SetConVarFlags(g_hArenaPreroundTime, GetConVarFlags(g_hArenaPreroundTime) & ~(FCVAR_NOTIFY));
 
 	SetConVarInt(g_hArenaRoundTime, g_ArenaRoundTime, true);
-	SetConVarInt(g_hArenaUseQueue, g_ArenaUseQueue, true);
+	SetConVarBool(g_hArenaUseQueue, g_ArenaUseQueue, true);
 	SetConVarInt(g_hArenaMaxStreak, g_ArenaMaxStreak, true);
 	SetConVarInt(g_hTournamentStopwatch, g_TournamentStopwatch, true);
 	SetConVarInt(g_hTournamentHideDominationIcons, g_TournamentHideDominationIcons, true);
@@ -1422,6 +1432,7 @@ ResetCVars()
 	SetConVarInt(g_hWaitingForPlayerTime, g_WaitingForPlayerTime, true);
 	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
 	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
+	SetConVarBool(g_hArenaFirstBlood, g_ArenaFirstBlood, true);
 	
 	g_CvarsSet = false;
 }
@@ -2080,6 +2091,8 @@ public OnMapStart()
 	g_RoundOver = true;
 	g_inSetup = false;
 	//g_inPreRound = true;
+	g_PlayerDied = false;
+	g_flRoundStart = 0.0;
 	
 	// Clear the replacement weapon list
 	for (new i = 1; i <= MaxClients; ++i)
@@ -2519,13 +2532,51 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 	}
 	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
-		if(!IsSoundPrecached(sample))
-		{
-			PrecacheSound(sample);
-		}
 		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 	}
 }
+
+stock PH_EmitSoundToTeam(team, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
+{
+	decl String:sample[128];
+	
+	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	{
+		if (EntRefToEntIndex(g_GameRulesProxy) != INVALID_ENT_REFERENCE)
+		{
+			SetVariantString(sample);
+			if (team == TFTeam_Red)
+			{
+				AcceptEntityInput(g_GameRulesProxy, "PlayVORed");
+			}
+			else if (team == TFTeam_Blue)
+			{
+				AcceptEntityInput(g_GameRulesProxy, "PlayVOBlue");
+			}
+			else if (team <= 0)
+			{
+				AcceptEntityInput(g_GameRulesProxy, "PlayVO");
+			}
+		}
+	}
+	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	{
+		new count = 0;
+		new clients[MaxClients];
+		
+		for (new client = 1; client <= MaxClients; client++)
+		{
+			if (IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == team)
+			{
+				clients[count++] = client;
+			}
+		}
+		
+		EmitSound(clients, count, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
+	}
+	
+}
+
 
 PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
 {
@@ -2540,10 +2591,6 @@ PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER,
 
 	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
 	{
-		if(!IsSoundPrecached(sample))
-		{
-			PrecacheSound(sample);
-		}
 		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 	}
 }
@@ -3566,6 +3613,8 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 
 	
 	g_inPreRound = true;
+	g_PlayerDied = false;
+	g_flRoundStart = 0.0;
 	
 	// This is now in round start after an issue was reported with last prop not resetting in 3.0.2
 	g_LastProp = false;
@@ -3792,6 +3841,12 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	if (!g_Enabled || g_inPreRound)
 		return Plugin_Continue;
 	
+	if (GetEventInt(event, "death_flags") & TF_DEATHFLAG_DEADRINGER)
+	{
+		// This shouldn't fire since Spy is usually disabled, but just in case...
+		return Plugin_Continue;
+	}
+
 	// This should be a separate event now, but we're leaving this in just in case
 	if (GetEventInt(event, "weaponid") == TF_WEAPON_BAT_FISH && GetEventInt(event, "customkill") == TF_CUSTOM_FISH_KILL)
 	{
@@ -3887,33 +3942,55 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 			}
 			
 		}
-	}
-
-	if(!g_LastProp && playas == 2 && !g_RoundOver && GetClientTeam(client) == TEAM_PROP)
-	{
-		g_LastProp = true;
-		PH_EmitSoundToAll("OneAndOnly", _, _, SNDLEVEL_AIRCRAFT);
-#if defined SCATTERGUN
-		for(new client2=1; client2 <= MaxClients; client2++)
+		
+		// We now manually handle First Blood and avoid having the crit effect.
+		// We also adjust the various sound times to be more in line with PropHunt.
+		if (!g_PlayerDied)
 		{
-			if(IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
+			// Fast is 0-30, regular is 31-90, finally is 91+
+			new expendedTime = RoundToNearest(GetGameTime() - g_flRoundStart);
+			if (expendedTime <= 30)
 			{
-				if(GetClientTeam(client2) == TEAM_PROP)
+				PH_EmitSoundToAll("FirstBloodFast");
+			}
+			else if (expendedTime <= 90)
+			{
+				PH_EmitSoundToAll("FirstBlood");
+			}
+			else
+			{
+				PH_EmitSoundToAll("FirstBloodFinally");
+			}
+			
+			g_PlayerDied = true;
+		}
+
+		if(!g_LastProp && playas == 2 && GetClientTeam(client) == TEAM_PROP)
+		{
+			g_LastProp = true;
+			PH_EmitSoundToAll("OneAndOnly", _, _, SNDLEVEL_AIRCRAFT);
+	#if defined SCATTERGUN
+			for(new client2=1; client2 <= MaxClients; client2++)
+			{
+				if(IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
 				{
-					g_LastPropPlayer = client2;
-					TF2_RegeneratePlayer(client2);
-					CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
-				}
-				else
-				if(GetClientTeam(client2) == TEAM_HUNTER)
-				{
-					TF2_AddCondition(client2, TFCond_Jarated, 15.0);
+					if(GetClientTeam(client2) == TEAM_PROP)
+					{
+						g_LastPropPlayer = client2;
+						TF2_RegeneratePlayer(client2);
+						CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
+					}
+					else
+					if(GetClientTeam(client2) == TEAM_HUNTER)
+					{
+						TF2_AddCondition(client2, TFCond_Jarated, 15.0);
+					}
 				}
 			}
+	#endif
 		}
-#endif
 	}
-
+	
 	return Plugin_Continue;
 }
 
@@ -4256,6 +4333,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 #endif
 	g_RoundOver = false;
 	g_inSetup = false;
+	g_flRoundStart = GetGameTime();
 
 	for(new client2=1; client2 <= MaxClients; client2++)
 	{
