@@ -32,32 +32,32 @@
 	"#TF_PH_AlterScore_TeamWin"
 	{
 		"#format"	"{1:i}"
-		"en"		"{default}Victory! Your team gains {green}{1}{default} point(s)."
+		"en"		"\x01Victory! Your team gains \x04{1}\x01 point(s)."
 	}
 	"#TF_PH_AlterScore_TeamLose"
 	{
 		"#format"	"{1:i}"
-		"en"		"{default}You failed! You team loses {green}{1}{default} point(s)."
+		"en"		"\x01You failed! You team loses \x04{1}\x01 point(s)."
 	}
 	"#TF_PH_AlterScore_TimeAward"
 	{
 		"#format"	"{1:i}"
-		"en"		"{default}Survival award! You gain {green}{1}{default} point(s)."
+		"en"		"\x01Survival award! You gain \x04{1}\x01 point(s)."
 	}
 	"#TF_PH_AlterScore_Death"
 	{
 		"#format"	"{1:s},{2:i}"
-		"en"		"{default}You were killed by {green}{1}{default}! You lose {green}{2}{default} point(s)."
+		"en"		"\x01You were killed by \x04{1}\x01! You lose \x04{2}\x01 point(s)."
 	}
 	"#TF_PH_AlterScore_Kill"
 	{
 		"#format"	"{1:s},{2:i}"
-		"en"		"{default}You killed {green}{1}{default}! You gain {green}{2}{default} point(s)."
+		"en"		"\x01You killed \x04{1}\x01! You gain \x04{2}\x01 point(s)."
 	}
 	"#TF_PH_AlterScore_Assist"
 	{
 		"#format"	"{1:s},{2:i}"
-		"en"		"{default}You assisted in killing {green}{1}{default}! You gain {green}{2}{default} point(s)."
+		"en"		"\x01You assisted in killing \x04{1}\x01! You gain \x04{2}\x01 point(s)."
 	}
 	"#TF_PH_Stats_Top10"
 	{
