@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.0"
+#define PL_VERSION "3.3.1"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2492,7 +2492,7 @@ public Action:Command_propreroll(client, args)
 		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHReroll) == 0)
+	if(GetConVarInt(g_PHReroll) >= 0)
 	{
 		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
