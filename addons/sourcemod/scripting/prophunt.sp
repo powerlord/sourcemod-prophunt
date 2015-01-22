@@ -51,6 +51,7 @@
 
 #undef REQUIRE_PLUGIN
 #include <tf2attributes>
+#include <updater>
 
 #if !defined SNDCHAN_VOICE2
 #define SNDCHAN_VOICE2 7
@@ -61,7 +62,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0 alpha 2"
+#define PL_VERSION "3.4.0.0 alpha 2"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -135,6 +136,11 @@
 #define SETUP_MIN 30
 #define SETUP_MAX 120
 
+// "Production" URL (3.3 branch)
+//#define UPDATE_URL "http://tf2.rbemrose.com/sourcemod/prophunt/prophunt.txt"
+
+// "Dev" URL (3.4 branch)
+#define UPDATE_URL "http://tf2.rbemrose.com/sourcemod/prophunt/dev/prophunt.txt"
 
 //--------------------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -318,52 +324,56 @@ new Float:g_currentSpeed[MAXPLAYERS+1];
 //new g_oFOV;
 //new g_oDefFOV;
 
-new Handle:g_PropData = INVALID_HANDLE;
+new Handle:g_PropData;
 // Multi-language support
-new Handle:g_ModelLanguages = INVALID_HANDLE;
-new Handle:g_PropNames = INVALID_HANDLE;
-new Handle:g_PropNamesIndex = INVALID_HANDLE;
+new Handle:g_ModelLanguages;
+new Handle:g_PropNames;
+new Handle:g_PropNamesIndex;
 
-new Handle:g_ConfigKeyValues = INVALID_HANDLE;
-new Handle:g_ModelName = INVALID_HANDLE;
-new Handle:g_ModelOffset = INVALID_HANDLE;
-new Handle:g_ModelRotation = INVALID_HANDLE;
-new Handle:g_ModelSkin = INVALID_HANDLE;
-new Handle:g_Text1 = INVALID_HANDLE;
-new Handle:g_Text2 = INVALID_HANDLE;
-new Handle:g_Text3 = INVALID_HANDLE;
-new Handle:g_Text4 = INVALID_HANDLE;
+new Handle:g_ConfigKeyValues;
+new Handle:g_ModelName;
+new Handle:g_ModelOffset;
+new Handle:g_ModelRotation;
+new Handle:g_ModelSkin;
+new Handle:g_Text1;
+new Handle:g_Text2;
+new Handle:g_Text3;
+new Handle:g_Text4;
 
 // PropHunt Redux Menus
 //new Handle:g_RoundTimer = INVALID_HANDLE;
-new Handle:g_PropMenu = INVALID_HANDLE;
-new Handle:g_ConfigMenu = INVALID_HANDLE;
+new Handle:g_PropMenu;
+new Handle:g_ConfigMenu;
 
 // PropHunt Redux CVars
-new Handle:g_PHEnable = INVALID_HANDLE;
-new Handle:g_PHPropMenu = INVALID_HANDLE;
-new Handle:g_PHPropMenuRestrict = INVALID_HANDLE;
-//new Handle:g_PHAdmFlag = INVALID_HANDLE;
-new Handle:g_PHAdvertisements = INVALID_HANDLE;
-new Handle:g_PHPreventFallDamage = INVALID_HANDLE;
-new Handle:g_PHGameDescription = INVALID_HANDLE;
-new Handle:g_PHAirblast = INVALID_HANDLE;
-new Handle:g_PHAntiHack = INVALID_HANDLE;
-new Handle:g_PHReroll = INVALID_HANDLE;
-new Handle:g_PHStaticPropInfo = INVALID_HANDLE;
-new Handle:g_PHSetupLength = INVALID_HANDLE;
-new Handle:g_PHDamageBlocksPropChange = INVALID_HANDLE;
-new Handle:g_PHPropMenuNames = INVALID_HANDLE;
-new Handle:g_PHMultilingual = INVALID_HANDLE;
-new Handle:g_PHRespawnDuringSetup = INVALID_HANDLE;
+new Handle:g_PHEnable;
+new Handle:g_PHPropMenu;
+new Handle:g_PHPropMenuRestrict;
+new Handle:g_PHAdvertisements;
+new Handle:g_PHPreventFallDamage;
+new Handle:g_PHGameDescription;
+new Handle:g_PHAirblast;
+new Handle:g_PHAntiHack;
+new Handle:g_PHReroll;
+new Handle:g_PHStaticPropInfo;
+new Handle:g_PHSetupLength;
+new Handle:g_PHDamageBlocksPropChange;
+new Handle:g_PHPropMenuNames;
+new Handle:g_PHMultilingual;
+new Handle:g_PHRespawnDuringSetup;
+new Handle:g_PHUseUpdater;
 
 new String:g_AdText[128] = "";
 
 new bool:g_MapStarted = false;
 
+// Track optional dependencies
 new bool:g_SteamTools = false;
 new bool:g_SteamWorks = false;
 new bool:g_TF2Attribs = false;
+new bool:g_Updater = false;
+new bool:g_UpdaterRegistered = false;
+
 #if defined OIMM
 new bool:g_OptinMultiMod = false;
 #endif
@@ -594,6 +604,7 @@ public OnPluginStart()
 	g_PHPropMenuNames = CreateConVar("ph_propmenuusenames", "0", "Use names for Prop Menu? This is disabled by default for compatibility reasons.", _, true, 0.0, true, 1.0);
 	g_PHMultilingual = CreateConVar("ph_multilingual", "0", "Use multilingual support? Uses more Handles if enabled. Disabled by default as we have no alternate languages (yet)", _, true, 0.0, true, 1.0);
 	g_PHRespawnDuringSetup = CreateConVar("ph_respawnduringsetup", "1", "If a player dies during setup, should we respawn them?", _, true, 0.0, true, 1.0);
+	g_PHUseUpdater = CreateConVar("ph_useupdater", "1", "Use Updater to keep PropHunt Redux up to date? Only applies if the Updater plugin is installed.", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -631,6 +642,7 @@ public OnPluginStart()
 	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
 	HookConVarChange(g_PHReroll, OnPropRerollChanged);
 	HookConVarChange(g_PHMultilingual, OnMultilingualChanged);
+	HookConVarChange(g_PHUseUpdater, OnUseUpdaterChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -888,6 +900,15 @@ public OnAllPluginsLoaded()
 		LogMessage("[PH] Found TF2Attributes on startup.");
 	}
 #endif
+
+	g_Updater = LibraryExists("updater");
+	
+#if defined LOG
+	if (g_Updater)
+	{
+		LogMessage("[PH] Found Updater on startup.");
+	}
+#endif
 }
 
 // Should we switch teams this round?
@@ -973,6 +994,14 @@ public OnLibraryAdded(const String:name[])
 #endif
 		g_TF2Attribs = true;
 	}
+	else
+	if (StrEqual(name, "updater", false))
+	{
+#if defined LOG
+		LogMessage("[PH] Updater Loaded.");
+#endif
+		g_Updater = true;
+	}
 }
 
 public OnLibraryRemoved(const String:name[])
@@ -1010,6 +1039,14 @@ public OnLibraryRemoved(const String:name[])
 #endif
 		g_TF2Attribs = false;
 	}
+	else
+	if (StrEqual(name, "updater", false))
+	{
+#if defined LOG
+		LogMessage("[PH] Updater Unloaded.");
+#endif
+		g_Updater = false;
+	}	
 }
 
 public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -1441,6 +1478,11 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
+	if (g_UpdaterRegistered == false && GetConVarBool(g_PHUseUpdater))
+	{
+		Updater_AddPlugin(UPDATE_URL);
+	}
+	
 	g_GameRulesProxy = EntIndexToEntRef(FindEntityByClassname(-1, "tf_gamerules"));
 	
 	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
@@ -1713,6 +1755,27 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
 {
 	strcopy(g_AdText, sizeof(g_AdText), newValue);
+}
+
+public OnUseUpdaterChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+{
+	if (!g_Updater)
+		return;
+		
+	if (GetConVarBool(convar))
+	{
+		if (!g_UpdaterRegistered)
+		{
+			Updater_AddPlugin(UPDATE_URL);
+		}
+	}
+	else
+	{
+		if (g_UpdaterRegistered)
+		{
+			Updater_RemovePlugin();
+		}
+	}
 }
 
 public StartTouchHook(entity, other)
