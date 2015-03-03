@@ -74,7 +74,7 @@ native bool:PropHuntRedux_IsRunning();
 native bool:PropHuntRedux_ValidateMap(const String:map[]);
 
 /**
- * Get the model of a prop.
+ * Get the model of a prop player.
  * 
  * @return	true if client is/was a prop and has a model, false otherwise
  */
@@ -124,5 +124,7 @@ public __pl_prophunt_redux_SetNTVOptional()
 {
 	MarkNativeAsOptional("PropHuntRedux_IsRunning");
 	MarkNativeAsOptional("PropHuntRedux_ValidateMap");
+	MarkNativeAsOptional("PropHuntRedux_GetPropModel");
+	MarkNativeAsOptional("PropHuntRedux_GetPropModelName");
 }
 #endif
