@@ -3484,19 +3484,38 @@ stock SetWeaponsAlpha (target, alpha){
 		for(new i = 0; i <= 5; ++i)
 		{
 			new weapon = GetPlayerWeaponSlot(target, i);
-			if(weapon > -1 && IsValidEdict(weapon))
+			
+			SetItemAlpha(weapon, alpha);
+		}
+	}
+}
+
+stock SetItemAlpha(item, alpha)
+{
+	if(item > -1 && IsValidEdict(item))
+	{
+		// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
+		SetEntityRenderMode(item, RENDER_TRANSCOLOR);
+		SetEntityRenderColor(item, 255, 255, 255, alpha);
+		
+		new String:classname[65];
+		GetEntityClassname(item, classname, sizeof(classname));
+		
+		if (strncmp(classname, "tf_weapon_", 10) == 0)
+		{
+			// It's a weapon, lets hide the extra wearables too
+			new extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearable");
+			if(extraWearable > -1 && IsValidEdict(extraWearable))
 			{
-				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
-				SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
-				SetEntityRenderColor(weapon, 255, 255, 255, alpha);
-				
-				// Lets hide extra wearables too
-				new extraWearable = GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
-				if(extraWearable > -1 && IsValidEdict(extraWearable))
-				{
-					SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
-					SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
-				}
+				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
+			}
+			
+			extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearableViewModel");
+			if(extraWearable > -1 && IsValidEdict(extraWearable))
+			{
+				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
 			}
 		}
 	}
@@ -4198,7 +4217,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 				{
 					g_LastPropPlayer = client2;
 					TF2_RegeneratePlayer(client2);
-					CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
+					// Replaced by TF2Items_OnGiveNamedItem_Post
+					//CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
 				}
 				else
 				if(GetClientTeam(client2) == TEAM_HUNTER)
@@ -5003,5 +5023,14 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 			strcopy(name, maxlen, modelName);
 			return false;
 		}
+	}
+}
+
+// Fix for weapon alphas for last prop
+public TF2Items_OnGiveNamedItem_Post(client, String:classname[], itemDefinitionIndex, itemLevel, itemQuality, entityIndex)
+{
+	if (g_LastProp && g_LastPropPlayer == client && IsValidEntity(entityIndex))
+	{
+		SetItemAlpha(entityIndex, 0);
 	}
 }
