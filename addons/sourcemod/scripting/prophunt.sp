@@ -29,7 +29,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: 3.3.1
+ * Version: 3.3.2
  */
 // PropHunt Redux by Powerlord
 //         Based on
@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.1"
+#define PL_VERSION "3.3.2"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -4221,7 +4221,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	if(client != 0 && IsClientInGame(client) && IsPlayerAlive(client))
+	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 		SetWeaponsAlpha(client, 0);
 }
 
@@ -4311,7 +4311,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		TF2_RegeneratePlayer(client);
+		//TF2_RegeneratePlayer(client);
 		
 #if defined LOG
 		LogMessage("[PH] do equip %N", client);
@@ -4473,13 +4473,27 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
 						//TF2_RemoveAllWeapons(client);
-						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+						//Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+						CreateTimer(0.1, Timer_FixPropPlayer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 					}
 				}
 			}
 		}
 	}
 	return Plugin_Continue;
+}
+
+// Fix a prop player who still has 
+public Action:Timer_FixPropPlayer(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (client < 1 || GetClientTeam(client) != TEAM_PROP)
+		return Plugin_Handled;
+		
+	TF2_RegeneratePlayer(client);
+	Timer_DoEquip(INVALID_HANDLE, userid);
+	
+	return Plugin_Handled;
 }
 
 public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
