@@ -2126,11 +2126,11 @@ public OnMapStart()
 		
 		decl String:tidyname[2][PLATFORM_MAX_PATH], String:maptidyname[PLATFORM_MAX_PATH];
 		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
-		if (strncmp("workshop/", tidyname[0], 9))
+		if (strncmp("workshop/", tidyname[0], 9) == 0)
 		{
 			ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop/", "");
 		}
-		else	if (strncmp("workshop\\", tidyname[0], 9))
+		else	if (strncmp("workshop\\", tidyname[0], 9) == 0)
 		{
 			ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop\\", "");
 		}
