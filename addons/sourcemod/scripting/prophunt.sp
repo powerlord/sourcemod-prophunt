@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.2"
+#define PL_VERSION "3.3.3"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -275,7 +275,7 @@ new bool:g_Hit[MAXPLAYERS+1];
 new bool:g_Spec[MAXPLAYERS+1];
 new String:g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
-new String:g_Mapname[128];
+new String:g_Mapname[PLATFORM_MAX_PATH];
 new String:g_ServerIP[32];
 new String:g_Version[16];
 
@@ -2124,8 +2124,17 @@ public OnMapStart()
 		}
 		CloseHandle(fl);
 		
-		decl String:tidyname[2][32], String:maptidyname[128];
+		decl String:tidyname[2][PLATFORM_MAX_PATH], String:maptidyname[PLATFORM_MAX_PATH];
 		ExplodeString(g_Mapname, "_", tidyname, 2, 32);
+		if (strncmp("workshop/", tidyname[0], 9))
+		{
+			ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop/", "");
+		}
+		else	if (strncmp("workshop\\", tidyname[0], 9))
+		{
+			ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop\\", "");
+		}
+		// Because we only care about the first two pieces of the map name, we can ignore the ugc stuff
 		Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
 		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
 		fl = CreateKeyValues("prophuntmapconfig");
@@ -4915,6 +4924,16 @@ public bool:ValidateMap(const String:map[])
 	// As per SourceMod standard, anything dealing with map names should now be PLATFORM_MAX_PATH long
 	new String:confil[PLATFORM_MAX_PATH], String:tidyname[2][PLATFORM_MAX_PATH], String:maptidyname[PLATFORM_MAX_PATH];
 	ExplodeString(map, "_", tidyname, sizeof(tidyname), sizeof(tidyname[]));
+	if (strncmp("workshop/", tidyname[0], 9))
+	{
+		ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop/", "");
+	}
+	else	if (strncmp("workshop\\", tidyname[0], 9))
+	{
+		ReplaceString(tidyname[0], sizeof(tidyname[]), "workshop\\", "");
+	}
+	// Because we only care about the first two pieces of the map name, we can ignore the ugc stuff
+	
 	Format(maptidyname, sizeof(maptidyname), "%s_%s", tidyname[0], tidyname[1]);
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", maptidyname);
 
