@@ -3367,11 +3367,11 @@ stock SetItemAlpha(item, alpha)
 		{
 			// It's a weapon, lets hide the extra wearables too
 			new extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearable");
-				if(extraWearable > -1 && IsValidEdict(extraWearable))
-				{
-					SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
-					SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
-				}
+			if(extraWearable > -1 && IsValidEdict(extraWearable))
+			{
+				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
+			}
 			
 			extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearableViewModel");
 			if(extraWearable > -1 && IsValidEdict(extraWearable))
@@ -4860,6 +4860,7 @@ stock SwitchTeamScores(redScore, bluScore)
 bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen = 0)
 {
 	new String:mapPiece[PLATFORM_MAX_PATH];
+	// This should handle workshop maps already
 	RemoveMapPath(map, mapPiece, sizeof(mapPiece));
 	
 	new String:confil[PLATFORM_MAX_PATH];
