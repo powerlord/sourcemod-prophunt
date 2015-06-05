@@ -309,6 +309,7 @@ new bool:g_Freeze = true;
 //new Float:g_weaponSelfDamage[MAXITEMS];
 
 new Handle:g_hWeaponRemovals;
+new Handle:g_hPropWeaponRemovals;
 new Handle:g_hWeaponNerfs;
 new Handle:g_hWeaponSelfDamage;
 new Handle:g_hWeaponStripAttribs;
@@ -577,6 +578,7 @@ public OnPluginStart()
 #endif
 
 	g_hWeaponRemovals = CreateArray();
+	g_hPropWeaponRemovals = CreateArray();
 	g_hWeaponNerfs = CreateTrie();
 	g_hWeaponSelfDamage = CreateTrie();
 	g_hWeaponStripAttribs = CreateArray();
@@ -1157,6 +1159,7 @@ UpdateGameDescription(bool:bAddOnly=false)
 config_parseWeapons()
 {
 	ClearArray(g_hWeaponRemovals);
+	ClearArray(g_hPropWeaponRemovals);
 	ClearTrie(g_hWeaponNerfs);
 	ClearTrie(g_hWeaponSelfDamage);
 	ClearArray(g_hWeaponStripAttribs);
@@ -1190,6 +1193,13 @@ config_parseWeapons()
 				if (bool:KvGetNum(g_ConfigKeyValues, "removed_hunters"))
 				{
 					PushArrayCell(g_hWeaponRemovals, StringToInt(SectionName));
+				}
+			}
+			if(KvGetDataType(g_ConfigKeyValues, "removed_props") == KvData_Int)
+			{
+				if (bool:KvGetNum(g_ConfigKeyValues, "removed_props"))
+				{
+					PushArrayCell(g_hPropWeaponRemovals, StringToInt(SectionName));
 				}
 			}
 			if(KvGetDataType(g_ConfigKeyValues, "self_damage_hunters") == KvData_Float)
@@ -1996,6 +2006,7 @@ public OnMapEnd()
 	ClearArray(g_ModelSkin);
 
 	ClearArray(g_hWeaponRemovals);
+	ClearArray(g_hPropWeaponRemovals);
 	ClearTrie(g_hWeaponNerfs);
 	ClearTrie(g_hWeaponSelfDamage);
 	ClearArray(g_hWeaponStripAttribs);
@@ -4539,7 +4550,9 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Stop;
 	}
 	
-	if (GetClientTeam(client) == TEAM_PROP)
+	new team = GetClientTeam(client);
+	
+	if (team == TEAM_PROP)
 	{
 		// If they're not the last prop, don't give them anything
 		if (!g_LastProp)
@@ -4552,6 +4565,11 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		// Note: The Love and War update seems to have changed that, as taunt items won't work unless the taunt menu 
 		//  was open before round start and can only be used once
 		if (StrEqual(classname, "tf_wearable", false))
+		{
+			return Plugin_Stop;
+		}
+
+		if (FindValueInArray(g_hPropWeaponRemovals, iItemDefinitionIndex) >= 0)
 		{
 			return Plugin_Stop;
 		}
@@ -4592,7 +4610,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	}
 
 	// If we're supposed to remove it, just block it here
-	if (FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
+	if (team == TEAM_HUNTER && FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
 	{
 		return Plugin_Stop;
 	}
