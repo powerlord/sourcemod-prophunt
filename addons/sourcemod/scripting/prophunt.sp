@@ -280,7 +280,7 @@ new bool:g_Hit[MAXPLAYERS+1];
 new bool:g_Spec[MAXPLAYERS+1];
 new String:g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
-new String:g_Mapname[128];
+new String:g_Mapname[PLATFORM_MAX_PATH];
 new String:g_ServerIP[32];
 new String:g_Version[16];
 
@@ -3346,19 +3346,38 @@ stock SetWeaponsAlpha (target, alpha){
 		for(new i = 0; i <= 5; ++i)
 		{
 			new weapon = GetPlayerWeaponSlot(target, i);
-			if(weapon > -1 && IsValidEdict(weapon))
+			
+			SetItemAlpha(weapon, alpha);
+		}
+	}
+}
+
+stock SetItemAlpha(item, alpha)
 			{
+	if(item > -1 && IsValidEdict(item))
+	{
 				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
-				SetEntityRenderMode(weapon, RENDER_TRANSCOLOR);
-				SetEntityRenderColor(weapon, 255, 255, 255, alpha);
+		SetEntityRenderMode(item, RENDER_TRANSCOLOR);
+		SetEntityRenderColor(item, 255, 255, 255, alpha);
 				
-				// Lets hide extra wearables too
-				new extraWearable = GetEntPropEnt(weapon, Prop_Send, "m_hExtraWearable");
+		new String:classname[65];
+		GetEntityClassname(item, classname, sizeof(classname));
+		
+		if (strncmp(classname, "tf_weapon_", 10) == 0)
+		{
+			// It's a weapon, lets hide the extra wearables too
+			new extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearable");
 				if(extraWearable > -1 && IsValidEdict(extraWearable))
 				{
 					SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
 					SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
 				}
+			
+			extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearableViewModel");
+			if(extraWearable > -1 && IsValidEdict(extraWearable))
+			{
+				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
+				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
 			}
 		}
 	}
@@ -4041,7 +4060,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 					{
 						g_LastPropPlayer = client2;
 						TF2_RegeneratePlayer(client2);
-						CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
+					// Replaced by TF2Items_OnGiveNamedItem_Post
+					//CreateTimer(0.1, Timer_WeaponAlpha, GetClientUserId(client2));
 					}
 					else
 					if(GetClientTeam(client2) == TEAM_HUNTER)
@@ -4073,7 +4093,7 @@ public Action:Timer_Respawn(Handle:timer, any:userid)
 public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	if(client != 0 && IsClientInGame(client) && IsPlayerAlive(client))
+	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 		SetWeaponsAlpha(client, 0);
 }
 
@@ -4164,7 +4184,7 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		TF2_RegeneratePlayer(client);
+		//TF2_RegeneratePlayer(client);
 		
 #if defined LOG
 		LogMessage("[PH] do equip %N", client);
@@ -4317,13 +4337,27 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
 						//TF2_RemoveAllWeapons(client);
-						Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+						//Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+						CreateTimer(0.1, Timer_FixPropPlayer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 					}
 				}
 			}
 		}
 	}
 	return Plugin_Continue;
+}
+
+// Fix a prop player who still has 
+public Action:Timer_FixPropPlayer(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (client < 1 || GetClientTeam(client) != TEAM_PROP)
+		return Plugin_Handled;
+		
+	TF2_RegeneratePlayer(client);
+	Timer_DoEquip(INVALID_HANDLE, userid);
+	
+	return Plugin_Handled;
 }
 
 public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
@@ -4754,6 +4788,15 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 			strcopy(name, maxlen, modelName);
 			return false;
 		}
+	}
+}
+
+// Fix for weapon alphas for last prop
+public TF2Items_OnGiveNamedItem_Post(client, String:classname[], itemDefinitionIndex, itemLevel, itemQuality, entityIndex)
+{
+	if (g_LastProp && g_LastPropPlayer == client && IsValidEntity(entityIndex))
+	{
+		SetItemAlpha(entityIndex, 0);
 	}
 }
 
