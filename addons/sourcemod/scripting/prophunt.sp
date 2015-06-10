@@ -363,6 +363,7 @@ new Handle:g_PHPropMenuNames;
 new Handle:g_PHMultilingual;
 new Handle:g_PHRespawnDuringSetup;
 new Handle:g_PHUseUpdater;
+new Handle:g_PHAllowTaunts;
 
 new String:g_AdText[128] = "";
 
@@ -607,6 +608,7 @@ public OnPluginStart()
 	g_PHMultilingual = CreateConVar("ph_multilingual", "0", "Use multilingual support? Uses more Handles if enabled. Disabled by default as we have no alternate languages (yet)", _, true, 0.0, true, 1.0);
 	g_PHRespawnDuringSetup = CreateConVar("ph_respawnduringsetup", "1", "If a player dies during setup, should we respawn them?", _, true, 0.0, true, 1.0);
 	g_PHUseUpdater = CreateConVar("ph_useupdater", "1", "Use Updater to keep PropHunt Redux up to date? Only applies if the Updater plugin is installed.", _, true, 0.0, true, 1.0);
+	g_PHAllowTaunts = CreateConVar("ph_allowproptaunts", "0", "Allow props to use taunt items", _, true, 0.0, true, 1.0);
 	
 	// These are expensive and should be done just once at plugin start.
 	g_hArenaRoundTime = FindConVar("tf_arena_round_time");
@@ -4554,6 +4556,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	
 	if (team == TEAM_PROP)
 	{
+		// Taunt items have the classname "no_entity now"
+		if (GetConVarBool(g_PHAllowTaunts) && StrEqual(classname, "no_entity", false))
+		{
+			return Plugin_Continue;
+		}
+		
 		// If they're not the last prop, don't give them anything
 		if (!g_LastProp)
 		{
