@@ -464,6 +464,10 @@ new bool:g_PropRerollOverrideInstalled = false;
 
 new g_GameRulesProxy = INVALID_ENT_REFERENCE;
 
+#if defined SHINX
+new TFClassType:g_PreferredHunterClass[MAXPLAYERS+1] = { TFClass_Unknown, ... };
+#endif
+
 public Plugin:myinfo =
 {
 	name = "PropHunt Redux",
@@ -3630,6 +3634,8 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 		}
 		
 		g_ReplacementCount[client] = 0;
+		// Now that we're adjusting weapons, this needs to happen to fix max ammo counts
+		TF2_RegeneratePlayer(client);
 	}
 
 	TF2Attrib_ChangeBoolAttrib(client, "cancel falling damage", GetConVarBool(g_PHPreventFallDamage));
