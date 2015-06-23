@@ -3369,32 +3369,20 @@ stock SetWeaponsAlpha (target, alpha){
 }
 
 stock SetItemAlpha(item, alpha)
-			{
+{
 	if(item > -1 && IsValidEdict(item))
 	{
-				// Don't bother checking the classname, it's always tf_weapon_[something] in TF2 for GetPlayerWeaponSlot
 		SetEntityRenderMode(item, RENDER_TRANSCOLOR);
 		SetEntityRenderColor(item, 255, 255, 255, alpha);
-				
+		
 		new String:classname[65];
 		GetEntityClassname(item, classname, sizeof(classname));
 		
+		// If it's a weapon, lets adjust the alpha on its extra wearable and its viewmodel too
 		if (strncmp(classname, "tf_weapon_", 10) == 0)
 		{
-			// It's a weapon, lets hide the extra wearables too
-			new extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearable");
-			if(extraWearable > -1 && IsValidEdict(extraWearable))
-			{
-				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
-				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
-			}
-			
-			extraWearable = GetEntPropEnt(item, Prop_Send, "m_hExtraWearableViewModel");
-			if(extraWearable > -1 && IsValidEdict(extraWearable))
-			{
-				SetEntityRenderMode(extraWearable, RENDER_TRANSCOLOR);
-				SetEntityRenderColor(extraWearable, 255, 255, 255, alpha);
-			}
+			SetItemAlpha(GetEntPropEnt(item, Prop_Send, "m_hExtraWearable"), alpha);
+			SetItemAlpha(GetEntPropEnt(item, Prop_Send, "m_hExtraWearableViewModel"), alpha);
 		}
 	}
 }

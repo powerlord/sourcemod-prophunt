@@ -5,7 +5,7 @@
 		"Version"
 		{
 			"Latest"	"3.4.0.0"
-			"Previous"	"3.3.1"
+			"Previous"	"3.3.3"
 		}
 
 		"Notes"	"Added updater support"
