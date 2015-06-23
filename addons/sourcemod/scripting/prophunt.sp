@@ -62,7 +62,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 alpha 2"
+#define PL_VERSION "3.4.0.0 alpha 3"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -589,10 +589,10 @@ public OnPluginStart()
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	// PropHunt Redux now lies and pretends to be PropHunt as well
-	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
-	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_PLUGIN|FCVAR_DONTRECORD);
+	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admins or people with the propmenu override, 1 = all players", _, true, -1.0, true, 1.0);
 	g_PHPropMenuRestrict = CreateConVar("ph_propmenurestrict", "0", "If ph_propmenu is allowed, restrict typed props to the propmenu list?  Defaults to 0 (no).", _, true, 0.0, true, 1.0);
 	g_PHAdvertisements = CreateConVar("ph_adtext", g_AdText, "Controls the text used for Advertisements");
@@ -1975,6 +1975,7 @@ public OnCPMasterSpawnedPost(entity)
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(arenaLogic, "AddOutput");
 	
+	HookSingleEntityOutput(timer, "OnSetupStart", OnSetupStart);
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
 }
 
@@ -3466,11 +3467,9 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 	if (!g_Enabled)
 		return;
 
-	// We use this value for non-stats things now, too.
-	// Except now we're trying a different solution
+#if defined STATS
 	new winner = GetEventInt(event, "winning_team");
 
-#if defined STATS
 	DbRound(winner);
 #endif
 
@@ -4418,14 +4417,12 @@ public Action:Timer_Score(Handle:timer)
 	CPrintToChatAll("%t", "#TF_PH_CPBonusRefreshed");
 }
 
-// Currently not connected to anything
-// Turns out the teamplay_update_timer event isn't strictly necessary
 public OnSetupStart(const String:output[], caller, activator, Float:delay)
 {
 	g_inSetup = true;
 	new Handle:event = CreateEvent("teamplay_update_timer");
 	if (event != INVALID_HANDLE)
-	FireEvent(event);
+		FireEvent(event);
 }
 
 // This used to hook the teamplay_setup_finished event, but ph_kakariko messes with that
@@ -4885,9 +4882,10 @@ stock SwitchTeamScores(redScore, bluScore)
 
 bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen = 0)
 {
+	
 	new String:mapPiece[PLATFORM_MAX_PATH];
-	// This should handle workshop maps already
-	RemoveMapPath(map, mapPiece, sizeof(mapPiece));
+	// Handle workshop maps
+	GetFriendlyMapName(map, mapPiece, sizeof(mapPiece), false);
 	
 	new String:confil[PLATFORM_MAX_PATH];
 	
@@ -4920,46 +4918,6 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	
 	destination[0] = '\0'; // In case of decl
 	return false;
-}
-
-/**
- * Remove the path from the map name
- * This was intended to remove workshop paths.
- * Used internally by MapEqual and FindMapStringInArray.
- * 
- * @param map			Map name
- * @param destination	String to copy map name to
- * @param maxlen		Length of destination string
- * 
- * @return			True if path was removed, false if map and destination are the same
- */
-stock bool:RemoveMapPath(const String:map[], String:destination[], maxlen)
-{
-	if (strlen(map) < 1)
-	{
-		ThrowError("Bad map name: %s", map);
-	}
-	
-	// UNIX paths
-	new pos = FindCharInString(map, '/', true);
-	if (pos == -1)
-	{
-		// Windows paths
-		pos = FindCharInString(map, '\\', true);
-		if (pos == -1)
-		{
-			// Copy the path out unchanged, but return false
-			// This was added by request, but also simplifies MapEqual a LOT
-			strcopy(destination, maxlen, map);
-			return false;
-		}
-	}
-
-	// pos + 1 is because pos is the last / or \ location and we want to start one char further
-	// maxlen is because strcopy will auto-stop if it hits '\0' before maxlen
-	strcopy(destination, maxlen, map[pos+1]);
-	
-	return true;
 }
 
 // Natives
@@ -5067,7 +5025,7 @@ Internal_RemoveServerTag()
 
 // Below this point are the forward calls
 // They're here so we have the code to call them organized.
-
+/*
 stock DbRound(winner)
 {
 	Call_StartForward(g_fStatsRoundWin);
@@ -5093,3 +5051,4 @@ stock PlayerKilled(clientID, attackerID, assisterID, weaponid, const String:weap
 	Call_PushString(weapon);
 	Call_Finish();
 }
+*/
