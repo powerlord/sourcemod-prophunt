@@ -537,13 +537,15 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	
 	MarkNativeAsOptional("Steam_SetGameDescription");
 	
+	/*
 	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
 	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
 	CreateNative("PropHuntRedux_GetPropModel", Native_GetModel);
 	CreateNative("PropHuntRedux_GetPropModelName", Native_GetModelName);
 	
 	RegPluginLibrary("prophuntredux");
-	
+	*/
+
 	return APLRes_Success;
 }
 
@@ -4098,6 +4100,7 @@ public Action:Timer_Respawn(Handle:timer, any:userid)
 	new client = GetClientOfUserId(userid);
 	if (client > 0)
 	{
+		g_AllowedSpawn[client] = true;
 		TF2_RespawnPlayer(client);
 	}
 }
@@ -4922,6 +4925,7 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 
 // Natives
 
+/*
 public Native_ValidateMap(Handle:plugin, numParams)
 {
 	new mapLength;
@@ -4971,6 +4975,7 @@ public Native_GetModelName(Handle:plugin, numParams)
 	SetNativeString(2, model, length);
 	return true;
 }
+*/
 
 Internal_AddServerTag()
 {
