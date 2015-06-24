@@ -3924,7 +3924,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			
 			if(TF2_GetPlayerClass(client) != g_defaultClass[red])
 			{
-				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red]);
+				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false, false);
 				TF2_RespawnPlayer(client);
 			}
 			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
