@@ -3876,19 +3876,30 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			{
 				if(g_classLimits[blue][clientClass] == 0)
 				{
+					// By default, this fires when they're Scout
 					//CPrintToChat(client, "%t", "#TF_PH_ClassBlocked");
 				}
 				else
 				{
 					CPrintToChat(client, "%t", "#TF_PH_ClassFull");
 				}
+
+				if (g_PreferredHunterClass[client] != TFClass_Unknown && g_PreferredHunterClass[client] != clientClass)
+				{
+					TF2_SetPlayerClass(client, g_PreferredHunterClass[client]);
+				}
+				else
+				{
+					TF2_SetPlayerClass(client, g_defaultClass[blue]);
+				}
 				
-				TF2_SetPlayerClass(client, g_defaultClass[blue]);
 				TF2_RespawnPlayer(client);
 				
 				return;
 			}
 			
+			// If we didn't just change their class, store it for later
+			g_PreferredHunterClass[client] = clientClass;
 #else
 			if(TF2_GetPlayerClass(client) != g_defaultClass[blue])
 			{
