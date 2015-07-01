@@ -83,6 +83,11 @@
 #include <selector>
 #endif
 
+// Include support for Workshop maps
+// Requires SourceMod 1.8 or later
+// Default: ON
+#define WORKSHOP_SUPPORT
+
 // Include support for Opt-In MultiMod
 // Default: OFF
 //#define OIMM
@@ -4892,9 +4897,13 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 {
 	
 	new String:mapPiece[PLATFORM_MAX_PATH];
+	
+	#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
 	GetFriendlyMapName(map, mapPiece, sizeof(mapPiece), false);
-	
+	#else
+	strcopy(mapPiece, sizeof(mapPiece), map);
+	#endif
 	new String:confil[PLATFORM_MAX_PATH];
 	
 	// Optimization so we don't immediately rebuild the whole string after ExplodeString
