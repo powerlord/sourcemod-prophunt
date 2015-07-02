@@ -4900,7 +4900,7 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	
 	#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
-	GetFriendlyMapName(map, mapPiece, sizeof(mapPiece), false);
+	GetWorkshopMapBaseName(map, mapPiece, sizeof(mapPiece));
 	#else
 	strcopy(mapPiece, sizeof(mapPiece), map);
 	#endif
