@@ -923,6 +923,7 @@ InitializeDHooks()
 	DHookAddParam(hWinning, HookParamType_Bool);
 	DHookAddParam(hWinning, HookParamType_Bool);
 	DHookAddParam(hWinning, HookParamType_Bool);	
+	DHookAddParam(hWinning, HookParamType_Bool);	
 }
 
 RegisterDHooks()
