@@ -924,7 +924,6 @@ public OnAllPluginsLoaded()
 		LogMessage("[PH] Found Updater on startup.");
 	}
 #endif
-	DHookAddParam(hWinning, HookParamType_Bool);	
 }
 
 // Should we switch teams this round?
@@ -3583,7 +3582,7 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 		for (new i = 0; i < g_ReplacementCount[client]; ++i)
 		{
 			// DON'T require FORCE_GENERATION here, since they could pass back tf_weapon_shotgun 
-			new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL);
+			new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL|PRESERVE_ATTRIBUTES);
 			
 			new String:defIndex[7];
 			IntToString(g_Replacements[client][i], defIndex, sizeof(defIndex));
@@ -3625,6 +3624,8 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 				
 				for (new j = 0; j < count && attribCount < 16; j += 2)
 				{
+					TrimString(newAttribs[i]);
+					TrimString(newAttribs[i+1]);
 					new attrib = StringToInt(newAttribs[i]);
 					new Float:value = StringToFloat(newAttribs[i+1]);
 					TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
@@ -4675,6 +4676,8 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		
 		for (new i = 0; i < count && attribCount < 16; i += 2)
 		{
+			TrimString(newAttribs2[i]);
+			TrimString(newAttribs2[i+1]);
 			new attrib = StringToInt(newAttribs2[i]);
 			new Float:value = StringToFloat(newAttribs2[i+1]);
 			TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
