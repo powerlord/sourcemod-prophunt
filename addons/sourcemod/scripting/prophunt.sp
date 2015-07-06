@@ -924,6 +924,7 @@ public OnAllPluginsLoaded()
 		LogMessage("[PH] Found Updater on startup.");
 	}
 #endif
+	DHookAddParam(hWinning, HookParamType_Bool);	
 }
 
 // Should we switch teams this round?
