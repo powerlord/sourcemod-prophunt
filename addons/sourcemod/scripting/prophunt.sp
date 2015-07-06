@@ -4353,7 +4353,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 	new red = TEAM_PROP - 2;
 	if(!g_RoundOver)
 	{
-		decl String:name[64];
+		decl String:name[MAX_NAME_LENGTH];
 		for(new client=1; client <= MaxClients; client++)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
@@ -4387,10 +4387,13 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 public Action:Timer_FixPropPlayer(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	if (client < 1 || GetClientTeam(client) != TEAM_PROP)
+	if (client < 1 || GetClientTeam(client) != TEAM_PROP || g_LastProp)
 		return Plugin_Handled;
 		
-	TF2_RegeneratePlayer(client);
+	//TF2_RegeneratePlayer(client);
+	
+	TF2_RemoveAllWeapons(client);	
+	
 	Timer_DoEquip(INVALID_HANDLE, userid);
 	
 	return Plugin_Handled;
@@ -4577,7 +4580,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	
 	if (team == TEAM_PROP)
 	{
-		// Taunt items have the classname "no_entity now"
+		// Taunt items have the classname "no_entity" now
 		if (GetConVarBool(g_PHAllowTaunts) && StrEqual(classname, "no_entity", false))
 		{
 			return Plugin_Continue;
