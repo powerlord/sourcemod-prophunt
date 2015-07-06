@@ -547,6 +547,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 		return APLRes_Failure;
 	}
 	
+	// This SHOULD be done in steamtools.inc, but isn't.
 	MarkNativeAsOptional("Steam_SetGameDescription");
 	
 	/*
@@ -569,7 +570,7 @@ public OnPluginStart()
 	gc = LoadGameConfigFile("tf2-switch-teams");
 	
 	StartPrepSDKCall(SDKCall_GameRules);
-	PrepSDKCall_SetFromConf(gc, SDKConf_Virtual, "CTeamplayRules::SetSwitchTeams");
+	PrepSDKCall_SetFromConf(gc, SDKConf_Virtual, "CTFGameRules::SetSwitchTeams");
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 	g_hSwitchTeams = EndPrepSDKCall();
 	
@@ -4389,7 +4390,7 @@ public Action:Timer_FixPropPlayer(Handle:timer, any:userid)
 	new client = GetClientOfUserId(userid);
 	if (client < 1 || GetClientTeam(client) != TEAM_PROP || g_LastProp)
 		return Plugin_Handled;
-		
+	
 	//TF2_RegeneratePlayer(client);
 	
 	TF2_RemoveAllWeapons(client);	
@@ -4911,12 +4912,15 @@ stock SwitchTeamScores(redScore, bluScore)
 
 bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen = 0)
 {
-	
 	new String:mapPiece[PLATFORM_MAX_PATH];
 	
 	#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
-	GetWorkshopMapBaseName(map, mapPiece, sizeof(mapPiece));
+	strcopy(mapPiece, sizeof(mapPiece), map);
+	if (FindMap(mapPiece, sizeof(mapPiece)) == FindMap_NonCanonical)
+	{
+		GetWorkshopMapBaseName(map, mapPiece, sizeof(mapPiece));
+	}
 	#else
 	strcopy(mapPiece, sizeof(mapPiece), map);
 	#endif

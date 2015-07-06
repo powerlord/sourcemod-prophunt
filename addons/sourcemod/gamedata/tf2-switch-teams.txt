@@ -6,19 +6,19 @@
 		"Offsets"
 		
 		{
-			"CTeamplayRules::SetSwitchTeams"
+			"CTFGameRules::SetSwitchTeams"
 			{
 				"windows"	"160"
 				"linux"		"161"
 			}
 
-			"CTeamplayRules::ShouldSwitchTeams"
+			"CTFGameRules::ShouldSwitchTeams"
 			{
 				"windows"	"161"
 				"linux"		"162"
 			}
 
-			"CTeamplayRules::HandleSwitchTeams"
+			"CTFGameRules::HandleSwitchTeams"
 			{
 				"windows"	"162"
 				"linux"		"163"
