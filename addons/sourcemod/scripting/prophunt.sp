@@ -430,6 +430,9 @@ new g_ArenaPreroundTime;
 new Handle:g_hArenaFirstBlood;
 new bool:g_ArenaFirstBlood;
 
+new Handle:g_hWeaponDropTime;
+new g_WeaponDropTime;
+
 // Regular convars
 #if !defined SWITCH_TEAMS
 new Handle:g_hBonusRoundTime;
@@ -640,6 +643,8 @@ public OnPluginStart()
 	g_hSolidObjects = FindConVar("tf_solidobjects");
 	g_hArenaPreroundTime = FindConVar("tf_arena_preround_time");
 	g_hArenaFirstBlood = FindConVar("tf_arena_first_blood");
+	
+	g_hWeaponDropTime = FindConVar("tf_dropped_weapon_lifetime");
 	
 #if !defined SWITCH_TEAMS
 	g_hBonusRoundTime = FindConVar("mp_bonusroundtime");
@@ -1461,6 +1466,9 @@ SetCVars(){
 	g_ArenaFirstBlood = GetConVarBool(g_hArenaFirstBlood);
 	SetConVarBool(g_hArenaFirstBlood, false, true);
 	
+	g_WeaponDropTime = GetConVarInt(g_hWeaponDropTime);
+	SetConVarInt(g_hWeaponDropTime, 0, true);
+	
 	g_CvarsSet = true;
 }
 
@@ -1493,6 +1501,7 @@ ResetCVars()
 	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
 	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
 	SetConVarBool(g_hArenaFirstBlood, g_ArenaFirstBlood, true);
+	SetConVarInt(g_hWeaponDropTime, g_WeaponDropTime, true);
 	
 	g_CvarsSet = false;
 }
