@@ -8,20 +8,20 @@
 		{
 			"CTeamplayRules::SetSwitchTeams"
 			{
-				"windows"	"158"
-				"linux"		"159"
+				"windows"	"160"
+				"linux"		"161"
 			}
 
 			"CTeamplayRules::ShouldSwitchTeams"
 			{
-				"windows"	"159"
-				"linux"		"160"
+				"windows"	"161"
+				"linux"		"162"
 			}
 
 			"CTeamplayRules::HandleSwitchTeams"
 			{
-				"windows"	"160"
-				"linux"		"161"
+				"windows"	"162"
+				"linux"		"163"
 			}
 		}
 	}
