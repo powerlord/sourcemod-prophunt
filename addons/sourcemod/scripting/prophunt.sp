@@ -50,8 +50,10 @@
 #include <SteamWorks>
 
 #undef REQUIRE_PLUGIN
-#include <tf2attributes>
 #include <updater>
+
+#define REQUIRE_EXTENSIONS
+#define REQUIRE_PLUGIN
 
 #if !defined SNDCHAN_VOICE2
 #define SNDCHAN_VOICE2 7
@@ -377,9 +379,7 @@ new bool:g_MapStarted = false;
 // Track optional dependencies
 new bool:g_SteamTools = false;
 new bool:g_SteamWorks = false;
-new bool:g_TF2Attribs = false;
 new bool:g_Updater = false;
-new bool:g_UpdaterRegistered = false;
 
 #if defined OIMM
 new bool:g_OptinMultiMod = false;
@@ -658,8 +658,6 @@ public OnPluginStart()
 	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
 	HookConVarChange(g_PHAntiHack, OnAntiHackChanged);
 	HookConVarChange(g_PHStaticPropInfo, OnAntiHackChanged);
-	HookConVarChange(g_PHAirblast, OnAirblastChanged);
-	HookConVarChange(g_PHPreventFallDamage, OnFallDamageChanged);
 	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
 	HookConVarChange(g_PHReroll, OnPropRerollChanged);
 	HookConVarChange(g_PHMultilingual, OnMultilingualChanged);
@@ -913,15 +911,6 @@ public OnAllPluginsLoaded()
 	}
 #endif
 
-	g_TF2Attribs = LibraryExists("tf2attributes");
-	
-#if defined LOG
-	if (g_TF2Attribs)
-	{
-		LogMessage("[PH] Found TF2Attributes on startup.");
-	}
-#endif
-
 	g_Updater = LibraryExists("updater");
 	
 #if defined LOG
@@ -1008,20 +997,13 @@ public OnLibraryAdded(const String:name[])
 	}
 #endif
 	else
-	if (StrEqual(name, "tf2attributes", false))
-	{
-#if defined LOG
-		LogMessage("[PH] TF2Attributes Loaded ");
-#endif
-		g_TF2Attribs = true;
-	}
-	else
 	if (StrEqual(name, "updater", false))
 	{
 #if defined LOG
 		LogMessage("[PH] Updater Loaded.");
 #endif
 		g_Updater = true;
+		Updater_AddPlugin(UPDATE_URL);
 	}
 }
 
@@ -1053,14 +1035,6 @@ public OnLibraryRemoved(const String:name[])
 	}
 #endif
 	else
-	if (StrEqual(name, "tf2attributes", false))
-	{
-#if defined LOG
-		LogMessage("[PH] TF2Attributes Unloaded ");
-#endif
-		g_TF2Attribs = false;
-	}
-	else
 	if (StrEqual(name, "updater", false))
 	{
 #if defined LOG
@@ -1090,48 +1064,6 @@ public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:ne
 	{
 		CloseHandle(g_hAntiHack);
 		g_hAntiHack = INVALID_HANDLE;
-	}
-}
-
-public OnAirblastChanged(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	if (!g_Enabled || !g_TF2Attribs)
-		return;
-	
-	new bool:airblast = GetConVarBool(g_PHAirblast);
-
-	new flamethrower = -1;
-	
-	while ((flamethrower = FindEntityByClassname(flamethrower, "tf_weapon_flamethrower")) != -1)
-	{
-		new iItemDefinitionIndex = GetEntProp(flamethrower, Prop_Send, "m_iItemDefinitionIndex");
-		if (iItemDefinitionIndex != WEP_PHLOGISTINATOR || FindValueInArray(g_hWeaponStripAttribs, WEP_PHLOGISTINATOR) >= 0)
-		{
-			if (airblast)
-			{
-				TF2Attrib_RemoveByName(flamethrower, "airblast disabled");
-			}
-			else
-			{
-				TF2Attrib_SetByName(flamethrower, "airblast disabled", 1.0);
-			}
-		}
-	}
-}
-
-public OnFallDamageChanged(Handle:convar, const String:oldValue[], const String:newValue[])
-{
-	if (!g_Enabled || !g_TF2Attribs)
-		return;
-	
-	new Float:fall = GetConVarFloat(g_PHPreventFallDamage);
-	
-	for (new i = 1; i <= MaxClients; ++i)
-	{
-		if (IsClientInGame(i))
-		{
-			TF2Attrib_SetByName(i, "cancel falling damage", fall);
-		}
 	}
 }
 
@@ -1511,11 +1443,6 @@ public OnConfigsExecuted()
 {
 	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
 	
-	if (g_UpdaterRegistered == false && GetConVarBool(g_PHUseUpdater))
-	{
-		Updater_AddPlugin(UPDATE_URL);
-	}
-	
 	g_GameRulesProxy = EntIndexToEntRef(FindEntityByClassname(-1, "tf_gamerules"));
 	
 	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
@@ -1797,18 +1724,19 @@ public OnUseUpdaterChanged(Handle:convar, const String:oldValue[], const String:
 		
 	if (GetConVarBool(convar))
 	{
-		if (!g_UpdaterRegistered)
-		{
-			Updater_AddPlugin(UPDATE_URL);
-		}
+		Updater_ForceUpdate();
 	}
-	else
-	{
-		if (g_UpdaterRegistered)
-		{
-			Updater_RemovePlugin();
-		}
-	}
+}
+
+public Action:Updater_OnPluginDownloading()
+{
+	return GetConVarBool(g_PHUseUpdater) ? Plugin_Continue : Plugin_Handled;
+}
+
+public Updater_OnPluginUpdated()
+{
+	PrintCenterTextAll("PropHunt Redux Updated, server restart may be required.");
+	LogMessage("PropHunt Redux Updated, server restart may be required.");
 }
 
 public StartTouchHook(entity, other)
@@ -3653,25 +3581,6 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 		g_ReplacementCount[client] = 0;
 		// Now that we're adjusting weapons, this needs to happen to fix max ammo counts
 		TF2_RegeneratePlayer(client);
-	}
-
-	TF2Attrib_ChangeBoolAttrib(client, "cancel falling damage", GetConVarBool(g_PHPreventFallDamage));
-}
-
-TF2Attrib_ChangeBoolAttrib(entity, String:attribute[], bool:value)
-{
-	if (!g_TF2Attribs)
-	{
-		return;
-	}
-	
-	if (value)
-	{
-		TF2Attrib_SetByName(entity, attribute, 1.0);
-	}
-	else if (TF2Attrib_GetByName(entity, attribute) != Address_Null)
-	{
-		TF2Attrib_RemoveByName(entity, attribute);
 	}
 }
 
