@@ -20,6 +20,9 @@
 			"Plugin"	"Path_SM/plugins/prophunt.smx"
 
 			"Plugin"	"Path_SM/gamedata/tf2-roundend.games.txt"
+
+			"Plugin"	"Path_SM/data/maps/ph_blockfort.cfg"
+			"Plugin"	"Path_SM/data/maps/ph_buckethunt.cfg"
 		}
 
 		"Plugin"	"Path_SM/plugins/prophunt.smx"
@@ -47,6 +50,8 @@
 		"Plugin"	"Path_SM/data/maps/ph_amazon.cfg"
 		"Plugin"	"Path_SM/data/maps/ph_basalt.cfg"
 		"Plugin"	"Path_SM/data/maps/ph_bigbutt.cfg"
+		"Plugin"	"Path_SM/data/maps/ph_blockfort.cfg"
+		"Plugin"	"Path_SM/data/maps/ph_buckethunt.cfg"
 		"Plugin"	"Path_SM/data/maps/ph_campsite.cfg"
 		"Plugin"	"Path_SM/data/maps/ph_canyon.cfg"
 		"Plugin"	"Path_SM/data/maps/ph_cargo.cfg"

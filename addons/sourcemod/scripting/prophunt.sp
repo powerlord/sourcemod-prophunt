@@ -4826,6 +4826,7 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
 	strcopy(mapPiece, sizeof(mapPiece), map);
+	// We call FindMap so that ValidateMap works on fuzzy maps as well
 	if (FindMap(mapPiece, sizeof(mapPiece)) == FindMap_NonCanonical)
 	{
 		GetWorkshopMapBaseName(map, mapPiece, sizeof(mapPiece));
