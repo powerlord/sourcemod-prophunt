@@ -9,9 +9,10 @@
 		}
 
 		"Notes"	"Added updater support"
+		"Notes"	"Added workshop map support"
+		"Notes"	"Removed DHooks dependency"
+		"Notes"	"Removed TF2Attributes dependency"
 		"Notes"	"Override First Blood with our own system"
-		"Notes"	"Removed DHooks dependency and do our own SDKCalls instead"
-		"Notes"	"Removed large amounts of commented out code"
 		"Notes"	"Add an option to enable respawning during Setup (on by default)"
 
 		"Notes"	"See https://forums.alliedmods.net/showthread.php?t=228086 for full changelog."
@@ -24,10 +25,14 @@
 			"Plugin"	"Path_SM/plugins/prophunt.smx"
 			"Plugin"	"Path_SM/data/prophunt_config.cfg"
 			"Plugin"	"Path_SM/gamedata/tf2-switch-teams.txt"
+
+			"Source"	"Path_SM/scripting/prophunt.sp"
 		}
 
 		"Plugin"	"Path_SM/plugins/prophunt.smx"
+
 		"Plugin"	"Path_SM/translations/prophunt.phrases.txt"
+
 		"Plugin"	"Path_SM/gamedata/tf2-switch-teams.txt"
 
 		"Plugin"	"Path_SM/data/prophunt_config.cfg"

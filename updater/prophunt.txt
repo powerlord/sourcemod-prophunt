@@ -4,13 +4,11 @@
 	{
 		"Version"
 		{
-			"Latest"	"3.3.1"
-			"Previous"	"3.3.0"
+			"Latest"	"3.3.3"
+			"Previous"	"3.3.2"
 		}
 
-		"Notes"	"Fix ph_propreroll 1 not working."
-		"Notes"	"Fix incorrect translation phrases for stats servers."
-		"Notes"	"Added a few new map configs."
+		"Notes"	"Fix issue with DHooks causing crashes / not team switching"
 
 		"Notes"	"See https://forums.alliedmods.net/showthread.php?t=228086 for full changelog."
 	}
@@ -20,13 +18,14 @@
 		"Patch"
 		{
 			"Plugin"	"Path_SM/plugins/prophunt.smx"
-			"Plugin"	"Path_SM/translations/prophunt.phrases.txt"
-			"Plugin"	"Path_SM/data/maps/ph_petitcourtyard.cfg"
-			"Plugin"	"Path_SM/data/maps/ph_bigbutt.cfg"
+
+			"Plugin"	"Path_SM/gamedata/tf2-roundend.games.txt"
 		}
 
 		"Plugin"	"Path_SM/plugins/prophunt.smx"
+
 		"Plugin"	"Path_SM/translations/prophunt.phrases.txt"
+
 		"Plugin"	"Path_SM/gamedata/tf2-roundend.games.txt"
 
 		"Plugin"	"Path_SM/data/prophunt_config.cfg"
