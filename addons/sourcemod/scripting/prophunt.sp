@@ -808,7 +808,7 @@ ReadCommonPropData(bool:onlyLanguageRefresh = false)
 		{
 			if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
 			{
-				LogError("Error saving prop data for %s", modelPath);
+				LogError("Error saving prop data for %s, probably a duplicate prop in data/prophunt/prop_common.txt", modelPath);
 				continue;
 			}
 		}
@@ -2003,6 +2003,11 @@ public OnMapStart()
 			do
 			{
 				KvGetSectionName(fl, buffer, sizeof(buffer));
+				if (!FileExists(buffer, true))
+				{
+					LogError("prop_menu.txt: Prop does not exist: %s", buffer);
+					continue;
+				}
 				AddMenuItem(g_PropMenu, buffer, buffer);
 				count++;
 			}
@@ -2024,6 +2029,11 @@ public OnMapStart()
 			do
 			{
 				KvGetSectionName(fl, buffer, sizeof(buffer));
+				if (!FileExists(buffer, true))
+				{
+					LogError("props_allmaps.txt: Prop does not exist: %s", buffer);
+					continue;
+				}
 				PushArrayString(g_ModelName, buffer);
 				AddMenuItem(g_PropMenu, buffer, buffer);
 				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
@@ -2065,6 +2075,11 @@ public OnMapStart()
 			do
 			{
 				KvGetSectionName(fl, buffer, sizeof(buffer));
+				if (!FileExists(buffer, true))
+				{
+					LogError("%s: Prop does not exist: %s", confil, buffer);
+					continue;
+				}
 				PushArrayString(g_ModelName, buffer);
 				AddMenuItem(g_PropMenu, buffer, buffer);
 				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
@@ -4823,16 +4838,22 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 {
 	new String:mapPiece[PLATFORM_MAX_PATH];
 	
+	strcopy(mapPiece, sizeof(mapPiece), map);
+
 	#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
-	strcopy(mapPiece, sizeof(mapPiece), map);
-	// We call FindMap so that ValidateMap works on fuzzy maps as well
-	if (FindMap(mapPiece, sizeof(mapPiece)) == FindMap_NonCanonical)
+	new FindMapResult:result = FindMap(mapPiece, sizeof(mapPiece));
+	if (result == FindMap_NotFound || result == FindMap_PossiblyAvailable)
 	{
-		GetWorkshopMapBaseName(map, mapPiece, sizeof(mapPiece));
+		return false;
 	}
+
+	GetMapDisplayName(map, mapPiece, sizeof(mapPiece));
 	#else
-	strcopy(mapPiece, sizeof(mapPiece), map);
+	if (!IsMapValid(mapPiece))
+	{
+		return false;
+	}
 	#endif
 	new String:confil[PLATFORM_MAX_PATH];
 	
