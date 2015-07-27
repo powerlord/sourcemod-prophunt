@@ -4840,7 +4840,7 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	
 	strcopy(mapPiece, sizeof(mapPiece), map);
 
-	#if defined WORKSHOP_SUPPORT
+#if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
 	new FindMapResult:result = FindMap(mapPiece, sizeof(mapPiece));
 	if (result == FindMap_NotFound || result == FindMap_PossiblyAvailable)
@@ -4849,12 +4849,12 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	}
 
 	GetMapDisplayName(map, mapPiece, sizeof(mapPiece));
-	#else
+#else
 	if (!IsMapValid(mapPiece))
 	{
 		return false;
 	}
-	#endif
+#endif
 	new String:confil[PLATFORM_MAX_PATH];
 	
 	// Optimization so we don't immediately rebuild the whole string after ExplodeString
@@ -4967,7 +4967,7 @@ Internal_RemoveServerTag()
 	new String:tags[SV_TAGS_SIZE+1];
 	GetConVarString(g_hTags, tags, sizeof(tags));
 	
-	if (StrContains(tags, "PropHunt", false) == -1)
+	if (StrContains(tags, "PropHunt", false) > -1)
 	{
 		new String:tagArray[20][SV_TAGS_SIZE+1];
 		new count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
