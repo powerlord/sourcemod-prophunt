@@ -8,20 +8,20 @@
 		{
 			"CTFGameRules::SetSwitchTeams"
 			{
-				"windows"	"160"
-				"linux"		"161"
+				"windows"	"162"
+				"linux"		"163"
 			}
 
 			"CTFGameRules::ShouldSwitchTeams"
 			{
-				"windows"	"161"
-				"linux"		"162"
+				"windows"	"163"
+				"linux"		"164"
 			}
 
 			"CTFGameRules::HandleSwitchTeams"
 			{
-				"windows"	"162"
-				"linux"		"163"
+				"windows"	"164"
+				"linux"		"165"
 			}
 		}
 	}
