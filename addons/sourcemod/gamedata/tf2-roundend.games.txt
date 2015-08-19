@@ -8,8 +8,8 @@
 		{
 			"SetWinningTeam"
 			{
-				"windows"	"158"
-				"linux"		"159"
+				"windows"	"160"
+				"linux"		"161"
 			}
 		}
 	}
