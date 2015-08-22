@@ -60,7 +60,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.3.3"
+#define PL_VERSION "3.3.4"
 //--------------------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -2465,7 +2465,7 @@ public Action:Command_propmenu(client, args)
 					}
 					g_RoundStartMessageSent[client] = false;
 					strcopy(g_PlayerModel[client], sizeof(g_PlayerModel[]), model);
-					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+					RequestFrame(DoEquipProp, GetClientUserId(client));
 				}
 				else
 				{
@@ -2513,7 +2513,7 @@ public Action:Command_propreroll(client, args)
 					g_Rerolled[client] = true;
 					g_PlayerModel[client] = "";
 					g_RoundStartMessageSent[client] = false;
-					Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+					RequestFrame(DoEquipProp, GetClientUserId(client));
 				}
 				else
 				{
@@ -2562,7 +2562,7 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 						{
 							GetMenuItem(menu, param2, g_PlayerModel[param1], PLATFORM_MAX_PATH);
 							g_RoundStartMessageSent[param1] = false;
-							Timer_DoEquip(INVALID_HANDLE, GetClientUserId(param1));
+							RequestFrame(DoEquipProp, GetClientUserId(param1));
 						}
 						else
 						{
@@ -3906,7 +3906,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		}
 	}
 	// Delay freeze by a frame
-	CreateTimer(0.0, Timer_teamplay_round_start);
+	RequestFrame(Delay_teamplay_round_start);
 	
 	// Arena maps should have a team_control_point_master already, but just in case...
 	new ent = FindEntityByClassname(-1, "team_control_point_master");
@@ -3937,7 +3937,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	AcceptEntityInput(ent, "SetRedTeamRole");
 }
 
-public Action:Timer_teamplay_round_start(Handle:timer)
+public Delay_teamplay_round_start(any:data)
 {
 	for (new i = 1; i <= MaxClients; i++)
 	{
@@ -3970,7 +3970,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	if(g_RoundOver)
 	{
 		// bl4nk mentions arena_round_start, but I think he meant teamplay_round_start
-		CreateTimer(0.0, Timer_arena_round_start);
+		RequestFrame(Delay_arena_round_start);
 		
 		//SetupRoundTime(g_RoundTime);
 		
@@ -3982,7 +3982,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	}
 }
 
-public Action:Timer_arena_round_start(Handle:timer)
+public Delay_arena_round_start(any:data)
 {
 	for(new client=1; client <= MaxClients; client++)
 	{
@@ -3990,12 +3990,12 @@ public Action:Timer_arena_round_start(Handle:timer)
 		{
 			if(GetClientTeam(client) == TEAM_PROP)
 			{
-				Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
+				RequestFrame(DoEquipProp, GetClientUserId(client));
 				SetEntityMoveType(client, MOVETYPE_WALK);
 			}
 			else
 			{
-				Timer_DoEquipBlu(INVALID_HANDLE, GetClientUserId(client));
+				RequestFrame(DoEquipHunter, GetClientUserId(client));
 				if (!g_Freeze)
 				{
 					SetEntityMoveType(client, MOVETYPE_WALK);
@@ -4087,7 +4087,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 				return;
 			}
 #endif
-			CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
+			RequestFrame(DoEquipHunter, GetClientUserId(client));
 
 		}
 		else
@@ -4105,13 +4105,20 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			{
 				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red]);
 				TF2_RespawnPlayer(client);
+				return;	// This was missing prior to PHR 3.3.4
 			}
-			CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			// CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+			RequestFrame(DoEquipProp, GetClientUserId(client));
 		}
 		
 		if (g_inPreRound)
 		{
 			SetEntityMoveType(client, MOVETYPE_NONE);
+		}
+		else
+		{
+			// Players are spawning on a non-player team?
+			ForcePlayerSuicide(client);
 		}
 	}
 }
@@ -4247,13 +4254,14 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 ///////////////////  TIMERS  ////////////////////////
 ////////////////////////////////////////////////////
 
-
+/*
 public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 		SetWeaponsAlpha(client, 0);
 }
+*/
 
 public Action:Timer_Info(Handle:timer)
 {
@@ -4301,7 +4309,8 @@ public Action:Timer_Info(Handle:timer)
 	}
 }
 
-public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
+//public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
+public DoEquipHunter(any:UserId)
 {
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
@@ -4333,10 +4342,10 @@ public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
 			TF2_RespawnPlayer(client);
 		}
 	}
-	return Plugin_Handled;
 }
 
-public Action:Timer_DoEquip(Handle:timer, any:UserId)
+//public Action:Timer_DoEquip(Handle:timer, any:UserId)
+public DoEquipProp(any:UserId)
 {
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
@@ -4463,7 +4472,6 @@ public Action:Timer_DoEquip(Handle:timer, any:UserId)
 			SetEntityMoveType(client, MOVETYPE_WALK);
 		}
 	}
-	return Plugin_Handled;
 }
 
 public Action:Timer_Locked(Handle:timer, any:entity)
@@ -4483,7 +4491,7 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 	new red = TEAM_PROP - 2;
 	if(!g_RoundOver)
 	{
-		decl String:name[64];
+		decl String:name[MAX_NAME_LENGTH];
 		for(new client=1; client <= MaxClients; client++)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
@@ -4502,9 +4510,9 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 						SwitchView(client, false, true);
 						//ForcePlayerSuicide(client);
 						g_PlayerModel[client] = "";
-						//TF2_RemoveAllWeapons(client);
+						TF2_RemoveAllWeapons(client); // This really needs to be left on
 						//Timer_DoEquip(INVALID_HANDLE, GetClientUserId(client));
-						CreateTimer(0.1, Timer_FixPropPlayer, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
+						RequestFrame(FixPropPlayer, GetClientUserId(client));
 					}
 				}
 			}
@@ -4513,17 +4521,17 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 	return Plugin_Continue;
 }
 
-// Fix a prop player who still has 
-public Action:Timer_FixPropPlayer(Handle:timer, any:userid)
+// Fix a prop player who still had weapons
+// One frame shouldn't be enough to change players, but just in case...
+public FixPropPlayer(any:userid)
 {
 	new client = GetClientOfUserId(userid);
 	if (client < 1 || GetClientTeam(client) != TEAM_PROP)
-		return Plugin_Handled;
+		return;
 		
 	TF2_RegeneratePlayer(client);
-	Timer_DoEquip(INVALID_HANDLE, userid);
-	
-	return Plugin_Handled;
+	//Timer_DoEquip(INVALID_HANDLE, userid);
+	RequestFrame(DoEquipProp, userid);
 }
 
 public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
@@ -4713,11 +4721,12 @@ public Action:Timer_Move(Handle:timer, any:userid)
 			SetEntityMoveType(client, MOVETYPE_WALK);
 			if(GetClientTeam(client) == TEAM_HUNTER)
 			{
-				CreateTimer(0.1, Timer_DoEquipBlu, GetClientUserId(client));
+				RequestFrame(DoEquipHunter, GetClientUserId(client));
 			}
 			else
 			{
-				CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+				//CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
+				RequestFrame(DoEquipProp, GetClientUserId(client));
 			}
 		}
 	}
