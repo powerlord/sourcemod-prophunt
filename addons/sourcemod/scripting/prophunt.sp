@@ -549,7 +549,12 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	
 	// This SHOULD be done in steamtools.inc, but isn't.
 	MarkNativeAsOptional("Steam_SetGameDescription");
-	
+
+#if defined WORKSHOP_SUPPORT	
+	// Part of SM 1.8
+	MarkNativeAsOptional("GetMapDisplayName");
+#endif
+
 	/*
 	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
 	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
@@ -4838,21 +4843,25 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 {
 	new String:mapPiece[PLATFORM_MAX_PATH];
 	
-	strcopy(mapPiece, sizeof(mapPiece), map);
-
 #if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
-	new FindMapResult:result = FindMap(mapPiece, sizeof(mapPiece));
-	if (result == FindMap_NotFound || result == FindMap_PossiblyAvailable)
+	if (GetFeatureStatus(FeatureType_Native, "GetMapDisplayName") == FeatureStatus_Available)
 	{
-		return false;
+		if (!GetMapDisplayName(map, mapPiece, sizeof(mapPiece)))
+		{
+			return false;
+		}
 	}
-
-	GetMapDisplayName(map, mapPiece, sizeof(mapPiece));
-#else
-	if (!IsMapValid(mapPiece))
+	else
 	{
-		return false;
+#endif
+		strcopy(mapPiece, sizeof(mapPiece), map);
+		
+		if (!IsMapValid(mapPiece))
+		{
+			return false;
+		}
+#if defined WORKSHOP_SUPPORT
 	}
 #endif
 	new String:confil[PLATFORM_MAX_PATH];
