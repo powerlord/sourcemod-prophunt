@@ -530,6 +530,12 @@ public OnPluginStart()
 		g_SetWinningTeamOffset = GameConfGetOffset(gc, "SetWinningTeam");
 		CloseHandle(gc);
 	}
+#if defined LOG
+	else
+	{
+		LogMessage("Failed to load gamedata");
+	}
+#endif
 #endif	
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
@@ -4041,6 +4047,9 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		// stupid glitch fix
 		if(!g_RoundOver && !g_AllowedSpawn[client])
 		{
+#if defined LOG
+			LogMessage("%N spawned outside of a round");
+#endif
 			ForcePlayerSuicide(client);
 			return;
 		}
@@ -4052,7 +4061,8 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 #endif
 		g_Hit[client] = false;
 
-		if(GetClientTeam(client) == TEAM_HUNTER)
+		new team = GetClientTeam(client);
+		if(team == TEAM_HUNTER)
 		{
 			if (!g_RoundStartMessageSent[client])
 			{
@@ -4091,7 +4101,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 		}
 		else
-		if(GetClientTeam(client) == TEAM_PROP)
+		if(team == TEAM_PROP)
 		{
 			if(g_RoundOver)
 			{
@@ -4110,15 +4120,18 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			// CreateTimer(0.1, Timer_DoEquip, GetClientUserId(client));
 			RequestFrame(DoEquipProp, GetClientUserId(client));
 		}
+		else
+		{
+			// Players are spawning on a non-player team?
+			#if defined LOG
+			LogMessage("%N spawned on a non-player team: %d, slaying...", client, team);
+			#endif
+			ForcePlayerSuicide(client);
+		}
 		
 		if (g_inPreRound)
 		{
 			SetEntityMoveType(client, MOVETYPE_NONE);
-		}
-		else
-		{
-			// Players are spawning on a non-player team?
-			ForcePlayerSuicide(client);
 		}
 	}
 }
