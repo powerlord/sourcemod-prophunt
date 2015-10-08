@@ -4,8 +4,8 @@
  * TF2 PropHunt Redux
  * Hide as a prop from the evil Pyro menace... or hunt down the hidden prop scum
  * 
- * TF2 PropHunt (C)2007-2014 Darkimmortal.  All rights reserved.
- * TF2 PropHunt Redux (C)2013-2014 Powerlord (Ross Bemrose).  All rights reserved.
+ * TF2 PropHunt (C)2007-2015 Darkimmortal.  All rights reserved.
+ * TF2 PropHunt Redux (C)2013-2015 Powerlord (Ross Bemrose).  All rights reserved.
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -29,7 +29,7 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: 3.4.0
+ * Version: 4.0.0
  */
 // PropHunt Redux by Powerlord
 //         Based on
@@ -40,12 +40,12 @@
 #endif
 #define _prophunt_redux_included_
 
-// PropHunt Redux 3.4+ series
+// PropHunt Redux 4.0+ series
 
 #include <tf2>
 
-#define TEAM_PROP _:TFTeam_Red
-#define TEAM_HUNTER _:TFTeam_Blue
+#define TEAM_PROP view_as<int>(TFTeam_Red)
+#define TEAM_HUNTER view_as<int>(TFTeam_Blue)
 
 enum ScReason
 {
@@ -64,21 +64,21 @@ enum ScReason
  * 
  * @return	true if PropHunt Redux is running, false otherwise
  */
-native bool:PropHuntRedux_IsRunning();
+native bool PropHuntRedux_IsRunning();
 
 /**
  * Is the named map a valid PropHunt map?
  * 
  * @return 	true if yes, false if no
  */
-native bool:PropHuntRedux_ValidateMap(const String:map[]);
+native bool PropHuntRedux_ValidateMap(const char[] map);
 
 /**
  * Get the model of a prop player.
  * 
  * @return	true if client is/was a prop and has a model, false otherwise
  */
-native bool:PropHuntRedux_GetPropModel(client, String:model[], maxlen);
+native bool PropHuntRedux_GetPropModel(int client, char[] model, int maxlen);
 
 /**
  * Get the name of the model of a prop player.
@@ -87,28 +87,39 @@ native bool:PropHuntRedux_GetPropModel(client, String:model[], maxlen);
  * 
  * @return	true if client is/was a prop and has a model, false otherwise
  */
-native bool:PropHuntRedux_GetPropModelName(client, String:name[], maxlen, targetClient=LANG_SERVER);
+native bool PropHuntRedux_GetPropModelName(int client, char[] name, int maxlen, int targetClient=LANG_SERVER);
+
+/**
+ * Callback called when the game description is being updated
+ * 
+ * Stat plugins can use this to append data to the end of the string.
+ * 
+ * @param description	The current / updated description.  Maxes out at 128 characters.
+ * @return Plugin_Changed if your plugin changed the game description.
+ *         Plugin_Continued otherwise.
+ */
+typedef PropHuntRedux_UpdateGameDescription = function Action(char description[128]);
 
 //functag public PropHuntRedux_Stats_Init();
 //functag public PropHuntRedux_Stats_Uninit();
 
-//functag public PropHuntRedux_Stats_RoundWin(winner);
+//functag public PropHuntRedux_Stats_RoundWin(int winner);
 
 // Note that score is no longer passed.  The stats plugin should decide what the score is.
 // In classic PH stats, time is 2 points, win is 3 points, lose is -1 point.
 // In Redux, time is awarded to props once when Setup ends and then every 55 seconds afterwards until round end.
 // This replaces the "awarded every 55 seconds" behavior that happened regardless of what was going on.
-//functag public PropHuntRedux_Stats_AlterScore(client, SCReason:reason);
+//functag public PropHuntRedux_Stats_AlterScore(int client, SCReason reason);
 
-//functag public PropHuntRedux_Stats_PlayerKilled(clientID, attackerID, assisterID, weaponid, const String:weapon[]);
+//functag public PropHuntRedux_Stats_PlayerKilled(int clientID, int attackerID, int assisterID, int weaponid, const char[] weapon);
 
 // Note: Not finished, stopped here
 // We still need a native to register stuff and possibly more stats functions
 
-//functag public PropHuntRedux_Stats_ClientConnected(client);
-//functag public PropHuntRedux_Stats_ClientDisconnected(client);
+//functag public PropHuntRedux_Stats_ClientConnected(int client);
+//functag public PropHuntRedux_Stats_ClientDisconnected(int client);
 
-public SharedPlugin:__pl_prophunt_redux = 
+public SharedPlugin __pl_prophunt_redux = 
 {
 	name = "Prophunt Redux",
 	file = "prophunt.smx",
@@ -120,7 +131,7 @@ public SharedPlugin:__pl_prophunt_redux =
 };
 
 #if !defined REQUIRE_PLUGIN
-public __pl_prophunt_redux_SetNTVOptional()
+public void __pl_prophunt_redux_SetNTVOptional()
 {
 	MarkNativeAsOptional("PropHuntRedux_IsRunning");
 	MarkNativeAsOptional("PropHuntRedux_ValidateMap");

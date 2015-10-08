@@ -29,14 +29,13 @@
  * exceptions, found in LICENSE.txt (as of this writing, version JULY-31-2007),
  * or <http://www.sourcemod.net/license.php>.
  *
- * Version: 3.4.0
+ * Version: 4.0.0
  */
 // PropHunt Redux by Powerlord
 //         Based on
 //  PropHunt by Darkimmortal
 //   - GamingMasters.org -
 
-#pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
 #include <tf2>
@@ -54,6 +53,8 @@
 
 #define REQUIRE_EXTENSIONS
 #define REQUIRE_PLUGIN
+#pragma semicolon 1
+#pragma newdecls required
 
 #if !defined SNDCHAN_VOICE2
 #define SNDCHAN_VOICE2 7
@@ -64,7 +65,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 alpha 4"
+#define PL_VERSION "4.0.0.0 alpha 1"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -158,10 +159,10 @@
 #endif 
 
 // Needed for stats2.inc compatibility
-#define TEAM_BLUE _:TFTeam_Blue
-#define TEAM_RED _:TFTeam_Red
-#define TEAM_SPEC _:TFTeam_Spectator
-#define TEAM_UNASSIGNED _:TFTeam_Unassigned
+#define TEAM_BLUE view_as<int>(TFTeam_Blue)
+#define TEAM_RED view_as<int>(TFTeam_Red)
+#define TEAM_SPEC view_as<int>(TFTeam_Spectator)
+#define TEAM_UNASSIGNED view_as<int>(TFTeam_Unassigned)
 
 #define TEAM_PROP TEAM_RED
 #define TEAM_HUNTER TEAM_BLUE
@@ -266,217 +267,211 @@ enum
 	TFClassBits_Engineer = (1 << 8) // 256
 }
 
-new bool:g_RoundOver = true;
-new bool:g_inSetup = false;
-new bool:g_inPreRound = true;
-new bool:g_PlayerDied = false;
-new Float:g_flRoundStart = 0.0;
+bool g_RoundOver = true;
+bool g_inSetup = false;
+bool g_inPreRound = true;
+bool g_PlayerDied = false;
+float g_flRoundStart = 0.0;
 
-new bool:g_LastProp;
-new bool:g_Attacking[MAXPLAYERS+1];
-new bool:g_SetClass[MAXPLAYERS+1];
-new bool:g_Spawned[MAXPLAYERS+1];
-new bool:g_TouchingCP[MAXPLAYERS+1];
-new bool:g_Charge[MAXPLAYERS+1];
-new bool:g_First[MAXPLAYERS+1];
-new bool:g_HoldingLMB[MAXPLAYERS+1];
-new bool:g_HoldingRMB[MAXPLAYERS+1];
-new bool:g_AllowedSpawn[MAXPLAYERS+1];
-new bool:g_RotLocked[MAXPLAYERS+1];
-new bool:g_Hit[MAXPLAYERS+1];
-new bool:g_Spec[MAXPLAYERS+1];
-new String:g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
+bool g_LastProp;
+bool g_Attacking[MAXPLAYERS+1];
+bool g_SetClass[MAXPLAYERS+1];
+bool g_Spawned[MAXPLAYERS+1];
+bool g_TouchingCP[MAXPLAYERS+1];
+bool g_Charge[MAXPLAYERS+1];
+bool g_First[MAXPLAYERS+1];
+bool g_HoldingLMB[MAXPLAYERS+1];
+bool g_HoldingRMB[MAXPLAYERS+1];
+bool g_AllowedSpawn[MAXPLAYERS+1];
+bool g_RotLocked[MAXPLAYERS+1];
+bool g_Hit[MAXPLAYERS+1];
+bool g_Spec[MAXPLAYERS+1];
+char g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
-new String:g_Mapname[PLATFORM_MAX_PATH];
-new String:g_ServerIP[32];
-new String:g_Version[16];
+char g_Mapname[PLATFORM_MAX_PATH];
+char g_ServerIP[32];
+char g_Version[16];
 
-new g_Message_red;
-new g_Message_blue;
-new g_RoundTime = 175;
-new g_Message_bit = 0;
-new g_Setup = 0;
-//new g_iVelocity = -1;
+int g_Message_red;
+int g_Message_blue;
+int g_RoundTime = 175;
+int g_Message_bit = 0;
+int g_Setup = 0;
 
 #if defined STATS
-new bool:g_MapChanging = false;
-new g_StartTime;
+bool g_MapChanging = false;
+int g_StartTime;
 #endif
 
 //new Handle:g_TimerStart = INVALID_HANDLE;
-new	Handle:g_Sounds = INVALID_HANDLE;
-new Handle:g_BroadcastSounds = INVALID_HANDLE;
+StringMap g_Sounds;
+StringMap g_BroadcastSounds;
 
-new bool:g_Doors = false;
-new bool:g_Relay = false;
-new bool:g_Freeze = true;
+bool g_Doors = false;
+bool g_Relay = false;
+bool g_Freeze = true;
 
-//new bool:g_weaponRemovals[MAXITEMS];
-//new Float:g_weaponNerfs[MAXITEMS];
-//new Float:g_weaponSelfDamage[MAXITEMS];
+ArrayList g_hWeaponRemovals;
+ArrayList g_hPropWeaponRemovals;
+StringMap g_hWeaponNerfs;
+StringMap g_hWeaponSelfDamage;
+ArrayList g_hWeaponStripAttribs;
+StringMap g_hWeaponAddAttribs;
+StringMap g_hWeaponReplacements;
+StringMap g_hWeaponReplacementPlayerClasses;
 
-new Handle:g_hWeaponRemovals;
-new Handle:g_hPropWeaponRemovals;
-new Handle:g_hWeaponNerfs;
-new Handle:g_hWeaponSelfDamage;
-new Handle:g_hWeaponStripAttribs;
-new Handle:g_hWeaponAddAttribs;
-new Handle:g_hWeaponReplacements;
-new Handle:g_hWeaponReplacementPlayerClasses;
+int g_classLimits[2][10];
+TFClassType g_defaultClass[2];
+float g_classSpeeds[10][3]; //0 - Base speed, 1 - Max Speed, 2 - Increment Value
+float g_currentSpeed[MAXPLAYERS+1];
 
-new g_classLimits[2][10];
-new TFClassType:g_defaultClass[2];
-new Float:g_classSpeeds[10][3]; //0 - Base speed, 1 - Max Speed, 2 - Increment Value
-new Float:g_currentSpeed[MAXPLAYERS+1];
-
-//new g_oFOV;
-//new g_oDefFOV;
-
-new Handle:g_PropData;
+StringMap g_PropData;
 // Multi-language support
-new Handle:g_ModelLanguages;
-new Handle:g_PropNames;
-new Handle:g_PropNamesIndex;
+ArrayList g_ModelLanguages;
+StringMap g_PropNames;
+ArrayList g_PropNamesIndex;
 
-new Handle:g_ConfigKeyValues;
-new Handle:g_ModelName;
-new Handle:g_ModelOffset;
-new Handle:g_ModelRotation;
-new Handle:g_ModelSkin;
-new Handle:g_Text1;
-new Handle:g_Text2;
-new Handle:g_Text3;
-new Handle:g_Text4;
+KeyValues g_ConfigKeyValues;
+ArrayList g_ModelName;
+ArrayList g_ModelOffset;
+ArrayList g_ModelRotation;
+ArrayList g_ModelSkin;
+Handle g_Text1;
+Handle g_Text2;
+Handle g_Text3;
+Handle g_Text4;
 
 // PropHunt Redux Menus
 //new Handle:g_RoundTimer = INVALID_HANDLE;
-new Handle:g_PropMenu;
-new Handle:g_ConfigMenu;
+Menu g_PropMenu;
+Menu g_ConfigMenu;
 
 // PropHunt Redux CVars
-new Handle:g_PHEnable;
-new Handle:g_PHPropMenu;
-new Handle:g_PHPropMenuRestrict;
-new Handle:g_PHAdvertisements;
-new Handle:g_PHPreventFallDamage;
-new Handle:g_PHGameDescription;
-new Handle:g_PHAirblast;
-new Handle:g_PHAntiHack;
-new Handle:g_PHReroll;
-new Handle:g_PHStaticPropInfo;
-new Handle:g_PHSetupLength;
-new Handle:g_PHDamageBlocksPropChange;
-new Handle:g_PHPropMenuNames;
-new Handle:g_PHMultilingual;
-new Handle:g_PHRespawnDuringSetup;
-new Handle:g_PHUseUpdater;
-new Handle:g_PHAllowTaunts;
+ConVar g_PHEnable;
+ConVar g_PHPropMenu;
+ConVar g_PHPropMenuRestrict;
+ConVar g_PHAdvertisements;
+ConVar g_PHPreventFallDamage;
+ConVar g_PHGameDescription;
+ConVar g_PHAirblast;
+ConVar g_PHAntiHack;
+ConVar g_PHReroll;
+ConVar g_PHStaticPropInfo;
+ConVar g_PHSetupLength;
+ConVar g_PHDamageBlocksPropChange;
+ConVar g_PHPropMenuNames;
+ConVar g_PHMultilingual;
+ConVar g_PHRespawnDuringSetup;
+ConVar g_PHUseUpdater;
+ConVar g_PHAllowTaunts;
 
-new String:g_AdText[128] = "";
+char g_AdText[128] = "";
 
-new bool:g_MapStarted = false;
+bool g_MapStarted = false;
 
 // Track optional dependencies
-new bool:g_SteamTools = false;
-new bool:g_SteamWorks = false;
-new bool:g_Updater = false;
+bool g_SteamTools = false;
+bool g_SteamWorks = false;
+bool g_Updater = false;
 
 #if defined OIMM
-new bool:g_OptinMultiMod = false;
+bool g_OptinMultiMod = false;
 #endif
 
-new bool:g_Enabled = true;
+bool g_Enabled = true;
 
 // Timers
-new Handle:g_hAntiHack;
-new Handle:g_hLocked;
-new Handle:g_hScore;
+Handle g_hAntiHack;
+Handle g_hLocked;
+Handle g_hScore;
 
 // Valve CVars we're going to save and adjust
-new Handle:g_hArenaRoundTime;
-new g_ArenaRoundTime;
-new Handle:g_hWeaponCriticals;
-new g_WeaponCriticals;
-new Handle:g_hIdledealmethod;
-new g_Idledealmethod;
-new Handle:g_hTournamentStopwatch;
-new g_TournamentStopwatch;
-new Handle:g_hTournamentHideDominationIcons;
-new g_TournamentHideDominationIcons;
-new Handle:g_hFriendlyfire;
-new g_Friendlyfire;
-new Handle:g_hGravity;
-new g_Gravity;
-new Handle:g_hForcecamera;
-new g_Forcecamera;
-new Handle:g_hArenaCapEnableTime;
-new g_ArenaCapEnableTime;
-new Handle:g_hTeamsUnbalanceLimit;
-new g_TeamsUnbalanceLimit;
-new Handle:g_hArenaMaxStreak;
-new g_ArenaMaxStreak;
-new Handle:g_hEnableRoundWaitTime;
-new g_EnableRoundWaitTime;
-new Handle:g_hWaitingForPlayerTime;
-new g_WaitingForPlayerTime;
-new Handle:g_hArenaUseQueue;
-new bool:g_ArenaUseQueue;
-new Handle:g_hShowVoiceIcons;
-new g_ShowVoiceIcons;
-new Handle:g_hSolidObjects;
-new g_SolidObjects;
-new Handle:g_hArenaPreroundTime;
-new g_ArenaPreroundTime;
-new Handle:g_hArenaFirstBlood;
-new bool:g_ArenaFirstBlood;
+ConVar g_hArenaRoundTime;
+int g_ArenaRoundTime;
+ConVar g_hWeaponCriticals;
+bool g_WeaponCriticals;
+ConVar g_hIdledealmethod;
+int g_Idledealmethod;
+ConVar g_hTournamentStopwatch;
+bool g_TournamentStopwatch;
+ConVar g_hTournamentHideDominationIcons;
+bool g_TournamentHideDominationIcons;
+ConVar g_hFriendlyfire;
+bool g_Friendlyfire;
+ConVar g_hGravity;
+int g_Gravity;
+ConVar g_hForcecamera;
+int g_Forcecamera;
+ConVar g_hArenaCapEnableTime;
+int g_ArenaCapEnableTime;
+ConVar g_hTeamsUnbalanceLimit;
+int g_TeamsUnbalanceLimit;
+ConVar g_hArenaMaxStreak;
+int g_ArenaMaxStreak;
+ConVar g_hEnableRoundWaitTime;
+bool g_EnableRoundWaitTime;
+ConVar g_hWaitingForPlayerTime;
+int g_WaitingForPlayerTime;
+ConVar g_hArenaUseQueue;
+bool g_ArenaUseQueue;
+ConVar g_hShowVoiceIcons;
+bool g_ShowVoiceIcons;
+ConVar g_hSolidObjects;
+bool g_SolidObjects;
+ConVar g_hArenaPreroundTime;
+int g_ArenaPreroundTime;
+ConVar g_hArenaFirstBlood;
+bool g_ArenaFirstBlood;
 
-new Handle:g_hWeaponDropTime;
-new g_WeaponDropTime;
+ConVar g_hWeaponDropTime;
+int g_WeaponDropTime;
 
 // Regular convars
 #if !defined SWITCH_TEAMS
-new Handle:g_hBonusRoundTime;
+ConVar g_hBonusRoundTime;
 #endif
-new Handle:g_hTags;
+ConVar g_hTags;
 
+int g_Replacements[MAXPLAYERS+1][6];
+int g_ReplacementCount[MAXPLAYERS+1];
+bool g_Rerolled[MAXPLAYERS+1] = { false, ... };
 
-new g_Replacements[MAXPLAYERS+1][6];
-new g_ReplacementCount[MAXPLAYERS+1];
-new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
+bool g_CvarsSet;
 
-new bool:g_CvarsSet;
+RoundChange g_RoundChange;
 
-new RoundChange:g_RoundChange;
-
-new bool:g_CurrentlyFlaming[MAXPLAYERS+1];
-new g_FlameCount[MAXPLAYERS+1];
+bool g_CurrentlyFlaming[MAXPLAYERS+1];
+int g_FlameCount[MAXPLAYERS+1];
 #define FLY_COUNT 3
 
-new g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
-new g_LastPropPlayer = 0;
+int g_LastPropDamageTime[MAXPLAYERS+1] = { -1, ... };
+int g_LastPropPlayer = 0;
 
-new bool:g_PHMap;
+bool g_PHMap;
 
-new bool:g_RoundStartMessageSent[MAXPLAYERS+1];
+bool g_RoundStartMessageSent[MAXPLAYERS+1];
 
 // Multi-round support
-new g_RoundCount = 0;
-new g_RoundCurrent = 0;
-new g_RoundSwitchAlways = false;
+int g_RoundCount = 0;
+int g_RoundCurrent = 0;
+int g_RoundSwitchAlways = false;
 
 // New override support for propmenu and stuff
-new g_PropMenuOldFlags = 0;
-new bool:g_PropMenuOverrideInstalled = false;
-new g_PropRerollOldFlags = 0;
-new bool:g_PropRerollOverrideInstalled = false;
+int g_PropMenuOldFlags = 0;
+bool g_PropMenuOverrideInstalled = false;
+int g_PropRerollOldFlags = 0;
+bool g_PropRerollOverrideInstalled = false;
 
-new g_GameRulesProxy = INVALID_ENT_REFERENCE;
+int g_GameRulesProxy = INVALID_ENT_REFERENCE;
 
 #if defined SHINX
-new TFClassType:g_PreferredHunterClass[MAXPLAYERS+1] = { TFClass_Unknown, ... };
+TFClassType g_PreferredHunterClass[MAXPLAYERS+1] = { TFClass_Unknown, ... };
 #endif
 
-public Plugin:myinfo =
+// Forward for subplugins
+Handle g_GameDescriptionForward;
+
+public Plugin myinfo =
 {
 	name = "PropHunt Redux",
 	author = "Darkimmortal, Geit, and Powerlord",
@@ -537,9 +532,9 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 */
 #endif
 
-new Handle:g_hSwitchTeams;
+Handle g_hSwitchTeams;
 
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	if (GetEngineVersion() != Engine_TF2)
 	{
@@ -555,21 +550,19 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	MarkNativeAsOptional("GetMapDisplayName");
 #endif
 
-	/*
 	CreateNative("PropHuntRedux_ValidateMap", Native_ValidateMap);
 	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
 	CreateNative("PropHuntRedux_GetPropModel", Native_GetModel);
 	CreateNative("PropHuntRedux_GetPropModelName", Native_GetModelName);
 	
 	RegPluginLibrary("prophuntredux");
-	*/
 
 	return APLRes_Success;
 }
 
-public OnPluginStart()
+public void OnPluginStart()
 {
-	new Handle:gc;
+	Handle gc;
 	
 #if defined SWITCH_TEAMS
 	gc = LoadGameConfigFile("tf2-switch-teams");
@@ -583,7 +576,7 @@ public OnPluginStart()
 	LogMessage("[PH] Created call to SetSwitchTeams at vtable offset %d", GameConfGetOffset(gc, "CTeamplayRules::SetSwitchTeams"));
 #endif
 	
-	CloseHandle(gc);
+	delete gc;
 #if defined LOG
 	else
 	{
@@ -591,26 +584,26 @@ public OnPluginStart()
 	}
 #endif
 #endif	
-	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
+	char hostname[255], ip[32], port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
 	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
 	GetConVarString(FindConVar("hostport"), port, sizeof(port));
 
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
-	new bool:statsbool = false;
+	bool statsbool = false;
 #if defined STATS
 	statsbool = true;
 #endif
 
-	g_hWeaponRemovals = CreateArray();
-	g_hPropWeaponRemovals = CreateArray();
-	g_hWeaponNerfs = CreateTrie();
-	g_hWeaponSelfDamage = CreateTrie();
-	g_hWeaponStripAttribs = CreateArray();
-	g_hWeaponAddAttribs = CreateTrie();
-	g_hWeaponReplacements = CreateTrie();
-	g_hWeaponReplacementPlayerClasses = CreateTrie();
+	g_hWeaponRemovals = new ArrayList();
+	g_hPropWeaponRemovals = new ArrayList();
+	g_hWeaponNerfs = new StringMap();
+	g_hWeaponSelfDamage = new StringMap();
+	g_hWeaponStripAttribs = new ArrayList();
+	g_hWeaponAddAttribs = new StringMap();
+	g_hWeaponReplacements = new StringMap();
+	g_hWeaponReplacementPlayerClasses = new StringMap();
 	
 	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	// PropHunt Redux now lies and pretends to be PropHunt as well
@@ -663,15 +656,15 @@ public OnPluginStart()
 
 	g_hTags = FindConVar("sv_tags");
 	
-	HookConVarChange(g_PHEnable, OnEnabledChanged);
-	HookConVarChange(g_PHAdvertisements, OnAdTextChanged);
-	HookConVarChange(g_PHGameDescription, OnGameDescriptionChanged);
-	HookConVarChange(g_PHAntiHack, OnAntiHackChanged);
-	HookConVarChange(g_PHStaticPropInfo, OnAntiHackChanged);
-	HookConVarChange(g_PHPropMenu, OnPropMenuChanged);
-	HookConVarChange(g_PHReroll, OnPropRerollChanged);
-	HookConVarChange(g_PHMultilingual, OnMultilingualChanged);
-	HookConVarChange(g_PHUseUpdater, OnUseUpdaterChanged);
+	g_PHEnable.AddChangeHook(OnEnabledChanged);
+	g_PHAdvertisements.AddChangeHook(OnAdTextChanged);
+	g_PHGameDescription.AddChangeHook(OnGameDescriptionChanged);
+	g_PHAntiHack.AddChangeHook(OnAntiHackChanged);
+	g_PHStaticPropInfo.AddChangeHook(OnAntiHackChanged);
+	g_PHPropMenu.AddChangeHook(OnPropMenuChanged);
+	g_PHReroll.AddChangeHook(OnPropRerollChanged);
+	g_PHMultilingual.AddChangeHook(OnMultilingualChanged);
+	g_PHUseUpdater.AddChangeHook(OnUseUpdaterChanged);
 
 	g_Text1 = CreateHudSynchronizer();
 	g_Text2 = CreateHudSynchronizer();
@@ -726,7 +719,7 @@ public OnPluginStart()
 	RegAdminCmd("ph_pyro", Command_pyro, ADMFLAG_BAN, "Switches to BLU");
 	RegAdminCmd("ph_reloadconfig", Command_ReloadConfig, ADMFLAG_BAN, "Reloads the PropHunt configuration");
 
-	for(new client=1; client <= MaxClients; client++)
+	for(int client = 1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
 		{
@@ -764,20 +757,22 @@ public OnPluginStart()
 #if defined STATS
 	AddMenuItem(g_ConfigMenu, "#stats", "Stats");
 #endif
+
+	g_GameDescriptionForward = CreateGlobalForward("PropHuntRedux_UpdateGameDescription", ET_Event, Param_String);
 }
 
-ReadCommonPropData(bool:onlyLanguageRefresh = false)
+void ReadCommonPropData(bool onlyLanguageRefresh = false)
 {
-	decl String:Path[PLATFORM_MAX_PATH];
+	char Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prop_common.txt");
-	new Handle:propCommon = CreateKeyValues("propcommon");
-	if (!FileToKeyValues(propCommon, Path))
+	KeyValues propCommon = CreateKeyValues("propcommon");
+	if (!propCommon.ImportFromFile(Path))
 	{
 		LogError("Could not load the g_PropData file!");
 		return;
 	}
 	
-	if (!KvGotoFirstSubKey(propCommon))
+	if (!propCommon.GotoFirstSubKey())
 	{
 		LogError("Prop Common file is empty!");
 		return;
@@ -787,26 +782,26 @@ ReadCommonPropData(bool:onlyLanguageRefresh = false)
 	
 	if (!onlyLanguageRefresh)
 	{
-		ClearTrie(g_PropData);
+		g_PropData.Clear();
 	}
-	ClearArray(g_ModelLanguages);
+	g_ModelLanguages.Clear();
 	
-	new counter = 0;
+	int counter = 0;
 	do
 	{
 		counter++;
-		decl String:modelPath[PLATFORM_MAX_PATH];
+		char modelPath[PLATFORM_MAX_PATH];
 		
-		new propData[PropData];
+		int propData[PropData];
 		
-		KvGetSectionName(propCommon, modelPath, PLATFORM_MAX_PATH);
-		KvGetString(propCommon, "name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Still around for compat reasons
+		propCommon.GetSectionName(modelPath, sizeof(modelPath));
+		propCommon.GetString("name", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Still around for compat reasons
 		if (strlen(propData[PropData_Name]) == 0)
 		{
-			KvGetString(propCommon, "en", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Default this to English otherwise
+			propCommon.GetString("en", propData[PropData_Name], sizeof(propData[PropData_Name]), ""); // Default this to English otherwise
 		}
-		KvGetString(propCommon, "offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
-		KvGetString(propCommon, "rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
+		propCommon.GetString("offset", propData[PropData_Offset], sizeof(propData[PropData_Offset]), "0 0 0");
+		propCommon.GetString("rotation", propData[PropData_Rotation], sizeof(propData[PropData_Rotation]), "0 0 0");
 
 		if (strlen(propData[PropData_Name]) == 0)
 		{
@@ -816,24 +811,24 @@ ReadCommonPropData(bool:onlyLanguageRefresh = false)
 		
 		if (!onlyLanguageRefresh)
 		{
-			if (!SetTrieArray(g_PropData, modelPath, propData[0], sizeof(propData), false))
+			if (!g_PropData.SetArray(modelPath, propData[0], sizeof(propData), false))
 			{
 				LogError("Error saving prop data for %s, probably a duplicate prop in data/prophunt/prop_common.txt", modelPath);
 				continue;
 			}
 		}
 		
-		if (GetConVarBool(g_PHMultilingual))
+		if (g_PHMultilingual.BoolValue)
 		{
-			new Handle:languageTrie = CreateTrie();
+			StringMap languageTrie = CreateTrie();
 			
-			for (new i=0;i<GetLanguageCount();i++)
+			for (int i=0;i<GetLanguageCount();i++)
 			{
-				decl String:lang[MAXLANGUAGECODE];
-				decl String:name[MAXMODELNAME];
+				char lang[MAXLANGUAGECODE];
+				char name[MAXMODELNAME];
 				GetLanguageInfo(i, lang, sizeof(lang));
 				//search for the translation
-				KvGetString(propCommon, lang, name, sizeof(name));
+				propCommon.GetString(lang, name, sizeof(name));
 
 				// Make "en" read the "name" section for compatibility reasons if "en" isn't present
 				if (strlen(name) <= 0 && StrEqual(lang, "en"))
@@ -844,57 +839,57 @@ ReadCommonPropData(bool:onlyLanguageRefresh = false)
 				if (strlen(name) > 0)
 				{
 					//language new?
-					if (FindStringInArray(g_ModelLanguages, lang) == -1)
+					if (g_ModelLanguages.FindString(lang) == -1)
 					{
 #if defined LOG
 						LogMessage("[PH] Adding language \"%s\" to languages list", lang);
 #endif
-						PushArrayString(g_ModelLanguages, lang);
+						g_ModelLanguages.PushString(lang);
 					}
 					
-					SetTrieString(languageTrie, lang, name);
+					languageTrie.SetString(lang, name);
 				}
 			}
 			
-			if (!SetTrieValue(g_PropNames, modelPath, languageTrie, false))
+			if (!g_PropNames.SetValue(modelPath, languageTrie, false))
 			{
 				LogError("Error saving prop names for %s", modelPath);
 			}
 			else
 			{
-				PushArrayString(g_PropNamesIndex, modelPath);
+				g_PropNamesIndex.PushString(modelPath);
 			}
 		}
-	} while (KvGotoNextKey(propCommon));
+	} while (propCommon.GotoNextKey());
 	
-	CloseHandle(propCommon);
+	delete propCommon;
 	
 	LogMessage("Loaded %d props from props_common.txt", counter);
 #if defined LOG
-	LogMessage("[PH] Loaded %d language(s)", GetArraySize(g_ModelLanguages));
+	LogMessage("[PH] Loaded %d language(s)", g_ModelLanguages.Length);
 #endif
 	
 }
 
-ClearPropNames()
+void ClearPropNames()
 {
-	new arraySize = GetArraySize(g_PropNamesIndex);
-	for (new i = 0; i < arraySize; i++)
+	int arraySize = g_PropNamesIndex.Length;
+	for (int i = 0; i < arraySize; i++)
 	{
-		decl String:modelName[PLATFORM_MAX_PATH];
-		new Handle:languageTrie = INVALID_HANDLE;
-		GetArrayString(g_PropNamesIndex, i, modelName, sizeof(modelName));
-		if (GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE)
+		char modelName[PLATFORM_MAX_PATH];
+		StringMap languageTrie;
+		g_PropNamesIndex.GetString(i, modelName, sizeof(modelName));
+		if (g_PropNames.GetValue(modelName, languageTrie) && languageTrie != null)
 		{
-			CloseHandle(languageTrie);
+			delete languageTrie;
 		}
 	}
 	
-	ClearTrie(g_PropNames);
-	ClearArray(g_PropNamesIndex);
+	g_PropNames.Clear();
+	g_PropNamesIndex.Clear();
 }
 
-public OnAllPluginsLoaded()
+public void OnAllPluginsLoaded()
 {
 	g_SteamTools = LibraryExists("SteamTools");
 	g_SteamWorks = LibraryExists("SteamWorks");
@@ -933,9 +928,9 @@ public OnAllPluginsLoaded()
 
 // Should we switch teams this round?
 // Note: Don't confuse this with the games ShouldSwitchTeams
-bool:Internal_ShouldSwitchTeams()
+bool Internal_ShouldSwitchTeams()
 {
-	new bool:lastRound = (g_RoundCurrent == g_RoundCount);
+	bool lastRound = (g_RoundCurrent == g_RoundCount);
 	if (lastRound)
 	{
 #if defined LOG
@@ -956,16 +951,16 @@ bool:Internal_ShouldSwitchTeams()
 	return false;
 }
 
-loadGlobalConfig()
+void loadGlobalConfig()
 {
-	decl String:Path[PLATFORM_MAX_PATH];
+	char Path[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, Path, sizeof(Path), "data/prophunt/prophunt_config.cfg");
-	if (g_ConfigKeyValues != INVALID_HANDLE)
+	if (g_ConfigKeyValues != null)
 	{
-		CloseHandle(g_ConfigKeyValues);
+		delete g_ConfigKeyValues;
 	}
 	g_ConfigKeyValues = CreateKeyValues("prophunt_config");
-	if (!FileToKeyValues(g_ConfigKeyValues, Path))
+	if (!g_ConfigKeyValues.ImportFromFile(Path))
 	{
 		LogError("Could not load the PropHunt config file!");
 	}
@@ -977,7 +972,7 @@ loadGlobalConfig()
 	ReadCommonPropData(false);
 }
 
-public OnLibraryAdded(const String:name[])
+public void OnLibraryAdded(const char[] name)
 {
 	if (StrEqual(name, "SteamTools", false))
 	{
@@ -1017,7 +1012,7 @@ public OnLibraryAdded(const String:name[])
 	}
 }
 
-public OnLibraryRemoved(const String:name[])
+public void OnLibraryRemoved(const char[] name)
 {
 	if (StrEqual(name, "SteamTools", false))
 	{
@@ -1054,38 +1049,37 @@ public OnLibraryRemoved(const String:name[])
 	}	
 }
 
-public OnGameDescriptionChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnGameDescriptionChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	UpdateGameDescription();
 }
 
-public OnAntiHackChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnAntiHackChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	if (!g_Enabled)
 		return;
 	
-	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
+	if (g_PHAntiHack.BoolValue || g_PHStaticPropInfo.BoolValue && g_hAntiHack == null)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
 		// Also run said timer 0.1 seconds after round start.
 		CreateTimer(0.1, Timer_AntiHack, _, TIMER_FLAG_NO_MAPCHANGE);
 	}
-	else if (!GetConVarBool(g_PHAntiHack) && !GetConVarBool(g_PHStaticPropInfo) && g_hAntiHack != INVALID_HANDLE)
+	else if (!g_PHAntiHack.BoolValue && !g_PHStaticPropInfo.BoolValue && g_hAntiHack != null)
 	{
-		CloseHandle(g_hAntiHack);
-		g_hAntiHack = INVALID_HANDLE;
+		delete g_hAntiHack;
 	}
 }
 
-UpdateGameDescription(bool:bAddOnly=false)
+void UpdateGameDescription(bool bAddOnly=false)
 {
 	if (!g_SteamTools && !g_SteamWorks)
 	{
 		return;
 	}
 	
-	decl String:gamemode[128];
-	if (g_Enabled && GetConVarBool(g_PHGameDescription))
+	char gamemode[128];
+	if (g_Enabled && g_PHGameDescription.BoolValue)
 	{
 		if (strlen(g_AdText) > 0)
 		{
@@ -1094,6 +1088,18 @@ UpdateGameDescription(bool:bAddOnly=false)
 		else
 		{
 			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s", g_Version);
+		}
+
+		// Global forward for subplugins to change the game description.
+		Action result = Plugin_Continue;
+		char tempGamemode[128];
+		strcopy(tempGamemode, sizeof(tempGamemode), gamemode);
+		Call_StartForward(g_GameDescriptionForward);
+		Call_PushStringEx(tempGamemode, sizeof(tempGamemode), SM_PARAM_COPYBACK, SM_PARAM_STRING_COPY);
+		Call_Finish(result);
+		if (result == Plugin_Changed)
+		{
+			strcopy(gamemode, sizeof(gamemode), tempGameMode);
 		}
 	}
 	else if (bAddOnly)
@@ -1106,6 +1112,8 @@ UpdateGameDescription(bool:bAddOnly=false)
 		strcopy(gamemode, sizeof(gamemode), "Team Fortress");
 	}
 	
+	
+	
 	if (g_SteamTools)
 	{
 		Steam_SetGameDescription(gamemode);
@@ -1117,92 +1125,92 @@ UpdateGameDescription(bool:bAddOnly=false)
 	}
 }
 
-config_parseWeapons()
+void config_parseWeapons()
 {
-	ClearArray(g_hWeaponRemovals);
-	ClearArray(g_hPropWeaponRemovals);
-	ClearTrie(g_hWeaponNerfs);
-	ClearTrie(g_hWeaponSelfDamage);
-	ClearArray(g_hWeaponStripAttribs);
-	ClearTrie(g_hWeaponAddAttribs);
-	ClearTrie(g_hWeaponReplacements);
-	ClearTrie(g_hWeaponReplacementPlayerClasses);
+	g_hWeaponRemovals.Clear();
+	g_hPropWeaponRemovals.Clear();
+	g_hWeaponNerfs.Clear();
+	g_hWeaponSelfDamage.Clear();
+	g_hWeaponStripAttribs.Clear();
+	g_hWeaponAddAttribs.Clear();
+	g_hWeaponReplacements.Clear();
+	g_hWeaponReplacementPlayerClasses.Clear();
 	
-	if (g_ConfigKeyValues == INVALID_HANDLE)
+	if (g_ConfigKeyValues == null)
 	{
 		return;
 	}
 	
-	while(KvGoBack(g_ConfigKeyValues))
+	while(g_ConfigKeyValues.GoBack())
 	{
 		continue;
 	}
 	
-	if(KvJumpToKey(g_ConfigKeyValues, "items"))
+	if(g_ConfigKeyValues.JumpToKey("items"))
 	{
 		do
 		{
-			decl String:SectionName[128];
-			KvGotoFirstSubKey(g_ConfigKeyValues);
-			KvGetSectionName(g_ConfigKeyValues, SectionName, sizeof(SectionName));
-			if(KvGetDataType(g_ConfigKeyValues, "damage_hunters") == KvData_Float)
+			char SectionName[128];
+			g_ConfigKeyValues.GotoFirstSubKey();
+			g_ConfigKeyValues.GetSectionName(SectionName, sizeof(SectionName));
+			if(g_ConfigKeyValues.GetDataType("damage_hunters") == KvData_Float)
 			{
-				SetTrieValue(g_hWeaponNerfs, SectionName, KvGetFloat(g_ConfigKeyValues, "damage_hunters"));
+				g_hWeaponNerfs.SetValue(SectionName, g_ConfigKeyValues.GetFloat("damage_hunters"));
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "removed_hunters") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("removed_hunters") == KvData_Int)
 			{
-				if (bool:KvGetNum(g_ConfigKeyValues, "removed_hunters"))
+				if (g_ConfigKeyValues.GetNum("removed_hunters"))
 				{
-					PushArrayCell(g_hWeaponRemovals, StringToInt(SectionName));
+					g_hWeaponRemovals.Push(StringToInt(SectionName));
 				}
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "removed_props") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("removed_props") == KvData_Int)
 			{
-				if (bool:KvGetNum(g_ConfigKeyValues, "removed_props"))
+				if (g_ConfigKeyValues.GetNum("removed_props"))
 				{
-					PushArrayCell(g_hPropWeaponRemovals, StringToInt(SectionName));
+					g_hPropWeaponRemovals.Push(StringToInt(SectionName));
 				}
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "self_damage_hunters") == KvData_Float)
+			if(g_ConfigKeyValues.GetDataType("self_damage_hunters") == KvData_Float)
 			{
-				SetTrieValue(g_hWeaponSelfDamage, SectionName, KvGetFloat(g_ConfigKeyValues, "self_damage_hunters"));
+				g_hWeaponSelfDamage.SetValue(SectionName, KvGetFloat(g_ConfigKeyValues, "self_damage_hunters"));
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "stripattribs") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("stripattribs") == KvData_Int)
 			{
-				if (bool:KvGetNum(g_ConfigKeyValues, "stripattribs"))
+				if (g_ConfigKeyValues.GetNum("stripattribs"))
 				{
-					PushArrayCell(g_hWeaponStripAttribs, StringToInt(SectionName));
+					g_hWeaponStripAttribs.Push(StringToInt(SectionName));
 				}
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "addattribs") == KvData_String)
+			if(g_ConfigKeyValues.GetDataType("addattribs") == KvData_String)
 			{
-				new String:attribs[128];
-				KvGetString(g_ConfigKeyValues, "addattribs", attribs, sizeof(attribs));
+				char attribs[128];
+				g_ConfigKeyValues.GetString("addattribs", attribs, sizeof(attribs));
 				
 				if (attribs[0] != '\0')
 				{
-					SetTrieString(g_hWeaponAddAttribs, SectionName, attribs);
+					g_hWeaponAddAttribs.SetString(SectionName, attribs);
 				}
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "replace") == KvData_String)
+			if(g_ConfigKeyValues.GetDataType("replace") == KvData_String)
 			{
-				new String:attribs[128];
-				KvGetString(g_ConfigKeyValues, "replace", attribs, sizeof(attribs));
+				char attribs[128];
+				g_ConfigKeyValues.GetString("replace", attribs, sizeof(attribs));
 				
-				new class = KvGetNum(g_ConfigKeyValues, "replace_onlyclasses", TFClassBits_None);
+				int class = g_ConfigKeyValues.GetNum("replace_onlyclasses", TFClassBits_None);
 				
 				if (attribs[0] != '\0')
 				{
-					SetTrieString(g_hWeaponReplacements, SectionName, attribs);
+					g_hWeaponReplacements.SetString(SectionName, attribs);
 				}
 				
 				if (class != TFClassBits_None)
 				{
-					SetTrieValue(g_hWeaponReplacementPlayerClasses, SectionName, class);
+					g_hWeaponReplacementPlayerClasses.SetValue(SectionName, class);
 				}
 			}
 		}
-		while(KvGotoNextKey(g_ConfigKeyValues));
+		while(g_ConfigKeyValues.GotoNextKey());
 	}
 	else
 	{
@@ -1210,14 +1218,14 @@ config_parseWeapons()
 	}
 }
 
-config_parseClasses()
+void config_parseClasses()
 {
-	new red = TEAM_PROP-2;
-	new blue = TEAM_HUNTER-2;
+	int red = TEAM_PROP-2;
+	int blue = TEAM_HUNTER-2;
 	g_defaultClass[red] = TFClass_Scout;
 	g_defaultClass[blue] = TFClass_Pyro;
 	
-	for(new i = 0; i < 10; i++)
+	for(int i = 0; i < 10; i++)
 	{
 		g_classLimits[blue][i] = -1;
 		g_classLimits[red][i] = -1;
@@ -1226,54 +1234,54 @@ config_parseClasses()
 		g_classSpeeds[i][2] = 15.0;
 	}
 	
-	if (g_ConfigKeyValues == INVALID_HANDLE)
+	if (g_ConfigKeyValues == null)
 	{
 		return;
 	}
 	
-	while(KvGoBack(g_ConfigKeyValues))
+	while(g_ConfigKeyValues.GoBack())
 	{
 		continue;
 	}
 	
-	if(KvJumpToKey(g_ConfigKeyValues, "classes"))
+	if(g_ConfigKeyValues.JumpToKey("classes"))
 	{
 		do
 		{
-			decl String:SectionName[128];
-			KvGotoFirstSubKey(g_ConfigKeyValues);
-			KvGetSectionName(g_ConfigKeyValues, SectionName, sizeof(SectionName));
-			if(KvGetDataType(g_ConfigKeyValues, "hunter_limit") == KvData_Int)
+			char SectionName[128];
+			g_ConfigKeyValues.GotoFirstSubKey();
+			g_ConfigKeyValues.GetSectionName(SectionName, sizeof(SectionName));
+			if(g_ConfigKeyValues.GetDataType("hunter_limit") == KvData_Int)
 			{
-				g_classLimits[blue][StringToInt(SectionName)] = KvGetNum(g_ConfigKeyValues, "hunter_limit");
+				g_classLimits[blue][StringToInt(SectionName)] = g_ConfigKeyValues.GetNum("hunter_limit");
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "prop_limit") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("prop_limit") == KvData_Int)
 			{
-				g_classLimits[red][StringToInt(SectionName)] = KvGetNum(g_ConfigKeyValues, "prop_limit");
+				g_classLimits[red][StringToInt(SectionName)] = g_ConfigKeyValues.GetNum("prop_limit");
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "hunter_default_class") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("hunter_default_class") == KvData_Int)
 			{
-				g_defaultClass[blue] = TFClassType:StringToInt(SectionName);
+				g_defaultClass[blue] = view_as<TFClassType>(StringToInt(SectionName));
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "prop_default_class") == KvData_Int)
+			if(g_ConfigKeyValues.GetDataType("prop_default_class") == KvData_Int)
 			{
-				g_defaultClass[red] = TFClassType:StringToInt(SectionName);
+				g_defaultClass[red] = view_as<TFClassType>(StringToInt(SectionName));
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "base_speed") == KvData_Float)
+			if(g_ConfigKeyValues.GetDataType("base_speed") == KvData_Float)
 			{
-				g_classSpeeds[StringToInt(SectionName)][0] = KvGetFloat(g_ConfigKeyValues, "base_speed");
+				g_classSpeeds[StringToInt(SectionName)][0] = g_ConfigKeyValues.GetFloat("base_speed");
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "max_speed") == KvData_Float)
+			if(g_ConfigKeyValues.GetDataType("max_speed") == KvData_Float)
 			{
-				g_classSpeeds[StringToInt(SectionName)][1] = KvGetFloat(g_ConfigKeyValues, "max_speed");
+				g_classSpeeds[StringToInt(SectionName)][1] = g_ConfigKeyValues.GetFloat("max_speed");
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "speed_increment") == KvData_Float)
+			if(g_ConfigKeyValues.GetDataType("speed_increment") == KvData_Float)
 			{
-				g_classSpeeds[StringToInt(SectionName)][2] = KvGetFloat(g_ConfigKeyValues, "speed_increment");
+				g_classSpeeds[StringToInt(SectionName)][2] = g_ConfigKeyValues.GetFloat("speed_increment");
 			}
 			
 		}
-		while(KvGotoNextKey(g_ConfigKeyValues));
+		while(g_ConfigKeyValues.GotoNextKey());
 	}
 	else
 	{
@@ -1281,62 +1289,62 @@ config_parseClasses()
 	}
 }
 
-config_parseSounds()
+void config_parseSounds()
 {
-	ClearTrie(g_Sounds);
-	ClearTrie(g_BroadcastSounds);
+	g_Sounds.Clear();
+	g_BroadcastSounds.Clear();
 	
-	if (g_ConfigKeyValues == INVALID_HANDLE)
+	if (g_ConfigKeyValues == null)
 	{
 		return;
 	}
 	
-	while(KvGoBack(g_ConfigKeyValues))
+	while(g_ConfigKeyValues.GoBack())
 	{
 		continue;
 	}
 	
-	if(KvJumpToKey(g_ConfigKeyValues, "sounds"))
+	if(g_ConfigKeyValues.JumpToKey("sounds"))
 	{
 		do
 		{
-			decl String:SectionName[128];
-			KvGotoFirstSubKey(g_ConfigKeyValues);
-			KvGetSectionName(g_ConfigKeyValues, SectionName, sizeof(SectionName));
-			if(KvGetDataType(g_ConfigKeyValues, "sound") == KvData_String)
+			char SectionName[128];
+			g_ConfigKeyValues.GotoFirstSubKey();
+			g_ConfigKeyValues.GetSectionName(SectionName, sizeof(SectionName));
+			if(g_ConfigKeyValues.GetDataType("sound") == KvData_String)
 			{
-				decl String:soundString[PLATFORM_MAX_PATH];
-				KvGetString(g_ConfigKeyValues, "sound", soundString, sizeof(soundString));
+				char soundString[PLATFORM_MAX_PATH];
+				g_ConfigKeyValues.GetString("sound", soundString, sizeof(soundString));
 				
 				if(PrecacheSound(soundString))
 				{
-					decl String:downloadString[PLATFORM_MAX_PATH];
+					char downloadString[PLATFORM_MAX_PATH];
 					Format(downloadString, sizeof(downloadString), "sound/%s", soundString);
 					AddFileToDownloadsTable(downloadString);
 					
-					SetTrieString(g_Sounds, SectionName, soundString, true);
+					g_Sounds.SetString(SectionName, soundString, true);
 				}
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "broadcast") == KvData_String)
+			if(g_ConfigKeyValues.GetDataType("broadcast") == KvData_String)
 			{
-				decl String:soundString[128];
-				KvGetString(g_ConfigKeyValues, "broadcast", soundString, sizeof(soundString));
+				char soundString[128];
+				g_ConfigKeyValues.GetString("broadcast", soundString, sizeof(soundString));
 				
 				PrecacheScriptSound(soundString);
 				
-				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
+				g_BroadcastSounds.SetString(SectionName, soundString, true);
 			}
-			if(KvGetDataType(g_ConfigKeyValues, "game") == KvData_String)
+			if(g_ConfigKeyValues.GetDataType("game") == KvData_String)
 			{
-				decl String:soundString[128];
-				KvGetString(g_ConfigKeyValues, "game", soundString, sizeof(soundString));
+				char soundString[128];
+				g_ConfigKeyValues.GetString("game", soundString, sizeof(soundString));
 				
 				PrecacheScriptSound(soundString);
 				
-				SetTrieString(g_BroadcastSounds, SectionName, soundString, true);
+				g_BroadcastSounds.SetString(SectionName, soundString, true);
 			}
 		}
-		while(KvGotoNextKey(g_ConfigKeyValues));
+		while(g_ConfigKeyValues.GotoNextKey());
 	}
 	else
 	{
@@ -1344,123 +1352,129 @@ config_parseSounds()
 	}
 }
 
-SetCVars(){
+void SetCVars(){
 
-	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hTournamentStopwatch, GetConVarFlags(g_hTournamentStopwatch) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hTournamentHideDominationIcons, GetConVarFlags(g_hTournamentHideDominationIcons) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaPreroundTime, GetConVarFlags(g_hArenaPreroundTime) & ~(FCVAR_NOTIFY));
+	g_hArenaRoundTime.Flags = g_hArenaRoundTime.Flags & ~FCVAR_NOTIFY;
+	g_hArenaUseQueue.Flags = g_hArenaUseQueue.Flags & ~FCVAR_NOTIFY;
+	g_hArenaMaxStreak.Flags = g_hArenaMaxStreak.Flags & ~FCVAR_NOTIFY;
+	g_hTournamentStopwatch.Flags = g_hTournamentStopwatch.Flags & ~FCVAR_NOTIFY;
+	g_hTournamentHideDominationIcons.Flags = g_hTournamentHideDominationIcons.Flags & ~FCVAR_NOTIFY;
+	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags & ~FCVAR_NOTIFY;
+	g_hArenaPreroundTime.Flags = g_hArenaPreroundTime.Flags & ~FCVAR_NOTIFY;
 
-	g_ArenaRoundTime = GetConVarInt(g_hArenaRoundTime);
-	SetConVarInt(g_hArenaRoundTime, 0, true);
+	g_ArenaRoundTime = g_hArenaRoundTime.IntValue;
+	g_hArenaRoundTime.IntValue = 0;
 	
-	g_ArenaUseQueue = GetConVarBool(g_hArenaUseQueue);
-	SetConVarBool(g_hArenaUseQueue, false, true);
+	g_ArenaUseQueue = g_hArenaUseQueue.BoolValue;
+	g_hArenaUseQueue.BoolValue = false;
 
-	g_ArenaMaxStreak = GetConVarInt(g_hArenaMaxStreak);
-	SetConVarInt(g_hArenaMaxStreak, 4, true);
+	g_ArenaMaxStreak = g_hArenaMaxStreak.IntValue;
+	g_hArenaMaxStreak.IntValue = 2;
 	
-	g_TournamentStopwatch = GetConVarInt(g_hTournamentStopwatch);
-	SetConVarInt(g_hTournamentStopwatch, 0, true);
+	g_TournamentStopwatch = g_hTournamentStopwatch.BoolValue;
+	g_hTournamentStopwatch.BoolValue = false;
 	
-	g_TournamentHideDominationIcons = GetConVarInt(g_hTournamentHideDominationIcons);
-	SetConVarInt(g_hTournamentHideDominationIcons, 0, true);
+	g_TournamentHideDominationIcons = g_hTournamentHideDominationIcons.BoolValue;
+	g_hTournamentHideDominationIcons.BoolValue = true;
 
-	g_TeamsUnbalanceLimit = GetConVarInt(g_hTeamsUnbalanceLimit);
-	SetConVarInt(g_hTeamsUnbalanceLimit, UNBALANCE_LIMIT, true);
+	g_TeamsUnbalanceLimit = g_hTeamsUnbalanceLimit.IntValue;
+	g_hTeamsUnbalanceLimit.IntValue = UNBALANCE_LIMIT;
 
-	SetConVarBounds(g_hArenaPreroundTime, ConVarBound_Upper, false);
-	g_ArenaPreroundTime = GetConVarInt(g_hArenaPreroundTime);
-	SetConVarInt(g_hArenaPreroundTime, IsDedicatedServer() ? 20:5, true);
 	
-	g_WeaponCriticals = GetConVarInt(g_hWeaponCriticals);
-	SetConVarInt(g_hWeaponCriticals, 0, true);
+	g_hArenaPreroundTime.SetBounds(ConVarBound_Upper, false);
+	g_ArenaPreroundTime = g_hArenaPreroundTime.IntValue;
+	g_hArenaPreroundTime.IntValue = IsDedicatedServer() ? 20 : 5;
 	
-	g_Idledealmethod = GetConVarInt(g_hIdledealmethod);
-	SetConVarInt(g_hIdledealmethod, 0, true);
+	g_WeaponCriticals = g_hWeaponCriticals.BoolValue;
+	g_hWeaponCriticals.BoolValue = false;
 	
-	g_Friendlyfire = GetConVarInt(g_hFriendlyfire);
-	SetConVarInt(g_hFriendlyfire, 0, true);
+	// Idle Deal Method is buggy on Arena sometimes
+	g_Idledealmethod = g_hIdledealmethod.IntValue;
+	g_hIdledealmethod.IntValue = 0;
 	
-	g_Gravity = GetConVarInt(g_hGravity);
-	SetConVarInt(g_hGravity, 500, true);
+	g_Friendlyfire = g_hFriendlyfire.BoolValue;
+	g_hFriendlyfire.BoolValue = false;
 	
-	g_Forcecamera = GetConVarInt(g_hForcecamera);
-	SetConVarInt(g_hForcecamera, 1, true);
+	// Lower gravity to 500 for PropHunt
+	g_Gravity = g_hGravity.IntValue;
+	g_hGravity.IntValue = 500;
 	
-	g_ArenaCapEnableTime = GetConVarInt(g_hArenaCapEnableTime);
-	SetConVarInt(g_hArenaCapEnableTime, 3600, true); // Set really high
+	g_Forcecamera = g_hForcecamera.IntValue;
+	g_hForcecamera.IntValue = 1;
 	
-	g_EnableRoundWaitTime = GetConVarInt(g_hEnableRoundWaitTime);
-	SetConVarInt(g_hEnableRoundWaitTime, 0, true);
+	g_ArenaCapEnableTime = g_hArenaCapEnableTime.IntValue;
+	g_hArenaCapEnableTime.IntValue = 3600; // Set really high
+	
+	g_EnableRoundWaitTime = g_hEnableRoundWaitTime.BoolValue;
+	g_hEnableRoundWaitTime.BoolValue = false;
 
-	g_WaitingForPlayerTime = GetConVarInt(g_hWaitingForPlayerTime);
-	SetConVarInt(g_hWaitingForPlayerTime, 40, true);
+	g_WaitingForPlayerTime = g_hWaitingForPlayerTime.IntValue;
+	g_hWaitingForPlayerTime.IntValue = 40;
 	
-	g_ShowVoiceIcons = GetConVarInt(g_hShowVoiceIcons);
-	SetConVarInt(g_hShowVoiceIcons, 0, true);
+	g_ShowVoiceIcons = g_hShowVoiceIcons.BoolValue;
+	g_hShowVoiceIcons.BoolValue = false;
 
-	g_SolidObjects = GetConVarInt(g_hSolidObjects);
-	SetConVarInt(g_hSolidObjects, 0, true);
+	g_SolidObjects = g_hSolidObjects.BoolValue;
+	g_hSolidObjects.BoolValue = false;
 	
-	g_ArenaFirstBlood = GetConVarBool(g_hArenaFirstBlood);
-	SetConVarBool(g_hArenaFirstBlood, false, true);
+	g_ArenaFirstBlood = g_hArenaFirstBlood.BoolValue;
+	g_hArenaFirstBlood.BoolValue = false;
 	
-	g_WeaponDropTime = GetConVarInt(g_hWeaponDropTime);
-	SetConVarInt(g_hWeaponDropTime, 0, true);
+	// Force weapons to immediately vanish when dropped
+	g_WeaponDropTime = g_hWeaponDropTime.IntValue;
+	g_hWeaponDropTime.IntValue = 0;
 	
 	g_CvarsSet = true;
 }
 
-ResetCVars()
+void ResetCVars()
 {
 	if (!g_CvarsSet)
 		return;
 	
-	SetConVarFlags(g_hArenaRoundTime, GetConVarFlags(g_hArenaRoundTime) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaUseQueue, GetConVarFlags(g_hArenaUseQueue) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaMaxStreak, GetConVarFlags(g_hArenaMaxStreak) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
-	SetConVarFlags(g_hArenaPreroundTime, GetConVarFlags(g_hArenaPreroundTime) & ~(FCVAR_NOTIFY));
-
-	SetConVarInt(g_hArenaRoundTime, g_ArenaRoundTime, true);
-	SetConVarBool(g_hArenaUseQueue, g_ArenaUseQueue, true);
-	SetConVarInt(g_hArenaMaxStreak, g_ArenaMaxStreak, true);
-	SetConVarInt(g_hTournamentStopwatch, g_TournamentStopwatch, true);
-	SetConVarInt(g_hTournamentHideDominationIcons, g_TournamentHideDominationIcons, true);
-	SetConVarInt(g_hTeamsUnbalanceLimit, g_TeamsUnbalanceLimit, true);
-	SetConVarInt(g_hArenaPreroundTime, g_ArenaPreroundTime, true);
-	SetConVarInt(g_hWeaponCriticals, g_WeaponCriticals, true);
-	SetConVarInt(g_hIdledealmethod, g_Idledealmethod, true);
-	SetConVarInt(g_hFriendlyfire, g_Friendlyfire, true);
-	SetConVarInt(g_hGravity, g_Gravity, true);
-	SetConVarInt(g_hForcecamera, g_Forcecamera, true);
-	SetConVarInt(g_hArenaCapEnableTime, g_ArenaCapEnableTime, true);
-	SetConVarInt(g_hEnableRoundWaitTime, g_EnableRoundWaitTime, true);
-	SetConVarInt(g_hWaitingForPlayerTime, g_WaitingForPlayerTime, true);
-	SetConVarInt(g_hShowVoiceIcons, g_ShowVoiceIcons, true);
-	SetConVarInt(g_hSolidObjects, g_SolidObjects, true);
-	SetConVarBool(g_hArenaFirstBlood, g_ArenaFirstBlood, true);
-	SetConVarInt(g_hWeaponDropTime, g_WeaponDropTime, true);
+	g_hArenaRoundTime.Flags = g_hArenaRoundTime.Flags & ~FCVAR_NOTIFY;
+	g_hArenaUseQueue.Flags = g_hArenaUseQueue.Flags & ~FCVAR_NOTIFY;
+	g_hArenaMaxStreak.Flags = g_hArenaMaxStreak.Flags & ~FCVAR_NOTIFY;
+	g_hTournamentStopwatch.Flags = g_hTournamentStopwatch.Flags & ~FCVAR_NOTIFY;
+	g_hTournamentHideDominationIcons.Flags = g_hTournamentHideDominationIcons.Flags & ~FCVAR_NOTIFY;
+	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags & ~FCVAR_NOTIFY;
+	g_hArenaPreroundTime.Flags = g_hArenaPreroundTime.Flags & ~FCVAR_NOTIFY;
+	
+	g_hArenaRoundTime.IntValue = g_ArenaRoundTime;
+	g_hArenaUseQueue.BoolValue = g_ArenaUseQueue;
+	g_hArenaMaxStreak.IntValue = g_ArenaMaxStreak;
+	g_hTournamentStopwatch.BoolValue = g_TournamentStopwatch;
+	g_hTournamentHideDominationIcons.BoolValue = g_TournamentHideDominationIcons;
+	g_hTeamsUnbalanceLimit.IntValue = g_TeamsUnbalanceLimit;
+	g_hArenaPreroundTime.IntValue = g_ArenaPreroundTime;
+	g_hWeaponCriticals.BoolValue = g_WeaponCriticals;
+	g_hIdledealmethod.IntValue = g_Idledealmethod;
+	g_hFriendlyfire.BoolValue = g_Friendlyfire;
+	g_hGravity.IntValue = g_Gravity;
+	g_hForcecamera.IntValue = g_Forcecamera;
+	g_hArenaCapEnableTime.IntValue = g_ArenaCapEnableTime;
+	g_hEnableRoundWaitTime.BoolValue = g_EnableRoundWaitTime;
+	g_hWaitingForPlayerTime.IntValue = g_WaitingForPlayerTime;
+	g_hShowVoiceIcons.BoolValue = g_ShowVoiceIcons;
+	g_hSolidObjects.BoolValue = g_SolidObjects;
+	g_hArenaFirstBlood.BoolValue = g_ArenaFirstBlood;
+	g_hWeaponDropTime.IntValue = g_WeaponDropTime;
 	
 	g_CvarsSet = false;
 }
 
-public OnConfigsExecuted()
+public void OnConfigsExecuted()
 {
-	g_Enabled = GetConVarBool(g_PHEnable) && g_PHMap;
+	g_Enabled = g_PHEnable.BoolValue && g_PHMap;
 	
 	g_GameRulesProxy = EntIndexToEntRef(FindEntityByClassname(-1, "tf_gamerules"));
 	
-	if (GetConVarInt(g_PHPropMenu) == 1 && !g_PropMenuOverrideInstalled)
+	if (g_PHPropMenu.IntValue == 1 && !g_PropMenuOverrideInstalled)
 	{
 		InstallPropMenuOverride();
 	}
 	
-	if (GetConVarInt(g_PHReroll) == 1 && !g_PropRerollOverrideInstalled)
+	if (g_PHReroll.IntValue == 1 && !g_PropRerollOverrideInstalled)
 	{
 		InstallPropRerollOverride();
 	}
@@ -1480,9 +1494,9 @@ public OnConfigsExecuted()
 	CountRounds();
 }
 
-InstallPropMenuOverride()
+void InstallPropMenuOverride()
 {
-	new tempFlags;
+	int tempFlags;
 	if (GetCommandOverride("propmenu", Override_Command, tempFlags))
 	{
 		g_PropMenuOldFlags = tempFlags;
@@ -1492,7 +1506,7 @@ InstallPropMenuOverride()
 	g_PropMenuOverrideInstalled = true;
 }
 
-RemovePropMenuOverride()
+void RemovePropMenuOverride()
 {
 	if (g_PropMenuOldFlags == ADMFLAG_NONE)
 	{
@@ -1507,9 +1521,9 @@ RemovePropMenuOverride()
 	g_PropMenuOverrideInstalled = false;
 }
 
-InstallPropRerollOverride()
+void InstallPropRerollOverride()
 {
-	new tempFlags;
+	int tempFlags;
 	if (GetCommandOverride("propreroll", Override_Command, tempFlags))
 	{
 		g_PropRerollOldFlags = tempFlags;
@@ -1519,7 +1533,7 @@ InstallPropRerollOverride()
 	g_PropRerollOverrideInstalled = true;
 }
 
-RemovePropRerollOverride()
+void RemovePropRerollOverride()
 {
 	if (g_PropRerollOldFlags == ADMFLAG_NONE)
 	{
@@ -1534,9 +1548,9 @@ RemovePropRerollOverride()
 	g_PropRerollOverrideInstalled = false;
 }
 
-public OnPropMenuChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnPropMenuChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-	new newVal = GetConVarInt(g_PHPropMenu);
+	int newVal = g_PHPropMenu.IntValue;
 	if (g_PropMenuOverrideInstalled && newVal < 1)
 	{
 		RemovePropMenuOverride();
@@ -1547,9 +1561,9 @@ public OnPropMenuChanged(Handle:convar, const String:oldValue[], const String:ne
 	}
 }
 
-public OnPropRerollChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnPropRerollChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-	new newVal = GetConVarInt(g_PHReroll);
+	int newVal = g_PHReroll.IntValue;
 	if (g_PropRerollOverrideInstalled && newVal < 1)
 	{
 		RemovePropRerollOverride();
@@ -1560,9 +1574,9 @@ public OnPropRerollChanged(Handle:convar, const String:oldValue[], const String:
 	}
 }
 
-public OnMultilingualChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnMultilingualChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
-	if (GetConVarBool(convar))
+	if (convar.BoolValue)
 	{
 		ReadCommonPropData(true);
 	}
@@ -1573,34 +1587,34 @@ public OnMultilingualChanged(Handle:convar, const String:oldValue[], const Strin
 	
 }
 
-public OnRebuildAdminCache(AdminCachePart:part)
+public void OnRebuildAdminCache(AdminCachePart part)
 {
-	if (part == AdminCache_Overrides && (GetConVarInt(g_PHPropMenu) == 1 || GetConVarInt(g_PHReroll) == 1))
+	if (part == AdminCache_Overrides && (g_PHPropMenu.IntValue == 1 || g_PHReroll.IntValue == 1))
 	{
 		CreateTimer(0.2, Timer_RestoreOverrides);
 	}
 }
 
-public Action:Timer_RestoreOverrides(Handle:timer)
+public Action Timer_RestoreOverrides(Handle timer)
 {
-	if (GetConVarInt(g_PHPropMenu) == 1)
+	if (g_PHPropMenu.IntValue == 1)
 	{
 		InstallPropMenuOverride();
 	}
 	
-	if (GetConVarInt(g_PHReroll) == 1)
+	if (g_PHReroll.IntValue == 1)
 	{
 		InstallPropRerollOverride();
 	}
 }
 
-CountRounds()
+void CountRounds()
 {
 	g_RoundCurrent = 0;
 	g_RoundCount = 0;
-	new entity = -1;
+	int entity = -1;
 //	new prevPriority = 0;
-	new bool:roundSwitchAlways = true;
+	bool roundSwitchAlways = true;
 	
 	while ((entity = FindEntityByClassname(entity, "team_control_point_round")) != -1)
 	{
@@ -1642,19 +1656,19 @@ CountRounds()
 }
 
 
-StartTimers(bool:noScoreTimer = false)
+void StartTimers(bool noScoreTimer = false)
 {
-	if (g_hLocked == INVALID_HANDLE)
+	if (g_hLocked == null)
 	{
 		g_hLocked = CreateTimer(0.6, Timer_Locked, _, TIMER_REPEAT);
 	}
 		
-	if (!noScoreTimer && g_hScore == INVALID_HANDLE)
+	if (!noScoreTimer && g_hScore == null)
 	{
 		g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	}
 
-	if ((GetConVarBool(g_PHAntiHack) || GetConVarBool(g_PHStaticPropInfo)) && g_hAntiHack == INVALID_HANDLE)
+	if ((g_PHAntiHack.BoolValue || g_PHStaticPropInfo.BoolValue) && g_hAntiHack == null)
 	{
 		g_hAntiHack = CreateTimer(7.0, Timer_AntiHack, _, TIMER_REPEAT);
 		// Also run said timer 0.1 seconds after round start.
@@ -1662,35 +1676,32 @@ StartTimers(bool:noScoreTimer = false)
 	}
 }
 
-StopTimers()
+void StopTimers()
 {
-	if (g_hAntiHack != INVALID_HANDLE)
+	if (g_hAntiHack != null)
 	{
-		CloseHandle(g_hAntiHack);
-		g_hAntiHack = INVALID_HANDLE;
+		delete g_hAntiHack;
 	}
 	
-	if (g_hLocked != INVALID_HANDLE)
+	if (g_hLocked != null)
 	{
-		CloseHandle(g_hLocked);
-		g_hLocked = INVALID_HANDLE;
+		delete g_hLocked;
 	}
 	
-	if (g_hScore != INVALID_HANDLE)
+	if (g_hScore != null)
 	{
-		CloseHandle(g_hScore);
-		g_hScore = INVALID_HANDLE;
+		delete g_hScore;
 	}
 }
 
-public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnEnabledChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	if (!g_MapStarted)
 	{
 		return;
 	}
 	
-	if (GetConVarBool(g_PHEnable))
+	if (g_PHEnable.BoolValue)
 	{
 		if (g_Enabled)
 		{
@@ -1698,7 +1709,7 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 		}
 		else
 		{
-			new bool:enabled = IsPropHuntMap();
+			bool enabled = IsPropHuntMap();
 			if (enabled)
 			{
 				g_RoundChange = RoundChange_Enable;
@@ -1722,34 +1733,34 @@ public OnEnabledChanged(Handle:convar, const String:oldValue[], const String:new
 	}
 }
 
-public OnAdTextChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnAdTextChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	strcopy(g_AdText, sizeof(g_AdText), newValue);
 }
 
-public OnUseUpdaterChanged(Handle:convar, const String:oldValue[], const String:newValue[])
+public void OnUseUpdaterChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	if (!g_Updater)
 		return;
 		
-	if (GetConVarBool(convar))
+	if (convar.BoolValue)
 	{
 		Updater_ForceUpdate();
 	}
 }
 
-public Action:Updater_OnPluginDownloading()
+public Action Updater_OnPluginDownloading()
 {
-	return GetConVarBool(g_PHUseUpdater) ? Plugin_Continue : Plugin_Handled;
+	return g_PHUseUpdater.BoolValue ? Plugin_Continue : Plugin_Handled;
 }
 
-public Updater_OnPluginUpdated()
+public int Updater_OnPluginUpdated()
 {
 	PrintCenterTextAll("PropHunt Redux Updated, server restart may be required.");
 	LogMessage("PropHunt Redux Updated, server restart may be required.");
 }
 
-public StartTouchHook(entity, other)
+public void StartTouchHook(int entity, int other)
 {
 	if(other <= MaxClients && other > 0 && !g_TouchingCP[other] && IsClientInGame(other) && IsPlayerAlive(other))
 	{
@@ -1761,7 +1772,7 @@ public StartTouchHook(entity, other)
 	}
 }
 
-stock FillHealth (entity)
+stock void FillHealth (int entity)
 {
 	if(IsValidEntity(entity))
 	{
@@ -1769,7 +1780,7 @@ stock FillHealth (entity)
 	}
 }
 
-stock ExtinguishPlayer (client){
+stock void ExtinguishPlayer (int client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
 	{
 		ExtinguishEntity(client);
@@ -1777,7 +1788,7 @@ stock ExtinguishPlayer (client){
 	}
 }
 
-public OnEntityCreated(entity, const String:classname[])
+public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (!g_Enabled)
 	{
@@ -1817,7 +1828,7 @@ public OnEntityCreated(entity, const String:classname[])
 	}
 }
 
-public Action:OnBullshitEntitySpawned(entity)
+public Action OnBullshitEntitySpawned(int entity)
 {
 	if(IsValidEntity(entity))
 		AcceptEntityInput(entity, "Kill");
@@ -1825,9 +1836,9 @@ public Action:OnBullshitEntitySpawned(entity)
 	return Plugin_Continue;
 }
 
-public OnCPEntitySpawned(entity)
+public void OnCPEntitySpawned(int entity)
 {
-	decl String:propName[500];
+	char propName[500];
 	GetEntPropString(entity, Prop_Data, "m_ModelName", propName, sizeof(propName));
 	if(StrEqual(propName, "models/props_gameplay/cap_point_base.mdl"))
 	{
@@ -1839,10 +1850,10 @@ public OnCPEntitySpawned(entity)
 	}
 }
 
-public Action:OnTimerSpawned(entity)
+public Action OnTimerSpawned(int entity)
 {
 	// Attempt to shut the pre-round timer up at start, unless 5 secs or less are left
-	decl String:name[64];
+	char name[64];
 	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
 	
 	if (!StrEqual(name, TIMER_NAME))
@@ -1859,7 +1870,7 @@ public Action:OnTimerSpawned(entity)
 	}
 }
 
-public Action:OnCPMasterSpawned(entity)
+public Action OnCPMasterSpawned(int entity)
 {
 #if defined LOG
 	LogMessage("[PH] cpmaster spawned");
@@ -1870,24 +1881,24 @@ public Action:OnCPMasterSpawned(entity)
 	return Plugin_Continue;
 }
 
-public OnCPMasterSpawnedPost(entity)
+public void OnCPMasterSpawnedPost(int entity)
 {
 	if (!g_MapStarted)
 	{
 		return;
 	}
 	
-	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
+	int arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
 	if (arenaLogic == -1)
 	{
 		return;
 	}
 	
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
-	decl String:time[5];
+	char time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
 	
-	decl String:name[64];
+	char name[64];
 	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
 	{
 		DispatchKeyValue(entity, "targetname", "master_control_point");
@@ -1895,16 +1906,16 @@ public OnCPMasterSpawnedPost(entity)
 	}
 	
 	// Create our timer.
-	new timer = CreateEntityByName("team_round_timer");
+	int timer = CreateEntityByName("team_round_timer");
 	DispatchKeyValue(timer, "targetname", TIMER_NAME);
-	new String:setupLength[5];
+	char setupLength[5];
 	if (g_Setup >= SETUP_MIN && g_Setup <= SETUP_MAX)
 	{
 		IntToString(g_Setup, setupLength, sizeof(setupLength));
 	}
 	else
 	{
-		GetConVarString(g_PHSetupLength, setupLength, sizeof(setupLength));		
+		g_PHSetupLength.GetString(setupLength, sizeof(setupLength));		
 	}
 	DispatchKeyValue(timer, "setup_length", setupLength);
 	DispatchKeyValue(timer, "reset_time", "1");
@@ -1916,7 +1927,7 @@ public OnCPMasterSpawnedPost(entity)
 	LogMessage("[PH] setting up cpmaster \"%s\" (%d) with team round timer \"%s\" (%d) ", name, entity, TIMER_NAME, timer);
 #endif
     
-	decl String:finishedCommand[256];
+	char finishedCommand[256];
 	
 	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinnerAndForceCaps:%d:0:-1", name, TEAM_PROP);
 	SetVariantString(finishedCommand);
@@ -1938,7 +1949,7 @@ public OnCPMasterSpawnedPost(entity)
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
 }
 
-public OnMapEnd()
+public void OnMapEnd()
 {
 #if defined STATS
 	g_MapChanging = true;
@@ -1949,38 +1960,38 @@ public OnMapEnd()
 	
 	ResetCVars();
 	StopTimers();
-	new bool:remove = g_Enabled; // Save the enabled value
+	bool remove = g_Enabled; // Save the enabled value
 	g_Enabled = false;
 	if (remove)
 	{
 		UpdateGameDescription();
 	}
 	
-	for (new client = 1; client<=MaxClients; client++)
+	for (int client = 1; client<=MaxClients; client++)
 	{
 		g_CurrentlyFlaming[client] = false;
 		g_FlameCount[client] = 0;
 	}
 
-	ClearArray(g_ModelName);
-	ClearArray(g_ModelOffset);
-	ClearArray(g_ModelRotation);
-	ClearArray(g_ModelSkin);
+	g_ModelName.Clear();
+	g_ModelOffset.Clear();
+	g_ModelRotation.Clear();
+	g_ModelSkin.Clear();
 
-	ClearArray(g_hWeaponRemovals);
-	ClearArray(g_hPropWeaponRemovals);
-	ClearTrie(g_hWeaponNerfs);
-	ClearTrie(g_hWeaponSelfDamage);
-	ClearArray(g_hWeaponStripAttribs);
-	ClearTrie(g_hWeaponAddAttribs);
-	ClearTrie(g_hWeaponReplacements);
-	ClearTrie(g_hWeaponReplacementPlayerClasses);
+	g_hWeaponRemovals.Clear();
+	g_hPropWeaponRemovals.Clear();
+	g_hWeaponNerfs.Clear();
+	g_hWeaponSelfDamage.Clear();
+	g_hWeaponStripAttribs.Clear();
+	g_hWeaponAddAttribs.Clear();
+	g_hWeaponReplacements.Clear();
+	g_hWeaponReplacementPlayerClasses.Clear();
 	
-	ClearTrie(g_Sounds);
-	ClearTrie(g_BroadcastSounds);
+	g_Sounds.Clear();
+	g_BroadcastSounds.Clear();
 }
 
-public OnMapStart()
+public void OnMapStart()
 {
 	g_GameRulesProxy = INVALID_ENT_REFERENCE;
 	GetCurrentMap(g_Mapname, sizeof(g_Mapname));
@@ -1989,76 +2000,75 @@ public OnMapStart()
 
 	if (g_PHMap)
 	{
-		decl String:confil[PLATFORM_MAX_PATH], String:buffer[256], String:offset[32], String:rotation[32];
+		char confil[PLATFORM_MAX_PATH], buffer[256], offset[32], rotation[32];
 		
-		new Handle:fl;
+		KeyValues fl;
 		
-		if (g_PropMenu != INVALID_HANDLE)
+		if (g_PropMenu != null)
 		{
-			CloseHandle(g_PropMenu);
-			g_PropMenu = INVALID_HANDLE;
+			delete g_PropMenu;
 		}
-		g_PropMenu = CreateMenu(Handler_PropMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
-		SetMenuTitle(g_PropMenu, "PropHunt Prop Menu");
-		SetMenuExitButton(g_PropMenu, true);
+		g_PropMenu = new Menu(Handler_PropMenu, MENU_ACTIONS_DEFAULT|MenuAction_DisplayItem);
+		g_PropMenu.SetTitle("PropHunt Prop Menu");
+		g_PropMenu.ExitButton = true;
 		
 		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/prop_menu.txt");
 		
 		fl = CreateKeyValues("propmenu");
-		if (FileToKeyValues(fl, confil))
+		if (fl.ImportFromFile(confil))
 		{
-			new count = 0;
+			int count = 0;
 			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
+			fl.GotoFirstSubKey();
 			do
 			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
+				fl.GetSectionName(buffer, sizeof(buffer));
 				if (!FileExists(buffer, true))
 				{
 					LogError("prop_menu.txt: Prop does not exist: %s", buffer);
 					continue;
 				}
-				AddMenuItem(g_PropMenu, buffer, buffer);
+				g_PropMenu.AddItem(buffer, buffer);
 				count++;
 			}
-			while (KvGotoNextKey(fl));
+			while (fl.GotoNextKey());
 			
 			PrintToServer("Successfully parsed %s", confil);
 			PrintToServer("Added %i models to prop menu.", GetMenuItemCount(g_PropMenu));
 		}
-		CloseHandle(fl);
+		delete fl;
 		
-		new sharedCount = 0;
+		int sharedCount = 0;
 		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/props_allmaps.txt");
 		
 		fl = CreateKeyValues("sharedprops");
-		if (FileToKeyValues(fl, confil))
+		if (fl.ImportFromFile(confil))
 		{
 			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
+			fl.GotoFirstSubKey();
 			do
 			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
+				fl.GetSectionName(buffer, sizeof(buffer));
 				if (!FileExists(buffer, true))
 				{
 					LogError("props_allmaps.txt: Prop does not exist: %s", buffer);
 					continue;
 				}
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-				PushArrayCell(g_ModelSkin, KvGetNum(fl, "skin", 0));
+				g_ModelName.PushString(buffer);
+				g_PropMenu.AddItem(buffer, buffer);
+				fl.GetString("offset", offset, sizeof(offset), "0 0 0");
+				g_ModelOffset.PushString(offset);
+				fl.GetString("rotation", rotation, sizeof(rotation), "0 0 0");
+				g_ModelRotation.PushString(rotation);
+				g_ModelSkin.Push(KvGetNum(fl, "skin", 0));
 			}
-			while (KvGotoNextKey(fl));
+			while (fl.GotoNextKey());
 			
 			PrintToServer("Successfully parsed %s", confil);
-			sharedCount = GetArraySize(g_ModelName);
+			sharedCount = g_ModelName.Length;
 			PrintToServer("Loaded %i shared models.", sharedCount);
 		}
-		CloseHandle(fl);
+		delete fl;
 		
 		if (!FindConfigFileForMap(g_Mapname, confil, sizeof(confil)))
 		{
@@ -2069,58 +2079,58 @@ public OnMapStart()
 		
 		fl = CreateKeyValues("prophuntmapconfig");
 		
-		if(!FileToKeyValues(fl, confil))
+		if(!fl.ImportFromFile(confil))
 		{
 			LogMessage("[PH] Config file for map %s at %s could not be opened. Disabling plugin.", g_Mapname, confil);
-			CloseHandle(fl);
+			delete fl;
 			g_Enabled = false;
 			return;
 		}
 		else
 		{
 			PrintToServer("Successfully loaded %s", confil);
-			KvGotoFirstSubKey(fl);
-			KvJumpToKey(fl, "Props", false);
-			KvGotoFirstSubKey(fl);
+			fl.GotoFirstSubKey();
+			fl.JumpToKey("Props", false);
+			fl.GotoFirstSubKey();
 			do
 			{
-				KvGetSectionName(fl, buffer, sizeof(buffer));
+				fl.GetSectionName(buffer, sizeof(buffer));
 				if (!FileExists(buffer, true))
 				{
 					LogError("%s: Prop does not exist: %s", confil, buffer);
 					continue;
 				}
-				PushArrayString(g_ModelName, buffer);
-				AddMenuItem(g_PropMenu, buffer, buffer);
-				KvGetString(fl, "offset", offset, sizeof(offset), "0 0 0");
-				PushArrayString(g_ModelOffset, offset);
-				KvGetString(fl, "rotation", rotation, sizeof(rotation), "0 0 0");
-				PushArrayString(g_ModelRotation, rotation);
-				PushArrayCell(g_ModelSkin, KvGetNum(fl, "skin", 0));
+				g_ModelName.PushString(buffer);
+				g_PropMenu.AddItem(buffer, buffer);
+				fl.GetString("offset", offset, sizeof(offset), "0 0 0");
+				g_ModelOffset.PushString(offset);
+				fl.GetString("rotation", rotation, sizeof(rotation), "0 0 0");
+				g_ModelRotation.PushString(rotation);
+				g_ModelSkin.Push(fl.GetNum("skin", 0));
 			}
-			while (KvGotoNextKey(fl));
-			KvRewind(fl);
-			KvJumpToKey(fl, "Settings", false);
+			while (fl.GotoNextKey());
+			fl.Rewind();
+			fl.JumpToKey("Settings", false);
 			
-			g_Doors = bool:KvGetNum(fl, "doors", 0);
-			g_Relay = bool:KvGetNum(fl, "relay", 0);
-			g_Freeze = bool:KvGetNum(fl, "freeze", 1);
-			g_RoundTime = KvGetNum(fl, "round", 175);
-			g_Setup = KvGetNum(fl, "setup", 30);
+			g_Doors = view_as<bool>(fl.GetNum("doors", 0));
+			g_Relay = view_as<bool>(fl.GetNum("relay", 0));
+			g_Freeze = view_as<bool>(fl.GetNum("freeze", 1));
+			g_RoundTime = fl.GetNum("round", 175);
+			g_Setup = fl.GetNum("setup", 30);
 			
 			PrintToServer("Successfully parsed %s", confil);
-			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i, setup: %i.", GetArraySize(g_ModelName)-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime, g_Setup);
+			PrintToServer("Loaded %i models, doors: %i, relay: %i, freeze: %i, round time: %i, setup: %i.", g_ModelName.Length-sharedCount, g_Doors ? 1:0, g_Relay ? 1:0, g_Freeze ? 1:0, g_RoundTime, g_Setup);
 		}
-		CloseHandle(fl);
+		delete fl;
 		
-		decl String:model[100];
+		char model[100];
 		
-		for(new i = 0; i < GetArraySize(g_ModelName); i++)
+		for(int i = 0; i < g_ModelName.Length; i++)
 		{
-			GetArrayString(g_ModelName, i, model, sizeof(model));
+			g_ModelName.GetString(i, model, sizeof(model));
 			if(PrecacheModel(model, true) == 0)
 			{
-				RemoveFromArray(g_ModelName, i);
+				g_ModelName.Erase(i);
 			}
 		}
 		
@@ -2134,7 +2144,7 @@ public OnMapStart()
 	
 	// workaround no win panel event - admin changes, rtv, etc.
 	g_LastProp = false;
-	for (new client = 1; client <= MaxClients; client++)
+	for (int client = 1; client <= MaxClients; client++)
 	{
 		g_LastPropDamageTime[client] = -1;
 	}
@@ -2146,9 +2156,9 @@ public OnMapStart()
 	g_flRoundStart = 0.0;
 	
 	// Clear the replacement weapon list
-	for (new i = 1; i <= MaxClients; ++i)
+	for (int i = 1; i <= MaxClients; ++i)
 	{
-		for (new j = 0; j < sizeof(g_Replacements[]); ++j)
+		for (int j = 0; j < sizeof(g_Replacements[]); ++j)
 		{
 			g_Replacements[i][j] = -1;
 		}
@@ -2161,7 +2171,7 @@ public OnMapStart()
 
 }
 
-public OnPluginEnd()
+public void OnPluginEnd()
 {
 	PrintCenterTextAll("%t", "#TF_PH_PluginReload");
 #if defined STATS
@@ -2186,7 +2196,7 @@ public OnPluginEnd()
 #endif
 }
 
-public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &damagetype, &weapon, Float:damageForce[3], Float:damagePosition[3], damagecustom)
+public Action TakeDamageHook(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	if (!g_Enabled)
 	{
@@ -2197,7 +2207,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	{
 		if (IsPlayerAlive(victim) && GetClientTeam(victim) == TEAM_PROP && GetClientTeam(attacker) == TEAM_HUNTER && !g_Hit[victim])
 		{
-			new Float:pos[3];
+			float pos[3];
 			GetClientAbsOrigin(victim, pos);
 			PH_EmitSoundToClient(victim, "PropFound", _, SNDCHAN_WEAPON, _, _, 0.8, _, victim, pos);
 			PH_EmitSoundToClient(attacker, "PropFound", _, SNDCHAN_WEAPON, _, _, 0.8, _, victim, pos);
@@ -2211,11 +2221,11 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	
 	if(weapon > MaxClients && IsValidEntity(weapon))
 	{
-		new String:weaponIndex[10];
+		char weaponIndex[10];
 		IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
 		
-		new Float:multiplier;
-		if (GetTrieValue(g_hWeaponNerfs, weaponIndex, multiplier))
+		float multiplier;
+		if (g_hWeaponNerfs.GetValue(weaponIndex, multiplier))
 		{
 			damage *= multiplier;
 			return Plugin_Changed;
@@ -2230,7 +2240,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	}
 
 	// block fall damage if set
-	if(GetConVarBool(g_PHPreventFallDamage) && damagetype & DMG_FALL && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && attacker == 0)
+	if(g_PHPreventFallDamage.BoolValue && damagetype & DMG_FALL && victim > 0 && victim <= MaxClients && IsClientInGame(victim) && attacker == 0)
 	{
 		damage = 0.0;
 		return Plugin_Changed;
@@ -2238,7 +2248,7 @@ public Action:TakeDamageHook(victim, &attacker, &inflictor, &Float:damage, &dama
 	return Plugin_Continue;
 }
 
-stock RemovePropModel (client){
+stock void RemovePropModel (int client){
 	if(IsClientInGame(client) && IsPlayerAlive(client) && IsValidEntity(client))
 	{
 		SetVariantString("0 0 0");
@@ -2255,13 +2265,13 @@ stock RemovePropModel (client){
 }
 
 #if defined STATS
-public OnClientDisconnect(client)
+public void OnClientDisconnect(int client)
 {
 	OCD(client);
 }
 #endif
 
-public OnClientDisconnect_Post(client)
+public void OnClientDisconnect_Post(int client)
 {
 	ResetPlayer(client);
 #if defined STATS
@@ -2269,7 +2279,7 @@ public OnClientDisconnect_Post(client)
 #endif
 }
 
-stock SwitchView (target, bool:observer, bool:viewmodel){
+stock void SwitchView (int target, bool observer, bool viewmodel){
 	g_First[target] = !observer;
 	
 	SetVariantInt(observer ? 1 : 0);
@@ -2279,9 +2289,9 @@ stock SwitchView (target, bool:observer, bool:viewmodel){
 	AcceptEntityInput(target, "SetCustomModelVisibletoSelf");
 }
 
-public Action:Command_jointeam(client, args)
+public Action Command_jointeam(int client, int args)
 {
-	decl String:argstr[16];
+	char argstr[16];
 	GetCmdArgString(argstr, sizeof(argstr));
 	if(StrEqual(argstr, "spectatearena"))
 	{
@@ -2294,14 +2304,14 @@ public Action:Command_jointeam(client, args)
 	return Plugin_Continue;
 }
 
-public Action:Command_ReloadConfig(client, args)
+public Action Command_ReloadConfig(int client, int args)
 {
 	loadGlobalConfig();
 	CReplyToCommand(client, "PropHunt Config reloaded");
 	return Plugin_Handled;
 }
 
-public Action:Command_propmenu(client, args)
+public Action Command_propmenu(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
@@ -2311,7 +2321,7 @@ public Action:Command_propmenu(client, args)
 		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHPropMenu) >= 0)
+	if(g_PHPropMenu.IntValue >= 0)
 	{
 		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
@@ -2319,7 +2329,7 @@ public Action:Command_propmenu(client, args)
 			{
 				if (CanPropChange(client))
 				{
-					decl String:model[PLATFORM_MAX_PATH];
+					char model[PLATFORM_MAX_PATH];
 					GetCmdArg(1, model, sizeof(model));
 					
 					if (!FileExists(model, true))
@@ -2328,18 +2338,18 @@ public Action:Command_propmenu(client, args)
 						return Plugin_Handled;
 					}
 					
-					new bool:restrict = true;
+					bool restrict = true;
 					
-					restrict = GetConVarBool(g_PHPropMenuRestrict);
+					restrict = g_PHPropMenuRestrict.BoolValue;
 					if (restrict)
 					{
-						new found = false;
+						bool found = false;
 						
-						new count = GetMenuItemCount(g_PropMenu);
-						for (new i = 0; i < count; i++)
+						int count = GetMenuItemCount(g_PropMenu);
+						for (int i = 0; i < count; i++)
 						{
-							decl String:otherModel[PLATFORM_MAX_PATH];
-							GetMenuItem(g_PropMenu, i, otherModel, sizeof(otherModel));
+							char otherModel[PLATFORM_MAX_PATH];
+							g_PropMenu.GetItem(i, otherModel, sizeof(otherModel));
 							if (strcmp(model, otherModel, false) == 0)
 							{
 								found = true;
@@ -2382,7 +2392,7 @@ public Action:Command_propmenu(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_propreroll(client, args)
+public Action Command_propreroll(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
@@ -2392,7 +2402,7 @@ public Action:Command_propreroll(client, args)
 		CReplyToCommand(client, "%t", "Command is in-game only");
 		return Plugin_Handled;
 	}
-	if(GetConVarInt(g_PHReroll) >= 0)
+	if(g_PHReroll.IntValue >= 0)
 	{
 		if(GetClientTeam(client) == TEAM_PROP && IsPlayerAlive(client))
 		{
@@ -2427,38 +2437,38 @@ public Action:Command_propreroll(client, args)
 	return Plugin_Handled;
 }
 
-public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
+public int Handler_PropMenu(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
 		case MenuAction_Display:
 		{
-			decl String:buffer[255];
+			char buffer[255];
 			Format(buffer, sizeof(buffer), "%T", "#TF_PH_PropMenuName", param1);
 			
-			new Handle:panel = Handle:param2;
-			SetPanelTitle(panel, buffer);
+			Panel panel = view_as<Panel>(param2);
+			panel.SetTitle(buffer);
 		}
 		
 		case MenuAction_Select:
 		{
 			if(IsClientInGame(param1))
 			{
-				if(GetConVarInt(g_PHPropMenu) == 1 || CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
+				if(g_PHPropMenu.IntValue == 1 || CheckCommandAccess(param1, "propmenu", ADMFLAG_KICK))
 				{
 					if(GetClientTeam(param1) == TEAM_PROP && IsPlayerAlive(param1))
 					{
 						if (CanPropChange(param1))
 						{
-							GetMenuItem(menu, param2, g_PlayerModel[param1], PLATFORM_MAX_PATH);
+							menu.GetItem(param2, g_PlayerModel[param1], sizeof(g_PlayerModel[]));
 							g_RoundStartMessageSent[param1] = false;
 							RequestFrame(DoEquipProp, GetClientUserId(param1));
 						}
 						else
 						{
 							CPrintToChat(param1, "%t", "#TF_PH_PropCantChange");
-							new pos = GetMenuSelectionPosition();
-							DisplayMenuAtItem(menu, param1, pos, MENU_TIME_FOREVER);
+							int pos = menu.Selection;
+							menu.DisplayAt(param1, pos, MENU_TIME_FOREVER);
 						}
 					}
 					else
@@ -2475,15 +2485,15 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 		
 		case MenuAction_DisplayItem:
 		{
-			if (!GetConVarBool(g_PHPropMenuNames))
+			if (!g_PHPropMenuNames.BoolValue)
 			{
 				return 0;
 			}
 			
-			new String:model[PLATFORM_MAX_PATH];
-			GetMenuItem(menu, param2, model, sizeof(model));
+			char model[PLATFORM_MAX_PATH];
+			menu.GetItem(param2, model, sizeof(model));
 			
-			new String:modelName[MAXMODELNAME];
+			char modelName[MAXMODELNAME];
 			if (GetModelNameForClient(param1, model, modelName, sizeof(modelName)))
 			{
 				return RedrawMenuItem(modelName);
@@ -2493,9 +2503,9 @@ public Handler_PropMenu(Handle:menu, MenuAction:action, param1, param2)
 	return 0;
 }
 
-bool:CanPropChange(client)
+bool CanPropChange(int client)
 {
-	if (!GetConVarBool(g_PHDamageBlocksPropChange))
+	if (!g_PHDamageBlocksPropChange.BoolValue)
 	{
 		return true;
 	}
@@ -2507,7 +2517,7 @@ bool:CanPropChange(client)
 	return true;
 }
 
-public OnClientPutInServer(client)
+public void OnClientPutInServer(int client)
 {
 	SDKHook(client, SDKHook_WeaponSwitchPost, WeaponSwitch);
 	
@@ -2521,7 +2531,7 @@ public OnClientPutInServer(client)
 	ResetPlayer(client);
 }
 
-public ResetPlayer(client)
+public void ResetPlayer(int client)
 {
 	g_Spawned[client] = false;
 	g_Charge[client] = false;
@@ -2541,7 +2551,7 @@ public ResetPlayer(client)
 	g_RoundStartMessageSent[client] = false;
 }
 
-public Action: Command_respawn(client, args)
+public Action Command_respawn(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
@@ -2555,25 +2565,26 @@ public Action: Command_respawn(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_internet(client, args)
+public Action Command_internet(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
-	decl String:name[255];
-	for(new i = 0; i < 3; i++)
+	//char name[PLATFORM_MAX_PATH];
+	for(int i = 0; i < 3; i++)
 	{
 		PH_EmitSoundToAll("Internet", _, _, SNDLEVEL_AIRCRAFT);
 	}
-	GetClientName(client, name, sizeof(name));
+	//GetClientName(client, name, sizeof(name));
 	return Plugin_Handled;
 }
 
-PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
+void PH_EmitSoundToAll(const char[] soundid, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL,
+	int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
-	decl String:sample[128];
+	char sample[128];
 	
-	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	if(g_BroadcastSounds.GetString(soundid, sample, sizeof(sample)))
 	{
 		if (EntRefToEntIndex(g_GameRulesProxy) != INVALID_ENT_REFERENCE)
 		{
@@ -2581,17 +2592,19 @@ PH_EmitSoundToAll(const String:soundid[], entity = SOUND_FROM_PLAYER, channel = 
 			AcceptEntityInput(g_GameRulesProxy, "PlayVO");
 		}
 	}
-	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	else if(g_Sounds.GetString(soundid, sample, sizeof(sample)))
 	{
 		EmitSoundToAll(sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 	}
 }
 
-stock PH_EmitSoundToTeam(team, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
+stock void PH_EmitSoundToTeam(TFTeam team, const char[] soundid, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, 
+	float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true,
+	float soundtime = 0.0)
 {
-	decl String:sample[128];
+	char sample[128];
 	
-	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	if(g_BroadcastSounds.GetString(soundid, sample, sizeof(sample)))
 	{
 		if (EntRefToEntIndex(g_GameRulesProxy) != INVALID_ENT_REFERENCE)
 		{
@@ -2610,12 +2623,12 @@ stock PH_EmitSoundToTeam(team, const String:soundid[], entity = SOUND_FROM_PLAYE
 			}
 		}
 	}
-	else if(GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	else if(g_Sounds.GetString(soundid, sample, sizeof(sample)))
 	{
-		new count = 0;
-		new clients[MaxClients];
+		int count = 0;
+		int clients = new int[MaxClients];
 		
-		for (new client = 1; client <= MaxClients; client++)
+		for (int client = 1; client <= MaxClients; client++)
 		{
 			if (IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == team)
 			{
@@ -2629,24 +2642,26 @@ stock PH_EmitSoundToTeam(team, const String:soundid[], entity = SOUND_FROM_PLAYE
 }
 
 
-PH_EmitSoundToClient(client, const String:soundid[], entity = SOUND_FROM_PLAYER, channel = SNDCHAN_AUTO, level = SNDLEVEL_NORMAL, flags = SND_NOFLAGS, Float:volume = SNDVOL_NORMAL, pitch = SNDPITCH_NORMAL, speakerentity = -1, const Float:origin[3] = NULL_VECTOR, const Float:dir[3] = NULL_VECTOR, bool:updatePos = true, Float:soundtime = 0.0)
+void PH_EmitSoundToClient(int client, const char[] soundid, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS,
+	float volume = SNDVOL_NORMAL, int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true,
+	float soundtime = 0.0)
 {
-	decl String:sample[128];
+	char sample[128];
 	
-	new bool:emitted = false;
+	bool emitted = false;
 
-	if(GetTrieString(g_BroadcastSounds, soundid, sample, sizeof(sample)))
+	if(g_BroadcastSounds.GetString(soundid, sample, sizeof(sample)))
 	{
 		emitted = EmitGameSoundToClient(client, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
 	}
 
-	if(!emitted && GetTrieString(g_Sounds, soundid, sample, sizeof(sample)))
+	if(!emitted && g_Sounds.GetString(soundid, sample, sizeof(sample)))
 	{
 		EmitSoundToClient(client, sample, entity, channel, level, flags, volume, pitch, speakerentity, origin, dir, updatePos, soundtime);
 	}
 }
 
-public Action:Command_switch(client, args)
+public Action Command_switch(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
@@ -2663,7 +2678,7 @@ public Action:Command_switch(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_pyro(client, args)
+public Action Command_pyro(int client, int args)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
@@ -2681,9 +2696,9 @@ public Action:Command_pyro(client, args)
 	CreateTimer(0.8, Timer_Unfreeze, GetClientUserId(client));
 	return Plugin_Handled;
 }
-stock PlayersAlive (){
-	new alive = 0;
-	for(new i=1; i <= MaxClients; i++)
+stock int PlayersAlive (){
+	int alive = 0;
+	for(int i=1; i <= MaxClients; i++)
 	{
 		if(IsClientInGame(i) && IsPlayerAlive(i))
 		alive++;
@@ -2691,16 +2706,16 @@ stock PlayersAlive (){
 	return alive;
 }
 
-stock ChangeClientTeamAlive (client, team)
+stock void ChangeClientTeamAlive (int client, int team)
 {
 	SetEntProp(client, Prop_Send, "m_lifeState", 2);
 	ChangeClientTeam(client, team);
 	SetEntProp(client, Prop_Send, "m_lifeState", 0);
 }
 
-stock GetRandomPlayer (team)
+stock int GetRandomPlayer (int team)
 {
-	new client, totalclients;
+	int client, totalclients;
 
 	for(client=1; client <= MaxClients; client++)
 	{
@@ -2710,7 +2725,7 @@ stock GetRandomPlayer (team)
 		}
 	}
 
-	new clientarray[totalclients], i;
+	int clientarray[totalclients], i;
 	for(client=1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
@@ -2728,18 +2743,12 @@ stock GetRandomPlayer (team)
 	return client;
 }
 
-stock StopTimer (Handle:timer)
-{
-	if(timer != INVALID_HANDLE) KillTimer(timer);
-	timer = INVALID_HANDLE;
-}
-
-stock bool:IsPropHuntMap ()
+stock bool IsPropHuntMap()
 {
 	return ValidateMap(g_Mapname);
 }
 
-public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &bool:result)
+public Action TF2_CalcIsAttackCritical(int client, int weapon, char[] weaponname, bool &result)
 {
 	if(!g_Enabled || g_RoundOver)
 		return Plugin_Continue;
@@ -2755,12 +2764,12 @@ public Action:TF2_CalcIsAttackCritical(client, weapon, String:weaponname[], &boo
 			DoSelfDamage(client, weapon);
 		
 		result = false;
-		return Plugin_Handled;
+		return Plugin_Changed;
 	}
 	return Plugin_Continue;
 }
 
-public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon, &subtype, &cmdnum, &tickcount, &seed, mouse[2])
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlaming[client])
 	{
@@ -2777,21 +2786,21 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 	return Plugin_Continue;
 }
 
-public OnGameFrame()
+public void OnGameFrame()
 {
 	if (!g_Enabled || g_RoundOver)
 	{
 		return;
 	}
 	
-	for (new client = 1; client <= MaxClients; client++)
+	for (int client = 1; client <= MaxClients; client++)
 	{
 		if (!IsClientInGame(client) || !g_CurrentlyFlaming[client] || GetClientTeam(client) != TEAM_HUNTER || !IsPlayerAlive(client) || g_FlameCount[client]++ % FLY_COUNT != 0)
 		{
 			continue;
 		}
 		
-		new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		
 		if (IsValidEntity(weapon))
 		{
@@ -2801,14 +2810,14 @@ public OnGameFrame()
 	}
 }
 
-public WeaponSwitch(client, weapon)
+public void WeaponSwitch(int client, int weapon)
 {
 	if (!g_Enabled || g_RoundOver || !g_CurrentlyFlaming[client])
 	{
 		return;
 	}
 	
-	new String:weaponname[64];
+	char weaponname[64];
 	GetEntityClassname(weapon, weaponname, sizeof(weaponname));
 	
 	if(strcmp(weaponname, "tf_weapon_flamethrower") != 0)
@@ -2818,18 +2827,18 @@ public WeaponSwitch(client, weapon)
 	}
 }
 
-stock DoSelfDamage(client, weapon)
+stock void DoSelfDamage(int client, int weapon)
 {
-	new Float:damage;
-	new attacker = client;
+	float damage;
+	int attacker = client;
 	
-	new String:weaponIndex[10];
+	char weaponIndex[10];
 	IntToString(GetEntProp(weapon, Prop_Send, "m_iItemDefinitionIndex"), weaponIndex, sizeof(weaponIndex));
 	
-	new String:weaponname[64];
+	char weaponname[64];
 	GetEntityClassname(weapon, weaponname, sizeof(weaponname));
 	
-	if (!GetTrieValue(g_hWeaponSelfDamage, weaponIndex, damage))
+	if (!g_hWeaponSelfDamage.GetValue(weaponIndex, damage))
 	{
 		damage = 10.0;
 	}
@@ -2846,8 +2855,8 @@ stock DoSelfDamage(client, weapon)
 	SDKHooks_TakeDamage(client, client, attacker, damage, DMG_PREVENT_PHYSICS_FORCE);
 }
 
-stock AddVelocity (client, Float:speed){
-	new Float:velocity[3];
+stock void AddVelocity(int client, float speed){
+	float velocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 
 	// fucking win
@@ -2861,7 +2870,7 @@ stock AddVelocity (client, Float:speed){
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
-public Action:SetTransmitHook(entity, client)
+public Action SetTransmitHook(int entity, int client)
 {
 	if(g_First[client] && client == entity)
 	{
@@ -2870,7 +2879,7 @@ public Action:SetTransmitHook(entity, client)
 	return Plugin_Continue;
 }
 
-public PreThinkHook(client)
+public void PreThinkHook(int client)
 {
 	if (!g_Enabled)
 		return;
@@ -2887,7 +2896,7 @@ public PreThinkHook(client)
 				ResetSpeed(client);
 			}
 			
-			new buttons = GetClientButtons(client);
+			int buttons = GetClientButtons(client);
 			if((buttons & IN_ATTACK) == IN_ATTACK && GetClientTeam(client) == TEAM_HUNTER)
 			{
 				g_Attacking[client] = true;
@@ -2911,7 +2920,7 @@ public PreThinkHook(client)
 
 						if(!g_RotLocked[client])
 						{
-							new Float:velocity[3];
+							float velocity[3];
 							GetEntPropVector(client, Prop_Data, "m_vecVelocity", velocity);
 							//GetEntDataVector(client, g_iVelocity, velocity);
 							// if the client is moving, don't allow them to lock in place
@@ -2981,14 +2990,14 @@ public PreThinkHook(client)
 			else
 			if(GetClientTeam(client) == TEAM_HUNTER && TF2_GetPlayerClass(client) == TFClass_Pyro)
 			{
-				new shotgun = GetPlayerWeaponSlot(client, 1);
+				int shotgun = GetPlayerWeaponSlot(client, 1);
 				if(IsValidEntity(shotgun))
 				{
-					new index = GetEntProp(shotgun, Prop_Send, "m_iItemDefinitionIndex");
+					int index = GetEntProp(shotgun, Prop_Send, "m_iItemDefinitionIndex");
 					if (index == WEP_SHOTGUNPYRO || index == WEP_SHOTGUN_UNIQUE)
 					{
-						new ammoOffset = GetEntProp(shotgun, Prop_Send, "m_iPrimaryAmmoType");
-						new clip = GetEntProp(shotgun, Prop_Send, "m_iClip1");
+						int ammoOffset = GetEntProp(shotgun, Prop_Send, "m_iPrimaryAmmoType");
+						int clip = GetEntProp(shotgun, Prop_Send, "m_iClip1");
 						SetEntProp(client, Prop_Send, "m_iAmmo", SHOTGUN_MAX_AMMO - clip, _, ammoOffset);
 						if (clip > SHOTGUN_MAX_AMMO)
 						{
@@ -3003,10 +3012,10 @@ public PreThinkHook(client)
 	} // in game
 }
 
-public GetClassCount(TFClassType:class, team) 
+public int GetClassCount(TFClassType class, int team) 
 {
-	new classCount;
-	for(new client = 1; client <= MaxClients; client++)
+	int classCount;
+	for(int client = 1; client <= MaxClients; client++)
 	{
 		if (IsClientInGame(client) && GetClientTeam(client) == team && TF2_GetPlayerClass(client) == class)
 		{
@@ -3016,7 +3025,7 @@ public GetClassCount(TFClassType:class, team)
 	return classCount;
 }
 
-public Action:Command_motd(client, args)
+public Action Command_motd(int client, int args)
 {
 	if (client <= 0)
 	{
@@ -3030,7 +3039,7 @@ public Action:Command_motd(client, args)
 	return Plugin_Handled;
 }
 
-public Action:Command_config(client, args)
+public Action Command_config(int client, int args)
 {
 	if (client == 0)
 	{
@@ -3047,18 +3056,18 @@ public Action:Command_config(client, args)
 	return Plugin_Handled;
 }
 
-DisplayConfigToConsole(client)
+void DisplayConfigToConsole(int client)
 {
-	decl String:propMenuStatus[18];
-	decl String:propRerollStatus[18];
-	decl String:preventFallDamage[4];
-	decl String:propChangeRestrict[4];
-	decl String:airblast[4];
-	decl String:propMenuRestrict[4];
-	new propMenu = GetConVarInt(g_PHPropMenu);
-	new propReroll = GetConVarInt(g_PHReroll);
+	char propMenuStatus[18];
+	char propRerollStatus[18];
+	char preventFallDamage[4];
+	char propChangeRestrict[4];
+	char airblast[4];
+	char propMenuRestrict[4];
+	int propMenu = g_PHPropMenu.IntValue;
+	int propReroll = g_PHReroll.IntValue;
 	
-	if (GetConVarBool(g_PHAirblast))
+	if (g_PHAirblast.BoolValue)
 	{
 		airblast = "On";
 	}
@@ -3085,7 +3094,7 @@ DisplayConfigToConsole(client)
 		}
 	}
 	
-	if (GetConVarBool(g_PHPropMenuRestrict))
+	if (g_PHPropMenuRestrict.BoolValue)
 	{
 		propMenuRestrict = "On";
 	}
@@ -3094,7 +3103,7 @@ DisplayConfigToConsole(client)
 		propMenuRestrict = "Off";
 	}
 	
-	if (GetConVarBool(g_PHDamageBlocksPropChange))
+	if (g_PHDamageBlocksPropChange.BoolValue)
 	{
 		propChangeRestrict = "On";
 	}
@@ -3121,7 +3130,7 @@ DisplayConfigToConsole(client)
 		}
 	}
 	
-	if (GetConVarBool(g_PHPreventFallDamage))
+	if (g_PHPreventFallDamage.BoolValue)
 	{
 		preventFallDamage = "On";
 	}
@@ -3130,32 +3139,32 @@ DisplayConfigToConsole(client)
 		preventFallDamage = "Off";
 	}
 	
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigName");
-	ReplyToCommand(client, "---------------------");
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigVersion", PL_VERSION);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigAirblast", airblast);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenu", propMenuStatus);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenuRestrict", propMenuRestrict);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropChange", propChangeRestrict);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", GetConVarInt(g_PHSetupLength));
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigName");
+	CReplyToCommand(client, "---------------------");
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigVersion", PL_VERSION);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigAirblast", airblast);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenu", propMenuStatus);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigPropMenuRestrict", propMenuRestrict);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigPropChange", propChangeRestrict);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", g_PHSetupLength.IntValue);
 #if defined STATS
-	ReplyToCommand(client, "%t", "#TF_PH_ConfigStats");
+	CReplyToCommand(client, "%t", "#TF_PH_ConfigStats");
 #endif
 }
 
-public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
+public int Handler_ConfigMenu(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
 		case MenuAction_Display:
 		{
-			decl String:buffer[255];
+			char buffer[255];
 			Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigName", param1);
 			
-			new Handle:panel = Handle:param2;
-			SetPanelTitle(panel, buffer);
+			Panel panel = view_as<Panel>(param2);
+			panel.SetTitle(buffer);
 		}
 		
 		case MenuAction_Select:
@@ -3165,9 +3174,9 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 		
 		case MenuAction_DisplayItem:
 		{
-			decl String:infoBuf[64];
-			GetMenuItem(menu, param2, infoBuf, sizeof(infoBuf));
-			new String:buffer[255];
+			char infoBuf[64];
+			menu.GetItem(param2, infoBuf, sizeof(infoBuf));
+			char buffer[255];
 			
 			if (StrEqual(infoBuf, "#version"))
 			{
@@ -3176,24 +3185,14 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 			else
 			if (StrEqual(infoBuf, "#airblast"))
 			{
-				decl String:airblast[4];
-				if (GetConVarBool(g_PHAirblast))
-				{
-					airblast = "On";
-				}
-				else
-				{
-					airblast = "Off";
-				}
-				
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigAirblast", param1, airblast);
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigAirblast", param1, g_PHAirblast.BoolValue ? "On" : "Off");
 			}
 			else
 			if (StrEqual(infoBuf, "#propmenu"))
 			{
-				new propMenu = GetConVarInt(g_PHPropMenu);
+				int propMenu = g_PHPropMenu.IntValue;
 				
-				decl String:propMenuStatus[25];
+				char propMenuStatus[25];
 				
 				switch (propMenu)
 				{
@@ -3225,39 +3224,19 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 			else
 			if (StrEqual(infoBuf, "#proprestrict"))
 			{
-				decl String:propMenuRestrict[4];
-				if (GetConVarBool(g_PHPropMenuRestrict))
-				{
-					propMenuRestrict = "On";
-				}
-				else
-				{
-					propMenuRestrict = "Off";
-				}
-				
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenuRestrict", param1, propMenuRestrict);
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropMenuRestrict", param1, g_PHPropMenuRestrict.BoolValue ? "On" : "Off");
 			}
 			else
 			if (StrEqual(infoBuf, "#propdamage"))
 			{
-				decl String:propChangeRestrict[4];
-				if (GetConVarBool(g_PHDamageBlocksPropChange))
-				{
-					propChangeRestrict = "On";
-				}
-				else
-				{
-					propChangeRestrict = "Off";
-				}
-				
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropChange", param1, propChangeRestrict);
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPropChange", param1, g_PHDamageBlocksPropChange.BoolValue ? "On" : "Off");
 			}
 			else
 			if (StrEqual(infoBuf, "#propreroll"))
 			{
-				new propReroll = GetConVarInt(g_PHReroll);
+				int propReroll = g_PHReroll.IntValue;
 				
-				decl String:propRerollStatus[25];
+				char propRerollStatus[25];
 				
 				switch (propReroll)
 				{
@@ -3289,22 +3268,12 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 			else
 			if (StrEqual(infoBuf, "#preventfalldamage"))
 			{
-				decl String:preventFallDamage[4];
-				if (GetConVarBool(g_PHPreventFallDamage))
-				{
-					preventFallDamage = "On";
-				}
-				else
-				{
-					preventFallDamage = "Off";
-				}
-				
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, preventFallDamage);
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigPreventFallDamage", param1, g_PHPreventFallDamage.BoolValue ? "On" : "Off");
 			}
 			else
 			if (StrEqual(infoBuf, "#setuptime"))
 			{
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, GetConVarInt(g_PHSetupLength));
+				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, g_PHSetupLength.IntValue);
 			}
 #if defined STATS
 			else
@@ -3320,34 +3289,34 @@ public Handler_ConfigMenu(Handle:menu, MenuAction:action, param1, param2)
 	return 0;
 }
 
-stock SetAlpha (target, alpha){
+stock void SetAlpha(int target, int alpha) {
 	SetWeaponsAlpha(target,alpha);
 	SetEntityRenderMode(target, RENDER_TRANSCOLOR);
 	SetEntityRenderColor(target, 255, 255, 255, alpha);
 }
 
-stock SetWeaponsAlpha (target, alpha){
+stock void SetWeaponsAlpha(int target, int alpha) {
 	if(IsPlayerAlive(target))
 	{
 		// TF2 only supports 1 weapon per slot, so save time and just check all 6 slots.
 		// Engy is the only class with 6 items (3 weapons, 2 tools, and an invisible builder)
-		for(new i = 0; i <= 5; ++i)
+		for(int i = 0; i <= 5; ++i)
 		{
-			new weapon = GetPlayerWeaponSlot(target, i);
+			int weapon = GetPlayerWeaponSlot(target, i);
 			
 			SetItemAlpha(weapon, alpha);
 		}
 	}
 }
 
-stock SetItemAlpha(item, alpha)
+stock void SetItemAlpha(int item, int alpha)
 {
 	if(item > -1 && IsValidEdict(item))
 	{
 		SetEntityRenderMode(item, RENDER_TRANSCOLOR);
 		SetEntityRenderColor(item, 255, 255, 255, alpha);
 		
-		new String:classname[65];
+		char classname[65];
 		GetEntityClassname(item, classname, sizeof(classname));
 		
 		// If it's a weapon, lets adjust the alpha on its extra wearable and its viewmodel too
@@ -3359,11 +3328,11 @@ stock SetItemAlpha(item, alpha)
 	}
 }
 
-public Speedup (client)
+public void Speedup(int client)
 {
-	new TFClassType:clientClass = TF2_GetPlayerClass(client);
+	TFClassType clientClass = TF2_GetPlayerClass(client);
 	
-	new Float:clientSpeed = g_currentSpeed[client] + g_classSpeeds[clientClass][2];
+	float clientSpeed = g_currentSpeed[client] + g_classSpeeds[clientClass][2];
 	
 	if(clientSpeed < g_classSpeeds[clientClass][0])
 	{
@@ -3379,23 +3348,23 @@ public Speedup (client)
 	g_currentSpeed[client]  = clientSpeed;
 }
 
-ResetSpeed (client)
+void ResetSpeed(int client)
 {	
 	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", g_currentSpeed[client]);
 }
 
-public bool:TraceRayDontHitSelf(entity, mask, any:data)
+public bool TraceRayDontHitSelf(int entity, int mask, any data)
 {
 	return entity != data;
 }
 
-public Action:Event_teamplay_broadcast_audio(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_teamplay_broadcast_audio(Event event, const char[] name, bool dontBroadcast)
 {
 	if (!g_Enabled)
 		return Plugin_Continue;
 	
-	decl String:sound[64];
-	GetEventString(event, "sound", sound, sizeof(sound));
+	char sound[64];
+	event.GetString("sound", sound, sizeof(sound));
 	
 	if (StrEqual(sound, "Announcer.AM_RoundStartRandom", false))
 	{
@@ -3405,17 +3374,17 @@ public Action:Event_teamplay_broadcast_audio(Handle:event, const String:name[], 
 	return Plugin_Continue;
 }
 
-public Event_player_team(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_player_team(Event event, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(GetEventInt(event, "team") > 1)
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(event.GetInt("team") > 1)
 	{
 		g_Spec[client] = false;
 	}
 	g_RoundStartMessageSent[client] = false;
 }
 
-public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_arena_win_panel(Event event, const char[] name, bool dontBroadcast)
 {
 	StopTimers();
 #if defined LOG
@@ -3430,7 +3399,7 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		return;
 
 #if defined STATS
-	new winner = GetEventInt(event, "winning_team");
+	int winner = event.GetInt("winning_team");
 
 	DbRound(winner);
 #endif
@@ -3440,27 +3409,27 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		/*
 		 * Check if we need this or if classic works
 		  
-		new redScore;
-		new bluScore;
+		int redScore;
+		int bluScore;
 		
 		// This block is necessary because _score is always 0 for the losing team
 		// even though scores aren't cleared when tf_arena_use_queue is set to 0
 		if (winner == TEAM_RED)
 		{
-			redScore = GetEventInt(event, "red_score");
-			bluScore = GetEventInt(event, "blue_score_prev");
+			redScore = event.GetInt("red_score");
+			bluScore = event.GetInt("blue_score_prev");
 		}
 		else
 		if (winner == TEAM_BLUE)
 		{
-			redScore = GetEventInt(event, "red_score_prev");
-			bluScore = GetEventInt(event, "blue_score");
+			redScore = event.GetInt("red_score_prev");
+			bluScore = event.GetInt("blue_score");
 		}
 		else
 		{
 			// Neither team wins, they both keep their previous scores
-			redScore = GetEventInt(event, "red_score_prev");
-			bluScore = GetEventInt(event, "blue_score_prev");
+			redScore = event.GetInt("red_score_prev");
+			bluScore = event.GetInt("blue_score_prev");
 		}
 		SwitchTeamScores(redScore, bluScore);
 
@@ -3470,13 +3439,13 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		// This is OK as arena_win_panel is fired *after* SetWinningTeam is called.
 		SetSwitchTeams(true);
 #else
-		CreateTimer(GetConVarFloat(g_hBonusRoundTime) - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(g_hBonusRoundTime.FloatValue - TEAM_CHANGE_TIME, Timer_ChangeTeam, _, TIMER_FLAG_NO_MAPCHANGE);
 #endif
 	}
 	
-	SetConVarInt(g_hTeamsUnbalanceLimit, 0, true);
+	g_hTeamsUnbalanceLimit.IntValue = 0;
 
-	for(new client=1; client <= MaxClients; client++)
+	for(int client=1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client))
 		{
@@ -3507,13 +3476,13 @@ public Event_arena_win_panel(Handle:event, const String:name[], bool:dontBroadca
 		//ResetPlayer(client); // Players are now reset on round start instead of round end
 	}
 
-	SetConVarFlags(g_hTeamsUnbalanceLimit, GetConVarFlags(g_hTeamsUnbalanceLimit) & ~(FCVAR_NOTIFY));
-	SetConVarInt(g_hTeamsUnbalanceLimit, UNBALANCE_LIMIT, true);
+	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags & ~FCVAR_NOTIFY;
+	g_hTeamsUnbalanceLimit.IntValue = UNBALANCE_LIMIT;
 }
 
-public Action:Timer_ChangeTeam(Handle:timer)
+public Action Timer_ChangeTeam(Handle timer)
 {
-	for (new client = 1; client <= MaxClients; ++client)
+	for (int client = 1; client <= MaxClients; ++client)
 	{
 		if (!IsClientInGame(client))
 		{
@@ -3535,28 +3504,28 @@ public Action:Timer_ChangeTeam(Handle:timer)
 	return Plugin_Continue;
 }
 
-public Event_post_inventory_application(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_post_inventory_application(Event event, const char[] name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (g_ReplacementCount[client] > 0)
 	{
 	
-		for (new i = 0; i < g_ReplacementCount[client]; ++i)
+		for (int i = 0; i < g_ReplacementCount[client]; ++i)
 		{
 			// DON'T require FORCE_GENERATION here, since they could pass back tf_weapon_shotgun 
-			new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL|PRESERVE_ATTRIBUTES);
+			Handle weapon = TF2Items_CreateItem(OVERRIDE_ALL|PRESERVE_ATTRIBUTES);
 			
-			new String:defIndex[7];
+			char defIndex[7];
 			IntToString(g_Replacements[client][i], defIndex, sizeof(defIndex));
 			
-			new String:replacement[140];
-			if (!GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement)))
+			char replacement[140];
+			if (!g_hWeaponReplacements.GetString(defIndex, replacement, sizeof(replacement)))
 			{
 				continue;
 			}
 			
-			new String:pieces[5][128];
+			char pieces[5][128];
 			
 			ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
 
@@ -3566,50 +3535,50 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 			TrimString(pieces[Item_Level]);
 			TrimString(pieces[Item_Attributes]);
 			
-			new index = StringToInt(pieces[Item_Index]);
-			new quality = StringToInt(pieces[Item_Quality]);
-			new level = StringToInt(pieces[Item_Level]);
+			int index = StringToInt(pieces[Item_Index]);
+			int quality = StringToInt(pieces[Item_Quality]);
+			int level = StringToInt(pieces[Item_Level]);
 			TF2Items_SetClassname(weapon, pieces[Item_Classname]);
 			TF2Items_SetItemIndex(weapon, index);
 			TF2Items_SetQuality(weapon, quality);
 			TF2Items_SetLevel(weapon, level);
 			
-			new attribCount = 0;
+			int attribCount = 0;
 			if (strlen(pieces[Item_Attributes]) > 0)
 			{
-				new String:newAttribs[32][6];
-				new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
+				char newAttribs[32][6];
+				int count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
 				if (count % 2 > 0)
 				{
 					LogError("Error parsing replacement attributes for item definition index %d", g_Replacements[client][i]);
 					return;
 				}
 				
-				for (new j = 0; j < count && attribCount < 16; j += 2)
+				for (int j = 0; j < count && attribCount < 16; j += 2)
 				{
 					TrimString(newAttribs[i]);
 					TrimString(newAttribs[i+1]);
-					new attrib = StringToInt(newAttribs[i]);
-					new Float:value = StringToFloat(newAttribs[i+1]);
+					int attrib = StringToInt(newAttribs[i]);
+					float value = StringToFloat(newAttribs[i+1]);
 					TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
 				}
 			}
 			
 			TF2Items_SetNumAttributes(weapon, attribCount);
 			
-			new item = TF2Items_GiveNamedItem(client, weapon);
+			int item = TF2Items_GiveNamedItem(client, weapon);
 			EquipPlayerWeapon(client, item);
 			g_Replacements[client][i] = -1;
-			CloseHandle(weapon);
+			delete weapon;
 		}
 		
 		g_ReplacementCount[client] = 0;
 		// Now that we're adjusting weapons, this needs to happen to fix max ammo counts
-		TF2_RegeneratePlayer(client);
+		//TF2_RegeneratePlayer(client);
 	}
 }
 
-public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_teamplay_round_start_pre(Event event, const char[] name, bool dontBroadcast)
 {
 	switch (g_RoundChange)
 	{
@@ -3640,7 +3609,7 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 	return Plugin_Continue;
 }
 
-public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_teamplay_round_start(Event event, const char[] name, bool dontBroadcast)
 {
 	if (HasSwitchedTeams())
 	{
@@ -3662,20 +3631,20 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	g_LastPropPlayer = 0;
 	g_RoundOver = true;
 
-	for (new client = 1; client <= MaxClients; client++)
+	for (int client = 1; client <= MaxClients; client++)
 	{
 		ResetPlayer(client);	
 		if (IsClientInGame(client) && !IsFakeClient(client))
 		{
 			// For some reason, this has to be set every round or the player GUI messes up
-			SendConVarValue(client, g_hArenaRoundTime, "600");
+			g_hArenaRoundTime.ReplicateToClient(client, "600");
 		}
 	}
 	// Delay freeze by a frame
 	RequestFrame(Delay_teamplay_round_start);
 	
 	// Arena maps should have a team_control_point_master already, but just in case...
-	new ent = FindEntityByClassname(-1, "team_control_point_master");
+	int ent = FindEntityByClassname(-1, "team_control_point_master");
 	if (ent == -1)
 	{
 		ent = CreateEntityByName("team_control_point_master");
@@ -3685,7 +3654,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	}
 
 	//GameMode Explanation
-	decl String:message[256];
+	char message[256];
 
 	// Not sure this has to be done every round, but we'll keep it here just in case.
 	
@@ -3704,9 +3673,9 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	AcceptEntityInput(g_GameRulesProxy, "SetRedTeamRole");
 }
 
-public Delay_teamplay_round_start(any:data)
+public void Delay_teamplay_round_start(any data)
 {
-	for (new i = 1; i <= MaxClients; i++)
+	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i) && !IsClientObserver(i))
 		{
@@ -3715,12 +3684,12 @@ public Delay_teamplay_round_start(any:data)
 	}
 }
 
-public Event_teamplay_restart_round(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_teamplay_restart_round(Event event, const char[] name, bool dontBroadcast)
 {
 	// I'm not sure what needs to be here... does teamplay_round_start get called on round restart?
 }
 
-public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_arena_round_start(Event event, const char[] name, bool dontBroadcast)
 {
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
@@ -3749,9 +3718,9 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 	}
 }
 
-public Delay_arena_round_start(any:data)
+public void Delay_arena_round_start(any data)
 {
-	for(new client=1; client <= MaxClients; client++)
+	for(int client=1; client <= MaxClients; client++)
 	{
 		if(IsClientInGame(client) && IsPlayerAlive(client))
 		{
@@ -3773,7 +3742,7 @@ public Delay_arena_round_start(any:data)
 	}
 }
 
-stock bool:IsValidClient(client, bool:replaycheck = true)
+stock bool IsValidClient(int client, bool replaycheck = true)
 {
 	if (client <= 0 || client > MaxClients) return false;
 	if (!IsClientInGame(client)) return false;
@@ -3785,14 +3754,14 @@ stock bool:IsValidClient(client, bool:replaycheck = true)
 	return true;
 }
 
-public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_player_spawn(Event event, const char[] name, bool dontBroadcast)
 {
 	if (!g_Enabled)
 		return;
 	
-	new red = TEAM_PROP - 2;
-	new blue = TEAM_HUNTER - 2;
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int red = TEAM_PROP - 2;
+	int blue = TEAM_HUNTER - 2;
+	int client = GetClientOfUserId(event.GetInt("userid"));
 	
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 	
@@ -3816,7 +3785,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 #endif
 		g_Hit[client] = false;
 
-		new team = GetClientTeam(client);
+		int team = GetClientTeam(client);
 		if(team == TEAM_HUNTER)
 		{
 			if (!g_RoundStartMessageSent[client])
@@ -3826,7 +3795,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			}
 #if defined SHINX
 
-			new TFClassType:clientClass = TF2_GetPlayerClass(client);
+			TFClassType clientClass = TF2_GetPlayerClass(client);
 			if (g_classLimits[blue][clientClass] != -1 && GetClassCount(clientClass, TEAM_HUNTER) > g_classLimits[blue][clientClass])
 			{
 				if(g_classLimits[blue][clientClass] == 0)
@@ -3879,7 +3848,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			
 			if(TF2_GetPlayerClass(client) != g_defaultClass[red])
 			{
-				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false, false);
+				TF2_SetPlayerClass(client, view_as<TFClassType>(g_defaultClass[red]), false, false);
 				TF2_RespawnPlayer(client);
 				return;	// This was missing prior to PHR 3.3.4
 			}
@@ -3902,12 +3871,12 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	}
 }
 
-public Action:Event_player_death(Handle:event, const String:name[], bool:dontBroadcast)
+public Action Event_player_death(Event event, const char[] name, bool dontBroadcast)
 {
 	if (!g_Enabled || g_inPreRound)
 		return Plugin_Continue;
 	
-	if (GetEventInt(event, "death_flags") & TF_DEATHFLAG_DEADRINGER)
+	if (event.GetInt("death_flags") & TF_DEATHFLAG_DEADRINGER)
 	{
 		// This shouldn't fire since Spy is usually disabled, but just in case...
 		return Plugin_Continue;
@@ -3920,7 +3889,10 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	}
 	//new bool:changed = false;
 	
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if (client == 0)
+		return Plugin_Continue;
+		
 	g_CurrentlyFlaming[client] = false;
 	g_FlameCount[client] = 0;
 	
@@ -3937,22 +3909,22 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		SDKUnhook(client, SDKHook_PreThink, PreThinkHook);
 	}
 
-	if(g_inSetup && GetConVarBool(g_PHRespawnDuringSetup))
+	if(g_inSetup && g_PHRespawnDuringSetup.BoolValue)
 	{
 		CreateTimer(0.1, Timer_Respawn, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 		return Plugin_Continue;
 	}
 	
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	new assister = GetClientOfUserId(GetEventInt(event, "assister"));
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int assister = GetClientOfUserId(event.GetInt("assister"));
 	
 #if defined STATS
-	decl String:weapon[64];
-	new attackerID = GetEventInt(event, "attacker");
-	new assisterID = GetEventInt(event, "assister");
-	new clientID = GetEventInt(event, "userid");
-	new weaponid = GetEventInt(event, "weaponid");
-	GetEventString(event, "weapon", weapon, sizeof(weapon));
+	char weapon[64];
+	int attackerID = GetEventInt(event, "attacker");
+	int assisterID = GetEventInt(event, "assister");
+	int clientID = GetEventInt(event, "userid");
+	int weaponid = GetEventInt(event, "weaponid");
+	event.GetString("weapon", weapon, sizeof(weapon));
 #endif
 
 	if(!g_RoundOver)
@@ -3961,8 +3933,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	g_Hit[client] = false;
 	
 	// I would move this, but I'm not sure if it's used by STATS
-	new playas = 0;
-	for(new i=1; i <= MaxClients; i++)
+	int playas = 0;
+	for(int i=1; i <= MaxClients; i++)
 	{
 		if(IsClientInGame(i) /*&& !IsFakeClient(i)*/ && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_PROP)
 		{
@@ -4014,7 +3986,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		if (!g_PlayerDied)
 		{
 			// Fast is 0-30, regular is 31-90, finally is 91+
-			new expendedTime = RoundToNearest(GetGameTime() - g_flRoundStart);
+			int expendedTime = RoundToNearest(GetGameTime() - g_flRoundStart);
 			if (expendedTime <= 30)
 			{
 				PH_EmitSoundToAll("FirstBloodFast");
@@ -4036,7 +4008,7 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 			g_LastProp = true;
 			PH_EmitSoundToAll("OneAndOnly", _, _, SNDLEVEL_AIRCRAFT);
 	#if defined SCATTERGUN
-			for(new client2=1; client2 <= MaxClients; client2++)
+			for(int client2=1; client2 <= MaxClients; client2++)
 			{
 				if(IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
 				{
@@ -4065,9 +4037,9 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 ///////////////////  TIMERS  ////////////////////////
 ////////////////////////////////////////////////////
 
-public Action:Timer_Respawn(Handle:timer, any:userid)
+public Action Timer_Respawn(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if (client > 0)
 	{
 		g_AllowedSpawn[client] = true;
@@ -4075,22 +4047,22 @@ public Action:Timer_Respawn(Handle:timer, any:userid)
 	}
 }
 
-public Action:Timer_WeaponAlpha(Handle:timer, any:userid)
+public Action Timer_WeaponAlpha(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 		SetWeaponsAlpha(client, 0);
 }
 
 // This is used for the fading in of the game mode name and stuff
-public Action:Timer_Info(Handle:timer)
+public Action Timer_Info(Handle timer)
 {
 	g_Message_bit++;
 
 	if(g_Message_bit == 2)
 	{
 		SetHudTextParamsEx(-1.0, 0.22, 5.0, {0,204,255,255}, {0,0,0,255}, 2, 1.0, 0.05, 0.5);
-		for(new i=1; i <= MaxClients; i++)
+		for(int i=1; i <= MaxClients; i++)
 		{
 			if(IsClientInGame(i) && !IsFakeClient(i))
 			{
@@ -4101,7 +4073,7 @@ public Action:Timer_Info(Handle:timer)
 	else if(g_Message_bit == 3)
 	{
 		SetHudTextParamsEx(-1.0, 0.25, 4.0, {255,128,0,255}, {0,0,0,255}, 2, 1.0, 0.05, 0.5);
-		for(new i=1; i <= MaxClients; i++)
+		for(int i=1; i <= MaxClients; i++)
 		{
 			if(IsClientInGame(i) && !IsFakeClient(i))
 			{
@@ -4112,7 +4084,7 @@ public Action:Timer_Info(Handle:timer)
 	else if(g_Message_bit == 4 && strlen(g_AdText) > 0)
 	{
 		SetHudTextParamsEx(-1.0, 0.3, 3.0, {0,220,0,255}, {0,0,0,255}, 2, 1.0, 0.05, 0.5);
-		for(new i=1; i <= MaxClients; i++)
+		for(int i=1; i <= MaxClients; i++)
 		{
 			if(IsClientInGame(i) && !IsFakeClient(i))
 			{
@@ -4130,9 +4102,9 @@ public Action:Timer_Info(Handle:timer)
 }
 
 //public Action:Timer_DoEquipBlu(Handle:timer, any:UserId)
-public DoEquipHunter(any:UserId)
+public void DoEquipHunter(any UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		if(g_inPreRound)
@@ -4143,11 +4115,11 @@ public DoEquipHunter(any:UserId)
 		SwitchView(client, false, true);
 		SetAlpha(client, 255);
 		
-		new validWeapons;
+		int validWeapons;
 		
-		for (new i = 0; i < 3; i++)
+		for (int i = 0; i < 3; i++)
 		{
-			new playerItemSlot = GetPlayerWeaponSlot(client, i);
+			int playerItemSlot = GetPlayerWeaponSlot(client, i);
 			
 			if(playerItemSlot > MaxClients && IsValidEntity(playerItemSlot))
 			{
@@ -4165,9 +4137,9 @@ public DoEquipHunter(any:UserId)
 }
 
 //public Action:Timer_DoEquip(Handle:timer, any:UserId)
-public DoEquipProp(any:UserId)
+public void DoEquipProp(any UserId)
 {
-	new client = GetClientOfUserId(UserId);
+	int client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		//TF2_RegeneratePlayer(client);
@@ -4176,37 +4148,37 @@ public DoEquipProp(any:UserId)
 		LogMessage("[PH] do equip %N", client);
 #endif
 		
-		decl String:pname[32];
+		char pname[32];
 		Format(pname, sizeof(pname), "ph_player_%i", client);
 		DispatchKeyValue(client, "targetname", pname);
 #if defined LOG
 		LogMessage("[PH] do equip_2 %N", client);
 #endif
 		
-		new propData[PropData];
+		int propData[PropData];
 		
 		// fire in a nice random model
-		decl String:model[PLATFORM_MAX_PATH];
-		new String:offset[32] = "0 0 0";
-		new String:rotation[32] = "0 0 0";
-		new skin = 0;		
-		new modelIndex = -1;
+		char model[PLATFORM_MAX_PATH];
+		char offset[32] = "0 0 0";
+		char rotation[32] = "0 0 0";
+		int skin = 0;		
+		int modelIndex = -1;
 		if(strlen(g_PlayerModel[client]) > 1)
 		{
 			model = g_PlayerModel[client];
-			modelIndex = FindStringInArray(g_ModelName, model);
+			modelIndex = g_ModelName.FindString(model);
 #if defined LOG
 			LogMessage("Change user model to %s", model);
 #endif
 		}
 		else
 		{
-			modelIndex = GetRandomInt(0, GetArraySize(g_ModelName)-1);
-			GetArrayString(g_ModelName, modelIndex, model, sizeof(model));
+			modelIndex = GetRandomInt(0, g_ModelName.Length-1);
+			g_ModelName.GetString(modelIndex, model, sizeof(model));
 		}
 		
 		// This wackiness with [0] is required when dealing with enums containing strings
-		if (GetTrieArray(g_PropData, model, propData[0], sizeof(propData)))
+		if (g_PropData.GetArray(model, propData[0], sizeof(propData)))
 		{
 			strcopy(offset, sizeof(offset), propData[PropData_Offset]);
 			strcopy(rotation, sizeof(rotation), propData[PropData_Rotation]);
@@ -4214,7 +4186,7 @@ public DoEquipProp(any:UserId)
 
 		if (!g_RoundStartMessageSent[client])
 		{
-			new String:modelName[MAXMODELNAME];
+			char modelName[MAXMODELNAME];
 			GetModelNameForClient(client, model, modelName, sizeof(modelName));
 			CPrintToChat(client, "%t", "#TF_PH_NowDisguised", modelName);
 			g_RoundStartMessageSent[client] = true;
@@ -4222,10 +4194,10 @@ public DoEquipProp(any:UserId)
 		
 		if (modelIndex > -1)
 		{
-			new String:tempOffset[32];
-			new String:tempRotation[32];
-			GetArrayString(g_ModelOffset, modelIndex, tempOffset, sizeof(tempOffset));
-			GetArrayString(g_ModelRotation, modelIndex, tempRotation, sizeof(tempRotation));
+			char tempOffset[32];
+			char tempRotation[32];
+			g_ModelOffset.GetString(modelIndex, tempOffset, sizeof(tempOffset));
+			g_ModelRotation.GetString(modelIndex, tempRotation, sizeof(tempRotation));
 			TrimString(tempOffset);
 			TrimString(tempRotation);
 			// We don't want to override the default value unless it's set to something other than "0 0 0"
@@ -4237,7 +4209,7 @@ public DoEquipProp(any:UserId)
 			{
 				strcopy(rotation, sizeof(rotation), tempRotation);
 			}
-			skin = GetArrayCell(g_ModelSkin, modelIndex);
+			skin = g_ModelSkin.Get(modelIndex);
 		}
 		
 #if defined LOG
@@ -4285,9 +4257,9 @@ public DoEquipProp(any:UserId)
 	}
 }
 
-public Action:Timer_Locked(Handle:timer, any:entity)
+public Action Timer_Locked(Handle timer, any entity)
 {
-	for(new client=1; client <= MaxClients; client++)
+	for(int client=1; client <= MaxClients; client++)
 	{
 		if(g_RotLocked[client] && IsClientInGame(client) && !IsFakeClient(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
 		{
@@ -4297,22 +4269,22 @@ public Action:Timer_Locked(Handle:timer, any:entity)
 	}
 }
 
-public Action:Timer_AntiHack(Handle:timer, any:entity)
+public Action Timer_AntiHack(Handle timer, any entity)
 {
-	new red = TEAM_PROP - 2;
+	int red = TEAM_PROP - 2;
 	if(!g_RoundOver)
 	{
-		decl String:name[MAX_NAME_LENGTH];
-		for(new client=1; client <= MaxClients; client++)
+		char name[MAX_NAME_LENGTH];
+		for(int client=1; client <= MaxClients; client++)
 		{
 			if(IsClientInGame(client) && IsPlayerAlive(client))
 			{
-				if (GetConVarBool(g_PHStaticPropInfo) && !IsFakeClient(client))
+				if (g_PHStaticPropInfo.BoolValue && !IsFakeClient(client))
 				{
 					QueryClientConVar(client, "r_staticpropinfo", QueryStaticProp);
 				}
 				
-				if(!g_LastProp && GetConVarBool(g_PHAntiHack) && GetClientTeam(client) == TEAM_PROP && TF2_GetPlayerClass(client) == g_defaultClass[red])
+				if(!g_LastProp && g_PHAntiHack.BoolValue && GetClientTeam(client) == TEAM_PROP && TF2_GetPlayerClass(client) == g_defaultClass[red])
 				{
 					if(GetPlayerWeaponSlot(client, 1) != -1 || GetPlayerWeaponSlot(client, 0) != -1 || GetPlayerWeaponSlot(client, 2) != -1)
 					{
@@ -4334,9 +4306,9 @@ public Action:Timer_AntiHack(Handle:timer, any:entity)
 
 // Fix a prop player who still had weapons
 // One frame shouldn't be enough to change players, but just in case...
-public FixPropPlayer(any:userid)
+public void FixPropPlayer(any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if (client < 1 || GetClientTeam(client) != TEAM_PROP || g_LastProp)
 		return;
 	
@@ -4348,11 +4320,11 @@ public FixPropPlayer(any:userid)
 	RequestFrame(DoEquipProp, userid);
 }
 
-public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, const String:cvarName[], const String:cvarValue[])
+public void QueryStaticProp(QueryCookie cookie, int client, ConVarQueryResult result, const char[] cvarName, const char[] cvarValue)
 {
 	if (result == ConVarQuery_Okay)
 	{
-		new value = StringToInt(cvarValue);
+		int value = StringToInt(cvarValue);
 		if (value == 0)
 		{
 			return;
@@ -4363,13 +4335,13 @@ public QueryStaticProp(QueryCookie:cookie, client, ConVarQueryResult:result, con
 	KickClient(client, "r_staticpropinfo detection was blocked");
 }
 
-public Action:Timer_Ragdoll(Handle:timer, any:userid)
+public Action Timer_Ragdoll(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if (client < 1)
 		return Plugin_Handled;
 	
-	new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+	int rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
 	if(rag > MaxClients && IsValidEntity(rag))
 	AcceptEntityInput(rag, "Kill");
 
@@ -4378,9 +4350,9 @@ public Action:Timer_Ragdoll(Handle:timer, any:userid)
 	return Plugin_Handled;
 }
 
-public Action:Timer_Score(Handle:timer)
+public Action Timer_Score(Handle timer)
 {
-	for(new client=1; client <= MaxClients; client++)
+	for(int client=1; client <= MaxClients; client++)
 	{
 #if defined STATS
 		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
@@ -4393,20 +4365,20 @@ public Action:Timer_Score(Handle:timer)
 	CPrintToChatAll("%t", "#TF_PH_CPBonusRefreshed");
 }
 
-public OnSetupStart(const String:output[], caller, activator, Float:delay)
+public void OnSetupStart(const char[] output, int caller, int activator, float delay)
 {
 	g_inSetup = true;
-	new Handle:event = CreateEvent("teamplay_update_timer");
-	if (event != INVALID_HANDLE)
-		FireEvent(event);
+	Event event = CreateEvent("teamplay_update_timer");
+	if (event != null)
+		event.Fire();
 }
 
 // This used to hook the teamplay_setup_finished event, but ph_kakariko messes with that
-public OnSetupFinished(const String:output[], caller, activator, Float:delay)
+public void OnSetupFinished(const char[] output, int caller, int activator, float delay)
 {
-	if (g_hScore != INVALID_HANDLE)
+	if (g_hScore != null)
 	{
-		CloseHandle(g_hScore);
+		delete g_hScore;
 	}
 	g_hScore = CreateTimer(55.0, Timer_Score, _, TIMER_REPEAT);
 	TriggerTimer(g_hScore);
@@ -4418,7 +4390,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	g_inSetup = false;
 	g_flRoundStart = GetGameTime();
 
-	for(new client2=1; client2 <= MaxClients; client2++)
+	for(int client2=1; client2 <= MaxClients; client2++)
 	{
 		if(IsClientInGame(client2) && IsPlayerAlive(client2))
 		{
@@ -4428,7 +4400,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 	CPrintToChatAll("%t", "#TF_PH_PyrosReleased");
 	PH_EmitSoundToAll("RoundStart", _, _, SNDLEVEL_AIRCRAFT);
 
-	new ent;
+	int ent;
 	if(g_Doors)
 	{
 		while ((ent = FindEntityByClassname(ent, "func_door")) != -1)
@@ -4439,7 +4411,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 
 	if(g_Relay)
 	{
-		decl String:relayName[128];
+		char relayName[128];
 		while ((ent = FindEntityByClassname(ent, "logic_relay")) != -1)
 		{
 			GetEntPropString(ent, Prop_Data, "m_iName", relayName, sizeof(relayName));
@@ -4453,10 +4425,10 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 }
 
 #if defined CHARGE
-public Action:Timer_Charge(Handle:timer, any:userid)
+public Action Timer_Charge(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
-	new red = TEAM_PROP-2;
+	int client = GetClientOfUserId(userid);
+	int red = TEAM_PROP-2;
 	if(client > 0 && IsPlayerAlive(client))
 	{
 		SetEntProp(client, Prop_Send, "m_CollisionGroup", COLLISION_GROUP_PLAYER);
@@ -4466,23 +4438,23 @@ public Action:Timer_Charge(Handle:timer, any:userid)
 }
 #endif
 
-public Action:Timer_Unfreeze(Handle:timer, any:userid)
+public Action Timer_Unfreeze(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if(client > 0 && IsPlayerAlive(client))
 		SetEntityMoveType(client, MOVETYPE_WALK);
 	return Plugin_Handled;
 }
 
-public Action:Timer_Move(Handle:timer, any:userid)
+public Action Timer_Move(Handle timer, any userid)
 {
-	new client = GetClientOfUserId(userid);
+	int client = GetClientOfUserId(userid);
 	if (client > 0)
 	{
 		g_AllowedSpawn[client] = false;
 		if(IsPlayerAlive(client))
 		{
-			new rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
+			int rag = GetEntPropEnt(client, Prop_Send, "m_hRagdoll");
 			if(IsValidEntity(rag))
 			AcceptEntityInput(rag, "Kill");
 			SetEntityMoveType(client, MOVETYPE_WALK);
@@ -4500,14 +4472,13 @@ public Action:Timer_Move(Handle:timer, any:userid)
 	return Plugin_Handled;
 }
 
-public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefinitionIndex, &Handle:hItem)
+public Action TF2Items_OnGiveNamedItem(int client, char[] classname, int iItemDefinitionIndex, Handle &hItem)
 {
 	// This section is to prevent Handle leaks
-	static Handle:weapon = INVALID_HANDLE;
-	if (weapon != INVALID_HANDLE)
+	static Handle weapon = null;
+	if (weapon != null)
 	{
-		CloseHandle(weapon);
-		weapon = INVALID_HANDLE;
+		delete weapon;
 	}
 	
 	if (!g_Enabled)
@@ -4526,12 +4497,12 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Stop;
 	}
 	
-	new team = GetClientTeam(client);
+	int team = GetClientTeam(client);
 	
 	if (team == TEAM_PROP)
 	{
 		// Taunt items have the classname "no_entity" now
-		if (GetConVarBool(g_PHAllowTaunts) && StrEqual(classname, "no_entity", false))
+		if (g_PHAllowTaunts.BoolValue && StrEqual(classname, "no_entity", false))
 		{
 			return Plugin_Continue;
 		}
@@ -4551,29 +4522,29 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			return Plugin_Stop;
 		}
 
-		if (FindValueInArray(g_hPropWeaponRemovals, iItemDefinitionIndex) >= 0)
+		if (g_hPropWeaponRemovals.FindValue(iItemDefinitionIndex) >= 0)
 		{
 			return Plugin_Stop;
 		}
 	}
 
-	new String:defIndex[7];
+	char defIndex[7];
 	IntToString(iItemDefinitionIndex, defIndex, sizeof(defIndex));
 	
-	new flags;	
+	int flags;	
 	
-	new String:replacement[140];
-	new String:addAttributes[128];
-	new bool:replace = GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement));
-	new bool:stripattribs = FindValueInArray(g_hWeaponStripAttribs , iItemDefinitionIndex) >= 0;
-	new bool:addattribs = GetTrieString(g_hWeaponAddAttribs, defIndex, addAttributes, sizeof(addAttributes));
-	new bool:removeAirblast = !GetConVarBool(g_PHAirblast) && StrEqual(classname, "tf_weapon_flamethrower");
+	char replacement[140];
+	char addAttributes[128];
+	bool replace = g_hWeaponReplacements.GetString(defIndex, replacement, sizeof(replacement));
+	bool stripattribs = g_hWeaponStripAttribs.FindValue(iItemDefinitionIndex) >= 0;
+	bool addattribs = g_hWeaponAddAttribs.GetString(defIndex, addAttributes, sizeof(addAttributes));
+	bool removeAirblast = !g_PHAirblast.BoolValue && StrEqual(classname, "tf_weapon_flamethrower");
 
 	if (replace)
 	{
-		new classBits;
+		int classBits;
 		
-		if (!GetTrieValue(g_hWeaponReplacementPlayerClasses, defIndex, classBits))
+		if (!g_hWeaponReplacementPlayerClasses.GetValue(defIndex, classBits))
 		{
 			g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
 			return Plugin_Stop;
@@ -4581,7 +4552,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		else
 		{
 			// We subtract 1 here because we're left shifting a 1, so 1 is intrinsically added to the class.
-			new class = _:TF2_GetPlayerClass(client) - 1;
+			int class = view_as<int>(TF2_GetPlayerClass(client)) - 1;
 			if (classBits & (1 << class))
 			{
 				g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
@@ -4592,7 +4563,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	}
 
 	// If we're supposed to remove it, just block it here
-	if (team == TEAM_HUNTER && FindValueInArray(g_hWeaponRemovals, iItemDefinitionIndex) >= 0)
+	if (team == TEAM_HUNTER && g_hWeaponRemovals.FindValue(iItemDefinitionIndex) >= 0)
 	{
 		return Plugin_Stop;
 	}
@@ -4602,7 +4573,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		return Plugin_Continue;
 	}
 	
-	new bool:weaponChanged = false;
+	bool weaponChanged = false;
 	
 	if (stripattribs)
 	{
@@ -4617,7 +4588,7 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	
 	weapon = TF2Items_CreateItem(flags);
 
-	new attribCount = 0;
+	int attribCount = 0;
 	// 594 is Phlogistinator and already has airblast disabled
 	if (removeAirblast && (iItemDefinitionIndex != WEP_PHLOGISTINATOR || stripattribs))
 	{
@@ -4628,20 +4599,20 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	if (addattribs)
 	{
 		// Pawn is dumb and this "shadows" a preceding variable despite being at a different block level
-		new String:newAttribs2[32][6];
-		new count = ExplodeString(addAttributes, ";", newAttribs2, sizeof(newAttribs2), sizeof(newAttribs2[]));
+		char newAttribs2[32][6];
+		int count = ExplodeString(addAttributes, ";", newAttribs2, sizeof(newAttribs2), sizeof(newAttribs2[]));
 		if (count % 2 > 0)
 		{
 			LogError("Error parsing additional attributes for item definition index %d", iItemDefinitionIndex);
 			return Plugin_Continue;
 		}
 		
-		for (new i = 0; i < count && attribCount < 16; i += 2)
+		for (int i = 0; i < count && attribCount < 16; i += 2)
 		{
 			TrimString(newAttribs2[i]);
 			TrimString(newAttribs2[i+1]);
-			new attrib = StringToInt(newAttribs2[i]);
-			new Float:value = StringToFloat(newAttribs2[i+1]);
+			int attrib = StringToInt(newAttribs2[i]);
+			float value = StringToFloat(newAttribs2[i+1]);
 			TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
 		}
 	}
@@ -4662,32 +4633,32 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 }
 
 #if defined OIMM
-public MultiMod_Status(bool:enabled)
+public void MultiMod_Status(bool enabled)
 {
-	SetConVarBool(g_PHEnable, enabled);
+	g_PHEnable.BoolValue = enabled
 }
 
-public MultiMod_TranslateName(client, String:translation[], maxlength)
+public void MultiMod_TranslateName(int client, char[] translation, int maxlength)
 {
 	Format(translation, maxlength, "%T", "#TF_PH_ModeName", client);
 }
 #endif
 
-public bool:ValidateMap(const String:map[])
+public bool ValidateMap(const char[] map)
 {
 	return FindConfigFileForMap(map);
 }
 
 // These functions are based on versions taken from CS:S/CS:GO Hide and Seek
-GetLanguageID(const String:langCode[])
+int GetLanguageID(const char[] langCode)
 {
-	return FindStringInArray(g_ModelLanguages, langCode);
+	return g_ModelLanguages.FindString(langCode);
 }
 
-GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
+int GetClientLanguageID(int client, char[] languageCode="", int maxlen=0)
 {
-	decl String:langCode[MAXLANGUAGECODE];
-	new languageID;
+	char langCode[MAXLANGUAGECODE];
+	int languageID;
 	if (client == LANG_SERVER)
 	{
 		languageID = GetServerLanguage();
@@ -4702,7 +4673,7 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	LogMessage("Client is using language code %s", langCode);
 #endif
 	// is client's prefered language available?
-	new langID = GetLanguageID(langCode);
+	int langID = GetLanguageID(langCode);
 	if(langID != -1)
 	{
 		strcopy(languageCode, maxlen, langCode);
@@ -4741,12 +4712,12 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 			// english not found? happens on custom map configs e.g.
 			// use the first language available
 			// this should always work, since we would have SetFailState() on parse
-			if(GetArraySize(g_ModelLanguages) > 0)
+			if(g_ModelLanguages.Length > 0)
 			{
 #if defined LOG
 				LogMessage("PH language \"en\" not found, Falling back to lang 0.");
 #endif
-				GetArrayString(g_ModelLanguages, 0, languageCode, maxlen);
+				g_ModelLanguages.GetString(0, languageCode, maxlen);
 				return 0;
 			}
 		}
@@ -4755,18 +4726,18 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	return -1;
 }
 
-bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxlen)
+bool GetModelNameForClient(int client, const char[] modelName, char[] name, int maxlen)
 {
-	if (GetConVarBool(g_PHMultilingual))
+	if (g_PHMultilingual.BoolValue)
 	{
-		decl String:langCode[MAXLANGUAGECODE];
+		char langCode[MAXLANGUAGECODE];
 		
 		GetClientLanguageID(client, langCode, sizeof(langCode));
 #if defined LOG
 		LogMessage("[PH] Retrieving %s name for %s", langCode, modelName);
 #endif	
-		new Handle:languageTrie;
-		if (strlen(langCode) > 0 && GetTrieValue(g_PropNames, modelName, languageTrie) && languageTrie != INVALID_HANDLE && GetTrieString(languageTrie, langCode, name, maxlen))
+		StringMap languageTrie;
+		if (strlen(langCode) > 0 && g_PropNames.GetValue(modelName, languageTrie) && languageTrie != null && languageTrie.GetString(langCode, name, maxlen))
 		{
 			return true;
 		}
@@ -4778,9 +4749,9 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 	}
 	else
 	{
-		new propData[PropData];
+		int propData[PropData];
 		
-		if (GetTrieArray(g_PropData, modelName, propData[0], sizeof(propData)))
+		if (g_PropData.GetArray(modelName, propData[0], sizeof(propData)))
 		{
 			strcopy(name, maxlen, propData[PropData_Name]);
 			return true;
@@ -4794,7 +4765,7 @@ bool:GetModelNameForClient(client, const String:modelName[], String:name[], maxl
 }
 
 // Fix for weapon alphas for last prop
-public TF2Items_OnGiveNamedItem_Post(client, String:classname[], itemDefinitionIndex, itemLevel, itemQuality, entityIndex)
+public int TF2Items_OnGiveNamedItem_Post(int client, char[] classname, int itemDefinitionIndex, int itemLevel, int itemQuality, int entityIndex)
 {
 	if (g_LastProp && g_LastPropPlayer == client && IsValidEntity(entityIndex))
 	{
@@ -4802,12 +4773,12 @@ public TF2Items_OnGiveNamedItem_Post(client, String:classname[], itemDefinitionI
 	}
 }
 
-bool:HasSwitchedTeams()
+bool HasSwitchedTeams()
 {
-	return bool:GameRules_GetProp("m_bSwitchedTeamsThisRound");
+	return view_as<bool>(GameRules_GetProp("m_bSwitchedTeamsThisRound"));
 }
 
-SetSwitchTeams(bool:bSwitchTeams)
+void SetSwitchTeams(bool bSwitchTeams)
 {
 	// Note, this doesn't switch team scores... those are switched when SetWinner is called in the game
 	// Also, SetWinner will override our selection here, so this must be sent AFTER arena_win_panel fires
@@ -4817,10 +4788,10 @@ SetSwitchTeams(bool:bSwitchTeams)
 // Manually switch the scores.
 // The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
 // This is what DHooks did, but Arena confused it anyway and it only sometimes worked
-SwitchTeamScoresClassic()
+void SwitchTeamScoresClassic()
 {
-	new propScore = GetTeamScore(TEAM_PROP);
-	new hunterScore = GetTeamScore(TEAM_HUNTER);
+	int propScore = GetTeamScore(TEAM_PROP);
+	int hunterScore = GetTeamScore(TEAM_HUNTER);
 	
 	if (propScore == 0 && hunterScore == 0)
 	{
@@ -4835,33 +4806,9 @@ SwitchTeamScoresClassic()
 	SetTeamScore(TEAM_HUNTER, propScore);
 }
 
-// Only needed if SwitchTeamScoresClassic doesn't work (needs testing)
-// Manually switch the scores.
-// The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
-// This is what DHooks did, but Arena confused it anyway and it only sometimes worked
-stock SwitchTeamScores(redScore, bluScore)
+bool FindConfigFileForMap(const char[] map, char[] destination = "", int maxlen = 0)
 {
-	/*
-	 * Switch team scores
-  	 * BLU: 2
-	 * RED: 0
-		
-	 * To switch, REDchange should be +2, BLUchange should be -2
-		
-	 * 2 - 0 = REDchange = oldBLU - oldRED
-	 * 0 - 2 = BLUchange = oldRED - oldBLU
-	 */
-	SetVariantInt(bluScore - redScore);
-	AcceptEntityInput(g_GameRulesProxy, "AddRedTeamScore");
-	
-	SetVariantInt(redScore - bluScore);
-	AcceptEntityInput(g_GameRulesProxy, "AddBlueTeamScore");
-	
-}
-
-bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen = 0)
-{
-	new String:mapPiece[PLATFORM_MAX_PATH];
+	char mapPiece[PLATFORM_MAX_PATH];
 	
 #if defined WORKSHOP_SUPPORT
 	// Handle workshop maps
@@ -4884,18 +4831,18 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 #if defined WORKSHOP_SUPPORT
 	}
 #endif
-	new String:confil[PLATFORM_MAX_PATH];
+	char confil[PLATFORM_MAX_PATH];
 	
 	// Optimization so we don't immediately rebuild the whole string after ExplodeString
 	BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", mapPiece);
-	if (FileExists(confil))
+	if (FileExists(confil, true))
 	{
 		strcopy(destination, maxlen, confil);
 		return true;
 	}
 	
-	new String:fileParts[4][PLATFORM_MAX_PATH];
-	new count = ExplodeString(mapPiece, "_", fileParts, sizeof(fileParts), sizeof(fileParts[])) - 1;
+	char fileParts[4][PLATFORM_MAX_PATH];
+	int count = ExplodeString(mapPiece, "_", fileParts, sizeof(fileParts), sizeof(fileParts[])) - 1;
 	
 	while (count > 0)
 	{
@@ -4904,7 +4851,7 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 		
 		BuildPath(Path_SM, confil, sizeof(confil), "data/prophunt/maps/%s.cfg", mapPiece);
 		
-		if (FileExists(confil))
+		if (FileExists(confil, true))
 		{
 			strcopy(destination, maxlen, confil);
 			return true;
@@ -4919,26 +4866,25 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 
 // Natives
 
-/*
-public Native_ValidateMap(Handle:plugin, numParams)
+public int Native_ValidateMap(Handle plugin, int numParams)
 {
-	new mapLength;
+	int mapLength;
 	GetNativeStringLength(1, mapLength);
 	
-	new String:map[mapLength+1];
+	char[] map = new char[mapLength+1];
 	GetNativeString(1, map, mapLength+1);
 	
 	return ValidateMap(map);
 }
 
-public Native_IsRunning(Handle:plugin, numParams)
+public int Native_IsRunning(Handle plugin, int numParams)
 {
 	return g_Enabled;
 }
 
-public Native_GetModel(Handle:plugin, numParams)
+public int Native_GetModel(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	
 	if (!IsClientInGame(client) || GetClientTeam(client) != TEAM_PROP || strlen(g_PlayerModel[client]) == 0)
 	{
@@ -4950,36 +4896,35 @@ public Native_GetModel(Handle:plugin, numParams)
 	return true;
 }
 
-public Native_GetModelName(Handle:plugin, numParams)
+public int Native_GetModelName(Handle plugin, int numParams)
 {
-	new client = GetNativeCell(1);
+	int client = GetNativeCell(1);
 	
 	if (!IsClientInGame(client) || GetClientTeam(client) != TEAM_PROP || strlen(g_PlayerModel[client]) == 0)
 	{
 		return false;
 	}
 	
-	new targetClient = GetNativeCell(4);
+	int targetClient = GetNativeCell(4);
 	
-	new length = GetNativeCell(3);
-	new String:model[length];
+	int length = GetNativeCell(3);
+	char[] model = new char[length];
 	
 	GetModelNameForClient(targetClient, g_PlayerModel[client], model, length);
 	
 	SetNativeString(2, model, length);
 	return true;
 }
-*/
 
-Internal_AddServerTag()
+void Internal_AddServerTag()
 {
-	new String:tags[SV_TAGS_SIZE+1];
-	GetConVarString(g_hTags, tags, sizeof(tags));
+	char tags[SV_TAGS_SIZE+1];
+	g_hTags.GetString(tags, sizeof(tags));
 	
-	if (StrContains(tags, "PropHunt", false) == -1)
+	if (StrContains(tags, "PropHunt", false) == -1 && strlen(tags) + 9 <= SV_TAGS_SIZE)
 	{
-		new String:tagArray[20][SV_TAGS_SIZE+1];
-		new count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
+		char tagArray[20][SV_TAGS_SIZE+1];
+		int count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
 
 		if (count < sizeof(tagArray))
 		{
@@ -4991,17 +4936,17 @@ Internal_AddServerTag()
 	}
 }
 
-Internal_RemoveServerTag()
+void Internal_RemoveServerTag()
 {
-	new String:tags[SV_TAGS_SIZE+1];
-	GetConVarString(g_hTags, tags, sizeof(tags));
+	char tags[SV_TAGS_SIZE+1];
+	g_hTags.GetString(tags, sizeof(tags));
 	
 	if (StrContains(tags, "PropHunt", false) > -1)
 	{
-		new String:tagArray[20][SV_TAGS_SIZE+1];
-		new count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
+		char tagArray[20][SV_TAGS_SIZE+1];
+		int count = ExplodeString(tags, ",", tagArray, sizeof(tagArray), sizeof(tagArray[]));
 
-		for (new i = count - 1; i >= 0; i--)
+		for (int i = count - 1; i >= 0; i--)
 		{
 			TrimString(tagArray[i]);
 			if (StrEqual(tagArray[i], "PropHunt", false))
@@ -5009,15 +4954,16 @@ Internal_RemoveServerTag()
 				count--;
 
 				// Move all elements above this one down by one
-				for (new j = i; j < count; j++)
+				for (int j = i; j < count; j++)
 				{
 					tagArray[j] = tagArray[j+1];
 				}
+				tagArray[count][0] = '\0';
 			}
 		}
 		
 		ImplodeStrings(tagArray, count, ",", tags, sizeof(tags));
-		SetConVarString(g_hTags, tags);
+		g_hTags.SetString(tags);
 	}
 	
 }
@@ -5025,14 +4971,14 @@ Internal_RemoveServerTag()
 // Below this point are the forward calls
 // They're here so we have the code to call them organized.
 /*
-stock DbRound(winner)
+stock void DbRound(int winner)
 {
 	Call_StartForward(g_fStatsRoundWin);
 	Call_PushCell(winner);
 	Call_Finish();
 }
 
-stock AlterScore(client, SCReason:reason)
+stock void AlterScore(int client, ScReason reason)
 {
 	Call_StartForward(g_fStatsAlterScore);
 	Call_PushCell(client);
@@ -5040,7 +4986,7 @@ stock AlterScore(client, SCReason:reason)
 	Call_Finish();
 }
 
-stock PlayerKilled(clientID, attackerID, assisterID, weaponid, const String:weapon[])
+stock void PlayerKilled(int clientID, int attackerID, int assisterID, int weaponid, const char[] weapon)
 {
 	Call_StartForward(g_fStatsPlayerKilled);
 	Call_PushCell(clientID);
