@@ -52,6 +52,8 @@ const int DefaultPoints_Killer = 2;
 const int DefaultPoints_Assister = 1;
 const int DefaultPoints_Victim = -1;
 
+char ignore[16];
+
 ConVar g_Cvar_Enabled;
 
 Database g_StatsDB;
@@ -65,6 +67,10 @@ int g_ServerPointCount;
 int g_PointCount[MAXPLAYERS+1];
 int g_ClientTime[MAXPLAYERS+1];
 int g_ServerTime;
+
+char g_ServerIP[32];
+char g_ServerHostname[128];
+int g_ServerPort;
 
 enum DBType
 {
@@ -104,6 +110,10 @@ public void OnPluginStart()
 	DBConnect();
 	
 	g_hUsersCreating = new ArrayList(ByteCountToCells(Steam2IdLength + 1));
+	
+	FindConVar("hostname").GetString(g_ServerHostname, sizeof(g_ServerHostname));
+	FindConVar("ip").GetString(g_ServerIP, sizeof(g_ServerIP));
+	g_ServerPort = FindConVar("hostport").IntValue;
 }
 
 void DBConnect()
@@ -127,7 +137,7 @@ public void DBFinishConnect(Database db, const char[] error, any data)
 		return;
 	}
 	
-	PrintToServer("Connected Successfully.");
+	PrintToServer("Connected successfully.");
 	
 	g_StatsDB = db;
 	
@@ -135,19 +145,40 @@ public void DBFinishConnect(Database db, const char[] error, any data)
 	
 	char driver[64];
 	db.Driver.GetIdentifier(driver, sizeof(driver));
-	
+
 	if (StrEqual(driver, "mysql", false))
 	{
 		g_DBType = DBType_MySQL;
+		ignore = "IGNORE";
 	}
 	else if (StrEqual(driver, "sqlite", false))
 	{
 		g_DBType = DBType_SQLite;
+		ignore = "OR IGNORE";
 	}
 	else if (StrEqual(driver, "pgsql", false))
 	{
 		g_DBType = DBType_PostgreSQL;
 	}
+	
+	Transaction tx = new Transaction();
+	
+	char query[384];
+
+	int escapedIpLength = strlen(g_ServerIP)*2+1;
+	char[] escapedIp = new char[escapedIpLength];
+	db.Escape(g_ServerIP, escapedIp, escapedIpLength);
+	
+	Format(query, sizeof(query), "INSERT %s INTO servers (ip) VALUES('%s')", ignore, escapedIp);
+	tx.AddQuery(query);
+	
+	Format(query, sizeof(query), "SELECT points, time FROM servers WHERE ip='%s'", escapedIp);
+	tx.AddQuery(query);
+	
+	db.Execute(tx, GetServerPointsCallback, TxErrorCallback, _, DBPrio_High);
+	
+	CreateTimer(120.0, Timer_UpdateServerScore, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE);
+	
 }
 
 public void OnPluginEnd()
@@ -169,16 +200,23 @@ public void OnClientPostAdminCheck(int client)
 	}
 	
 	char steamid[Steam2IdLength+1];
+	char name[MAX_NAME_LENGTH+1];
+	
 	if (!GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid)))
 	{
+		LogMessage("Steam ID lookup failed for clent %d (\"%N\")", client, client);
 		return;
 	}
 	
-	if (g_hUsersCreating.FindString(steamid) != -1)
+	if (g_hUsersCreating.FindString(steamid) == -1)
 	{
 		int escapedSteamidLength = strlen(steamid)*2+1;
 		char[] escapedSteamid = new char[escapedSteamidLength];
 		g_StatsDB.Escape(steamid, escapedSteamid, escapedSteamidLength);
+		
+		int escapedNameLength = strlen(name)*2+1;
+		char[] escapedName = new char[escapedNameLength];
+		g_StatsDB.Escape(name, escapedName, escapedNameLength);
 		
 		int userId = GetClientUserId(client);
 		
@@ -560,6 +598,12 @@ public void ErrorOnlyCallback(Database db, DBResultSet results, const char[] err
 	}
 }
 
+public void TxErrorCallback(Database db, any data, int numQueries, const char[] error, int failIndex, any[]queryData)
+{
+	LogError("[PH] DATABASE ERROR (error: %s)", error);
+	CPrintToChatAll("[PH] DATABASE ERROR (error: %s)", error);
+}
+
 void DbInt(int client, const char[] what, int points, Transaction tx=null)
 {
 	if (!IsClientConnected(client) || IsFakeClient(client))
@@ -600,6 +644,11 @@ void DbInt(int client, const char[] what, int points, Transaction tx=null)
 #if defined LOGSTATS
 	LogMessage("[PH] DbInt [%s]", query);
 #endif
+}
+
+public bool DatabaseIntact()
+{
+	return (g_StatsDB != null);
 }
 
 // Add s to the game description
