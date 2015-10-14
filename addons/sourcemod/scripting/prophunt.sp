@@ -554,6 +554,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("PropHuntRedux_IsRunning", Native_IsRunning);
 	CreateNative("PropHuntRedux_GetPropModel", Native_GetModel);
 	CreateNative("PropHuntRedux_GetPropModelName", Native_GetModelName);
+	CreateNative("PropHuntRedux_IsLastPropMode", Native_LastPropMode);
 	
 	RegPluginLibrary("prophuntredux");
 
@@ -1099,7 +1100,7 @@ void UpdateGameDescription(bool bAddOnly=false)
 		Call_Finish(result);
 		if (result == Plugin_Changed)
 		{
-			strcopy(gamemode, sizeof(gamemode), tempGameMode);
+			strcopy(gamemode, sizeof(gamemode), tempGamemode);
 		}
 	}
 	else if (bAddOnly)
@@ -4914,6 +4915,11 @@ public int Native_GetModelName(Handle plugin, int numParams)
 	
 	SetNativeString(2, model, length);
 	return true;
+}
+
+public int Native_LastPropMode(Handle plugin, int numParams)
+{
+	return g_LastProp;
 }
 
 void Internal_AddServerTag()

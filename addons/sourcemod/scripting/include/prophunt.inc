@@ -46,16 +46,7 @@
 
 #define TEAM_PROP view_as<int>(TFTeam_Red)
 #define TEAM_HUNTER view_as<int>(TFTeam_Blue)
-
-enum ScReason
-{
-	ScReason_TeamWin = 0,
-	ScReason_TeamLose,
-	ScReason_Death, // Not used in default scoring, passed as PropHuntRedux_Stats_PlayerKilled instead
-	ScReason_Kill, // Not used in default scoring, passed as PropHuntRedux_Stats_PlayerKilled instead
-	ScReason_Time,
-	ScReason_Friendly // Not used in default scoring, friendly fire has been disabled by default in PH for years.
-};
+#define TEAM_SPECTATOR view_as<int>(TFTeam_Spectator)
 
 /**
  * Is PropHunt Redux currently running?
@@ -90,6 +81,13 @@ native bool PropHuntRedux_GetPropModel(int client, char[] model, int maxlen);
 native bool PropHuntRedux_GetPropModelName(int client, char[] name, int maxlen, int targetClient=LANG_SERVER);
 
 /**
+ * Retrieve whether we're currently in Last Prop Mode.
+ * 
+ * @return	true if this is last prop mode, false otherwise.
+ */
+native bool PropHuntRedux_IsLastPropMode();
+
+/**
  * Callback called when the game description is being updated
  * 
  * Stat plugins can use this to append data to the end of the string.
@@ -98,26 +96,7 @@ native bool PropHuntRedux_GetPropModelName(int client, char[] name, int maxlen, 
  * @return Plugin_Changed if your plugin changed the game description.
  *         Plugin_Continued otherwise.
  */
-typedef PropHuntRedux_UpdateGameDescription = function Action(char description[128]);
-
-//functag public PropHuntRedux_Stats_Init();
-//functag public PropHuntRedux_Stats_Uninit();
-
-//functag public PropHuntRedux_Stats_RoundWin(int winner);
-
-// Note that score is no longer passed.  The stats plugin should decide what the score is.
-// In classic PH stats, time is 2 points, win is 3 points, lose is -1 point.
-// In Redux, time is awarded to props once when Setup ends and then every 55 seconds afterwards until round end.
-// This replaces the "awarded every 55 seconds" behavior that happened regardless of what was going on.
-//functag public PropHuntRedux_Stats_AlterScore(int client, SCReason reason);
-
-//functag public PropHuntRedux_Stats_PlayerKilled(int clientID, int attackerID, int assisterID, int weaponid, const char[] weapon);
-
-// Note: Not finished, stopped here
-// We still need a native to register stuff and possibly more stats functions
-
-//functag public PropHuntRedux_Stats_ClientConnected(int client);
-//functag public PropHuntRedux_Stats_ClientDisconnected(int client);
+forward Action PropHuntRedux_UpdateGameDescription(char[] description, int maxlength);
 
 public SharedPlugin __pl_prophunt_redux = 
 {
@@ -137,5 +116,6 @@ public void __pl_prophunt_redux_SetNTVOptional()
 	MarkNativeAsOptional("PropHuntRedux_ValidateMap");
 	MarkNativeAsOptional("PropHuntRedux_GetPropModel");
 	MarkNativeAsOptional("PropHuntRedux_GetPropModelName");
+	MarkNativeAsOptional("PropHuntRedux_IsLastPropMode");
 }
 #endif
