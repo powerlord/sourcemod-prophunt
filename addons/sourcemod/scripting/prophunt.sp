@@ -74,10 +74,6 @@
 //-------------------------------------------- MAIN PROPHUNT CONFIGURATION -------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------------------
 
-// Enable for global stats support (.inc file available on request due to potential for cheating and database abuse)
-// Default: OFF
-//#define STATS
-
 // GM only stuff
 //#define GM
  
@@ -290,18 +286,12 @@ char g_PlayerModel[MAXPLAYERS+1][PLATFORM_MAX_PATH];
 
 char g_Mapname[PLATFORM_MAX_PATH];
 char g_ServerIP[32];
-char g_Version[16];
 
 int g_Message_red;
 int g_Message_blue;
 int g_RoundTime = 175;
 int g_Message_bit = 0;
 int g_Setup = 0;
-
-#if defined STATS
-bool g_MapChanging = false;
-int g_StartTime;
-#endif
 
 //new Handle:g_TimerStart = INVALID_HANDLE;
 StringMap g_Sounds;
@@ -510,28 +500,6 @@ enum
 	LAST_SHARED_COLLISION_GROUP
 }
 
-#if defined STATS
-
-#include "prophunt\stats2.inc"
-/*
-public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
-{
-	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
-	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
-	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
-	GetConVarString(FindConVar("hostport"), port, sizeof(port));
-
-	if(StrContains(hostname, "GamingMasters.co.uk", false) != -1)
-	{
-		if(StrContains(hostname, "PropHunt", false) == -1 && StrContains(hostname, "Arena", false) == -1 && StrContains(hostname, "Dark", false) == -1 &&
-				StrContains(ip, "8.9.4.169", false) == -1)
-		return APLRes_SilentFailure;
-	}
-	return APLRes_Success;
-}
-*/
-#endif
-
 Handle g_hSwitchTeams;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -592,11 +560,6 @@ public void OnPluginStart()
 
 	Format(g_ServerIP, sizeof(g_ServerIP), "%s:%s", ip, port);
 
-	bool statsbool = false;
-#if defined STATS
-	statsbool = true;
-#endif
-
 	g_hWeaponRemovals = new ArrayList();
 	g_hPropWeaponRemovals = new ArrayList();
 	g_hWeaponNerfs = new StringMap();
@@ -606,10 +569,9 @@ public void OnPluginStart()
 	g_hWeaponReplacements = new StringMap();
 	g_hWeaponReplacementPlayerClasses = new StringMap();
 	
-	Format(g_Version, sizeof(g_Version), "%s%s", PL_VERSION, statsbool ? "s":"");
 	// PropHunt Redux now lies and pretends to be PropHunt as well
-	CreateConVar("sm_prophunt_version", g_Version, "PropHunt Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
-	CreateConVar("prophunt_redux_version", g_Version, "PropHunt Redux Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	CreateConVar("sm_prophunt_version", PL_VERSION, "PropHunt Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	CreateConVar("prophunt_redux_version", PL_VERSION, "PropHunt Redux Version", FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 	g_PHEnable = CreateConVar("ph_enable", "1", "Enables the plugin", FCVAR_DONTRECORD);
 	g_PHPropMenu = CreateConVar("ph_propmenu", "0", "Control use of the propmenu command: -1 = Disabled, 0 = admins or people with the propmenu override, 1 = all players", _, true, -1.0, true, 1.0);
@@ -687,10 +649,6 @@ public void OnPluginStart()
 	HookEvent("teamplay_restart_round", Event_teamplay_restart_round);
 	//HookEvent("teamplay_setup_finished", Event_teamplay_setup_finished); // No longer used since 2.0.3 or so because of issues with certain maps
 
-#if defined STATS
-	Stats_Init();
-#endif
-
 	RegConsoleCmd("help", Command_motd);
 	RegConsoleCmd("phstats", Command_motd);
 	RegConsoleCmd("ph_stats", Command_motd);
@@ -725,9 +683,6 @@ public void OnPluginStart()
 		if(IsClientInGame(client))
 		{
 			ForcePlayerSuicide(client);
-#if defined STATS
-			OnClientPostAdminCheck(client);
-#endif
 		}
 	}
 	g_PropData = CreateTrie();
@@ -755,9 +710,6 @@ public void OnPluginStart()
 	AddMenuItem(g_ConfigMenu, "#propreroll", "PropReroll");
 	AddMenuItem(g_ConfigMenu, "#preventfalldamage", "Prevent Fall Damage");
 	AddMenuItem(g_ConfigMenu, "#setuptime", "Setup Time");
-#if defined STATS
-	AddMenuItem(g_ConfigMenu, "#stats", "Stats");
-#endif
 
 	g_GameDescriptionForward = CreateGlobalForward("PropHuntRedux_UpdateGameDescription", ET_Event, Param_String);
 }
@@ -1084,11 +1036,11 @@ void UpdateGameDescription(bool bAddOnly=false)
 	{
 		if (strlen(g_AdText) > 0)
 		{
-			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s (%s)", g_Version, g_AdText);
+			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s (%s)", PL_VERSION, g_AdText);
 		}
 		else
 		{
-			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s", g_Version);
+			Format(gamemode, sizeof(gamemode), "PropHunt Redux %s", PL_VERSION);
 		}
 
 		// Global forward for subplugins to change the game description.
@@ -1952,10 +1904,6 @@ public void OnCPMasterSpawnedPost(int entity)
 
 public void OnMapEnd()
 {
-#if defined STATS
-	g_MapChanging = true;
-#endif
-
 	// workaround for CreateEntityByName
 	g_MapStarted = false;
 	
@@ -2165,19 +2113,11 @@ public void OnMapStart()
 		}
 		g_ReplacementCount[i] = 0;
 	}
-	
-#if defined STATS
-	g_MapChanging = false;
-#endif
-
 }
 
 public void OnPluginEnd()
 {
 	PrintCenterTextAll("%t", "#TF_PH_PluginReload");
-#if defined STATS
-	Stats_Uninit();
-#endif
 	
 	ResetCVars();
 	if (g_SteamTools)
@@ -2265,19 +2205,9 @@ stock void RemovePropModel (int client){
 	}
 }
 
-#if defined STATS
-public void OnClientDisconnect(int client)
-{
-	OCD(client);
-}
-#endif
-
 public void OnClientDisconnect_Post(int client)
 {
 	ResetPlayer(client);
-#if defined STATS
-	OCD_Post(client);
-#endif
 }
 
 stock void SwitchView (int target, bool observer, bool viewmodel){
@@ -3150,9 +3080,6 @@ void DisplayConfigToConsole(int client)
 	CReplyToCommand(client, "%t", "#TF_PH_ConfigPropReroll", propRerollStatus);
 	CReplyToCommand(client, "%t", "#TF_PH_ConfigPreventFallDamage", preventFallDamage);
 	CReplyToCommand(client, "%t", "#TF_PH_ConfigSetupTime", g_PHSetupLength.IntValue);
-#if defined STATS
-	CReplyToCommand(client, "%t", "#TF_PH_ConfigStats");
-#endif
 }
 
 public int Handler_ConfigMenu(Menu menu, MenuAction action, int param1, int param2)
@@ -3276,13 +3203,6 @@ public int Handler_ConfigMenu(Menu menu, MenuAction action, int param1, int para
 			{
 				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigSetupTime", param1, g_PHSetupLength.IntValue);
 			}
-#if defined STATS
-			else
-			if (StrEqual(infoBuf, "#stats"))
-			{
-				Format(buffer, sizeof(buffer), "%T", "#TF_PH_ConfigStats", param1);
-			}
-#endif
 			
 			return RedrawMenuItem(buffer);
 		}
@@ -3399,12 +3319,6 @@ public void Event_arena_win_panel(Event event, const char[] name, bool dontBroad
 	if (!g_Enabled)
 		return;
 
-#if defined STATS
-	int winner = event.GetInt("winning_team");
-
-	DbRound(winner);
-#endif
-
 	if (Internal_ShouldSwitchTeams())
 	{
 		/*
@@ -3450,17 +3364,6 @@ public void Event_arena_win_panel(Event event, const char[] name, bool dontBroad
 	{
 		if(IsClientInGame(client))
 		{
-#if defined STATS
-			if(GetClientTeam(client) == winner)
-			{
-				AlterScore(client, 3, ScReason_TeamWin, 0);
-			}
-			else
-			if(GetClientTeam(client) != _:TFTeam_Spectator)
-			{
-				AlterScore(client, -1, ScReason_TeamLose, 0);
-			}
-#endif
 			// bit annoying when testing the plugin and/or maps on a listen server
 			/*
 			if(IsDedicatedServer())
@@ -3713,9 +3616,6 @@ public void Event_arena_round_start(Event event, const char[] name, bool dontBro
 		
 		CreateTimer(0.1, Timer_Info);
 
-#if defined STATS
-		g_StartTime = GetTime();
-#endif
 	}
 }
 
@@ -3919,15 +3819,6 @@ public Action Event_player_death(Event event, const char[] name, bool dontBroadc
 	int attacker = GetClientOfUserId(event.GetInt("attacker"));
 	int assister = GetClientOfUserId(event.GetInt("assister"));
 	
-#if defined STATS
-	char weapon[64];
-	int attackerID = GetEventInt(event, "attacker");
-	int assisterID = GetEventInt(event, "assister");
-	int clientID = GetEventInt(event, "userid");
-	int weaponid = GetEventInt(event, "weaponid");
-	event.GetString("weapon", weapon, sizeof(weapon));
-#endif
-
 	if(!g_RoundOver)
 		g_Spawned[client] = false;
 
@@ -3961,10 +3852,6 @@ public Action Event_player_death(Event event, const char[] name, bool dontBroadc
 	{
 		if(client > 0 && attacker > 0 && IsClientInGame(client) && IsClientInGame(attacker) && client != attacker)
 		{
-#if defined STATS
-			PlayerKilled(clientID, attackerID, assisterID, weaponid, weapon);
-#endif
-
 			if(IsPlayerAlive(attacker))
 			{
 				Speedup(attacker);
@@ -4067,7 +3954,7 @@ public Action Timer_Info(Handle timer)
 		{
 			if(IsClientInGame(i) && !IsFakeClient(i))
 			{
-				ShowSyncHudText(i, g_Text1, "PropHunt %s", g_Version);
+				ShowSyncHudText(i, g_Text1, "PropHunt %s", PL_VERSION);
 			}
 		}
 	}
@@ -4355,12 +4242,6 @@ public Action Timer_Score(Handle timer)
 {
 	for(int client=1; client <= MaxClients; client++)
 	{
-#if defined STATS
-		if(IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_PROP)
-		{
-			AlterScore(client, 2, ScReason_Time, 0);
-		}
-#endif
 		g_TouchingCP[client] = false;
 	}
 	CPrintToChatAll("%t", "#TF_PH_CPBonusRefreshed");
@@ -4973,33 +4854,3 @@ void Internal_RemoveServerTag()
 	}
 	
 }
-
-// Below this point are the forward calls
-// They're here so we have the code to call them organized.
-/*
-stock void DbRound(int winner)
-{
-	Call_StartForward(g_fStatsRoundWin);
-	Call_PushCell(winner);
-	Call_Finish();
-}
-
-stock void AlterScore(int client, ScReason reason)
-{
-	Call_StartForward(g_fStatsAlterScore);
-	Call_PushCell(client);
-	Call_PushCell(reason);
-	Call_Finish();
-}
-
-stock void PlayerKilled(int clientID, int attackerID, int assisterID, int weaponid, const char[] weapon)
-{
-	Call_StartForward(g_fStatsPlayerKilled);
-	Call_PushCell(clientID);
-	Call_PushCell(attackerID);
-	Call_PushCell(assisterID);
-	Call_PushCell(weaponID);
-	Call_PushString(weapon);
-	Call_Finish();
-}
-*/
