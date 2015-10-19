@@ -500,6 +500,18 @@ enum
 	LAST_SHARED_COLLISION_GROUP
 }
 
+enum
+{
+	SOLID_NONE			= 0,	// no solid model
+	SOLID_BSP			= 1,	// a BSP tree
+	SOLID_BBOX			= 2,	// an AABB
+	SOLID_OBB			= 3,	// an OBB (not implemented yet)
+	SOLID_OBB_YAW		= 4,	// an OBB, constrained so that it can only yaw
+	SOLID_CUSTOM		= 5,	// Always call into the entity for tests
+	SOLID_VPHYSICS		= 6,	// solid vphysics object, get vcollide from the model and collide with that
+	SOLID_LAST,
+};
+
 Handle g_hSwitchTeams;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -549,7 +561,7 @@ public void OnPluginStart()
 #if defined LOG
 	else
 	{
-		LogMessage("Failed to load gamedata");
+		LogMessage("[PH] Failed to load gamedata");
 	}
 #endif
 #endif	
@@ -1710,7 +1722,7 @@ public Action Updater_OnPluginDownloading()
 public int Updater_OnPluginUpdated()
 {
 	PrintCenterTextAll("PropHunt Redux Updated, server restart may be required.");
-	LogMessage("PropHunt Redux Updated, server restart may be required.");
+	LogMessage("[PH] PropHunt Redux Updated, server restart may be required.");
 }
 
 public void StartTouchHook(int entity, int other)
@@ -1764,20 +1776,24 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_Spawn, OnBullshitEntitySpawned);
 	}
 	else
-	if(strcmp(classname, "prop_dynamic") == 0 || strcmp(classname, "prop_static") == 0)
+	if(strcmp(classname, "prop_dynamic") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnCPEntitySpawned);
 	}
 	else
 	if(strcmp(classname, "team_control_point_master") == 0)
 	{
-		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawnedPost);
 	}
 	else
 	if (strcmp(classname, "team_round_timer") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
+	}
+	else
+	if (strcmp(classname, "tf_logic_arena") == 0)
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnArenaSpawned);
 	}
 }
 
@@ -1798,6 +1814,19 @@ public void OnCPEntitySpawned(int entity)
 		// Reset the skin to neutral.  I'm looking at you, cp_manor_event
 		SetVariantInt(0);
 		AcceptEntityInput(entity, "Skin");
+		
+		// Check if the control point is using VPhysics.
+		// If not, make it so it does (fixes issues with CP touch)
+		int curSolidType = GetEntProp(entity, Prop_Data, "m_nSolidType");
+		if (curSolidType != SOLID_VPHYSICS)
+		{
+			char solidType[2];
+			IntToString(SOLID_VPHYSICS, solidType, sizeof(solidType));
+			DispatchKeyValue(entity, "solid", solidType);
+#if defined LOG
+			LogMessage("[PH] Converting control point to VPhysics.");
+#endif
+		}
 		// Also, hook it for the heal touch hook
 		SDKHook(entity, SDKHook_StartTouch, StartTouchHook);
 	}
@@ -1823,39 +1852,89 @@ public Action OnTimerSpawned(int entity)
 	}
 }
 
-public Action OnCPMasterSpawned(int entity)
+public void OnCPMasterSpawnedPost(int entity)
 {
 #if defined LOG
 	LogMessage("[PH] cpmaster spawned");
 #endif
     
-	DispatchKeyValue(entity, "switch_teams", "0"); // Changed in 3.0.0 beta 6, now forced off instead of on. Ignored because SetWinner overrides it
-	
-	return Plugin_Continue;
-}
-
-public void OnCPMasterSpawnedPost(int entity)
-{
 	if (!g_MapStarted)
 	{
 		return;
 	}
 	
-	int arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
-	if (arenaLogic == -1)
+	char name[64];
+	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
 	{
+		DispatchKeyValue(entity, "targetname", "master_control_point");
+	}
+
+	CreateRoundTimer(entity);
+}
+
+public Action OnArenaSpawned(int entity)
+{
+	char finishedCommand[256];
+
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+}
+
+void CheckRoundTimer()
+{
+	int entity = -1;
+	
+	while ((entity = FindEntityByClassname(entity, "team_round_timer")) != -1)
+	{
+		char name[64];
+		
+		GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+		
+		if (StrEqual(name, TIMER_NAME))
+		{
+#if defined LOG
+	LogMessage("[PH] Found timer: %d", entity);
+#endif
 		return;
 	}
+	}
 	
+	// No timer found, create it
+	LogMessage("[PH] PropHunt timer is missing.  Attempting to recreate it...");
+	int cpMaster = FindEntityByClassname(-1, "team_control_point_master");
+	
+	if (cpMaster > -1)
+	{
+		CreateRoundTimer(cpMaster);
+	}
+	else
+	{
+		LogError("[PH] Could not locate team_control_point_master when recreating PropHunt timer");
+	}
+}
+	
+void CreateRoundTimer(int entity)
+{
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	char time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
 	
 	char name[64];
-	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
+	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+	
+	if (name[0] == '\0')
 	{
-		DispatchKeyValue(entity, "targetname", "master_control_point");
-		strcopy(name, sizeof(name), "master_control_point");
+		LogError("team_control_point_master %d has no name", entity);
+		return;
 	}
 	
 	// Create our timer.
@@ -1885,18 +1964,6 @@ public void OnCPMasterSpawnedPost(int entity)
 	Format(finishedCommand, sizeof(finishedCommand), "OnFinished %s:SetWinnerAndForceCaps:%d:0:-1", name, TEAM_PROP);
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(timer, "AddOutput");
-	
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
-	
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
-	
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
 	
 	HookSingleEntityOutput(timer, "OnSetupStart", OnSetupStart);
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
@@ -3525,6 +3592,7 @@ public void Event_teamplay_round_start(Event event, const char[] name, bool dont
 	if (!g_Enabled)
 		return;
 
+	CheckRoundTimer();
 	
 	g_inPreRound = true;
 	g_PlayerDied = false;
@@ -3672,7 +3740,7 @@ public void Event_player_spawn(Event event, const char[] name, bool dontBroadcas
 		if(!g_RoundOver && !g_AllowedSpawn[client])
 		{
 #if defined LOG
-			LogMessage("%N spawned outside of a round");
+			LogMessage("[PH] %N spawned outside of a round");
 #endif
 			ForcePlayerSuicide(client);
 			return;
@@ -3760,7 +3828,7 @@ public void Event_player_spawn(Event event, const char[] name, bool dontBroadcas
 		{
 			// Players are spawning on a non-player team?
 			#if defined LOG
-			LogMessage("%N spawned on a non-player team: %d, slaying...", client, team);
+			LogMessage("[PH] %N spawned on a non-player team: %d, slaying...", client, team);
 			#endif
 			ForcePlayerSuicide(client);
 		}
@@ -4056,7 +4124,7 @@ public void DoEquipProp(any UserId)
 			model = g_PlayerModel[client];
 			modelIndex = g_ModelName.FindString(model);
 #if defined LOG
-			LogMessage("Change user model to %s", model);
+			LogMessage("[PH] Change \"%N\"'s user model to %s", client, model);
 #endif
 		}
 		else
@@ -4552,7 +4620,7 @@ int GetClientLanguageID(int client, char[] languageCode="", int maxlen=0)
 	
 	GetLanguageInfo(languageID, langCode, sizeof(langCode));
 #if defined LOG
-	LogMessage("Client is using language code %s", langCode);
+	LogMessage("[PH] Client is using language code %s", langCode);
 #endif
 	// is client's prefered language available?
 	int langID = GetLanguageID(langCode);
@@ -4564,11 +4632,11 @@ int GetClientLanguageID(int client, char[] languageCode="", int maxlen=0)
 	else
 	{
 #if defined LOG
-		LogMessage("PH language code \"%s\" not found.", langCode);
+		LogMessage("[PH] Language code \"%s\" not found.", langCode);
 #endif
 		GetLanguageInfo(GetServerLanguage(), langCode, sizeof(langCode));
 #if defined LOG
-		LogMessage("Falling back to server language code \"%s\".", langCode);
+		LogMessage("[PH] Falling back to server language code \"%s\".", langCode);
 #endif
 		// is default server language available?
 		langID = GetLanguageID(langCode);
@@ -4720,13 +4788,16 @@ bool FindConfigFileForMap(const char[] map, char[] destination = "", int maxlen 
 	if (FileExists(confil, true))
 	{
 		strcopy(destination, maxlen, confil);
+#if defined LOG
+		LogMessage("[PH] Using config file \"%s\"", confil);
+#endif
 		return true;
 	}
 	
 	char fileParts[4][PLATFORM_MAX_PATH];
 	int count = ExplodeString(mapPiece, "_", fileParts, sizeof(fileParts), sizeof(fileParts[])) - 1;
 	
-	while (count > 0)
+	while (count > 1)
 	{
 		mapPiece[0] = '\0';
 		ImplodeStrings(fileParts, count, "_", mapPiece, sizeof(mapPiece));
@@ -4736,6 +4807,9 @@ bool FindConfigFileForMap(const char[] map, char[] destination = "", int maxlen 
 		if (FileExists(confil, true))
 		{
 			strcopy(destination, maxlen, confil);
+#if defined LOG
+			LogMessage("[PH] Using config file \"%s\"", confil);
+#endif
 			return true;
 		}
 		
