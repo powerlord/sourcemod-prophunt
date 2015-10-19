@@ -1815,6 +1815,11 @@ public OnEntityCreated(entity, const String:classname[])
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnTimerSpawned);
 	}
+	else
+	if (strcmp(classname, "tf_logic_arena") == 0)
+	{
+		SDKHook(entity, SDKHook_SpawnPost, OnArenaSpawned);
+}
 }
 
 public Action:OnBullshitEntitySpawned(entity)
@@ -1877,12 +1882,6 @@ public OnCPMasterSpawnedPost(entity)
 		return;
 	}
 	
-	new arenaLogic = FindEntityByClassname(-1, "tf_logic_arena");
-	if (arenaLogic == -1)
-	{
-		return;
-	}
-	
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
@@ -1922,20 +1921,24 @@ public OnCPMasterSpawnedPost(entity)
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(timer, "AddOutput");
 	
+	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
+}
+
+public Action:OnArenaSpawned(entity)
+{
+	decl String:finishedCommand[256];
+
 	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
 	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
+	AcceptEntityInput(entity, "AddOutput");
 	
 	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
 	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
+	AcceptEntityInput(entity, "AddOutput");
 	
 	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
 	SetVariantString(finishedCommand);
-	AcceptEntityInput(arenaLogic, "AddOutput");
-	
-	HookSingleEntityOutput(timer, "OnSetupStart", OnSetupStart);
-	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
+	AcceptEntityInput(entity, "AddOutput");
 }
 
 public OnMapEnd()
