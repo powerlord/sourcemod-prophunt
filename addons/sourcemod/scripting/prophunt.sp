@@ -1853,7 +1853,7 @@ public OnCPEntitySpawned(entity)
 		
 		// Check if the control point is using VPhysics.
 		// If not, make it so it does (fixes issues with CP touch)
-		int curSolidType = GetEntProp(entity, Prop_Data, "m_nSolidType");
+		new curSolidType = GetEntProp(entity, Prop_Data, "m_nSolidType");
 		if (curSolidType != SOLID_VPHYSICS)
 		{
 			new String:solidType[2];
@@ -1927,7 +1927,7 @@ public Action:OnArenaSpawned(entity)
 
 CheckRoundTimer()
 {
-	int entity = -1;
+	new entity = -1;
 	
 	while ((entity = FindEntityByClassname(entity, "team_round_timer")) != -1)
 	{
@@ -1946,7 +1946,7 @@ CheckRoundTimer()
 	
 	// No timer found, create it
 	LogMessage("[PH] PropHunt timer is missing.  Attempting to recreate it...");
-	int cpMaster = FindEntityByClassname(-1, "team_control_point_master");
+	new cpMaster = FindEntityByClassname(-1, "team_control_point_master");
 	
 	if (cpMaster > -1)
 	{
