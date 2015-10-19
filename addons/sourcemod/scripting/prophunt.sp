@@ -64,7 +64,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 alpha 4"
+#define PL_VERSION "3.4.0.0 alpha 5"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -515,6 +515,18 @@ enum
 	LAST_SHARED_COLLISION_GROUP
 }
 
+enum
+{
+	SOLID_NONE			= 0,	// no solid model
+	SOLID_BSP			= 1,	// a BSP tree
+	SOLID_BBOX			= 2,	// an AABB
+	SOLID_OBB			= 3,	// an OBB (not implemented yet)
+	SOLID_OBB_YAW		= 4,	// an OBB, constrained so that it can only yaw
+	SOLID_CUSTOM		= 5,	// Always call into the entity for tests
+	SOLID_VPHYSICS		= 6,	// solid vphysics object, get vcollide from the model and collide with that
+	SOLID_LAST,
+};
+
 #if defined STATS
 
 #include "prophunt\stats2.inc"
@@ -587,7 +599,7 @@ public OnPluginStart()
 #if defined LOG
 	else
 	{
-		LogMessage("Failed to load gamedata");
+		LogMessage("[PH] Failed to load gamedata");
 	}
 #endif
 #endif	
@@ -1746,7 +1758,7 @@ public Action:Updater_OnPluginDownloading()
 public Updater_OnPluginUpdated()
 {
 	PrintCenterTextAll("PropHunt Redux Updated, server restart may be required.");
-	LogMessage("PropHunt Redux Updated, server restart may be required.");
+	LogMessage("[PH] PropHunt Redux Updated, server restart may be required.");
 }
 
 public StartTouchHook(entity, other)
@@ -1800,14 +1812,13 @@ public OnEntityCreated(entity, const String:classname[])
 		SDKHook(entity, SDKHook_Spawn, OnBullshitEntitySpawned);
 	}
 	else
-	if(strcmp(classname, "prop_dynamic") == 0 || strcmp(classname, "prop_static") == 0)
+	if(strcmp(classname, "prop_dynamic") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnCPEntitySpawned);
 	}
 	else
 	if(strcmp(classname, "team_control_point_master") == 0)
 	{
-		SDKHook(entity, SDKHook_Spawn, OnCPMasterSpawned);
 		SDKHook(entity, SDKHook_SpawnPost, OnCPMasterSpawnedPost);
 	}
 	else
@@ -1819,7 +1830,7 @@ public OnEntityCreated(entity, const String:classname[])
 	if (strcmp(classname, "tf_logic_arena") == 0)
 	{
 		SDKHook(entity, SDKHook_SpawnPost, OnArenaSpawned);
-}
+	}
 }
 
 public Action:OnBullshitEntitySpawned(entity)
@@ -1839,6 +1850,19 @@ public OnCPEntitySpawned(entity)
 		// Reset the skin to neutral.  I'm looking at you, cp_manor_event
 		SetVariantInt(0);
 		AcceptEntityInput(entity, "Skin");
+		
+		// Check if the control point is using VPhysics.
+		// If not, make it so it does (fixes issues with CP touch)
+		int curSolidType = GetEntProp(entity, Prop_Data, "m_nSolidType");
+		if (curSolidType != SOLID_VPHYSICS)
+		{
+			new String:solidType[2];
+			IntToString(SOLID_VPHYSICS, solidType, sizeof(solidType));
+			DispatchKeyValue(entity, "solid", solidType);
+#if defined LOG
+			LogMessage("[PH] Converting control point to VPhysics.");
+#endif
+		}
 		// Also, hook it for the heal touch hook
 		SDKHook(entity, SDKHook_StartTouch, StartTouchHook);
 	}
@@ -1864,33 +1888,89 @@ public Action:OnTimerSpawned(entity)
 	}
 }
 
-public Action:OnCPMasterSpawned(entity)
+public OnCPMasterSpawnedPost(entity)
 {
 #if defined LOG
 	LogMessage("[PH] cpmaster spawned");
 #endif
     
-	DispatchKeyValue(entity, "switch_teams", "0"); // Changed in 3.0.0 beta 6, now forced off instead of on. Ignored because SetWinner overrides it
-	
-	return Plugin_Continue;
-}
-
-public OnCPMasterSpawnedPost(entity)
-{
 	if (!g_MapStarted)
 	{
 		return;
 	}
 	
+	decl String:name[64];
+	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
+	{
+		DispatchKeyValue(entity, "targetname", "master_control_point");
+	}
+	
+	CreateRoundTimer(entity);
+}
+
+public Action:OnArenaSpawned(entity)
+{
+	decl String:finishedCommand[256];
+
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+	
+	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
+	SetVariantString(finishedCommand);
+	AcceptEntityInput(entity, "AddOutput");
+}
+
+CheckRoundTimer()
+{
+	int entity = -1;
+	
+	while ((entity = FindEntityByClassname(entity, "team_round_timer")) != -1)
+	{
+		new String:name[64];
+		
+		GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+		
+		if (StrEqual(name, TIMER_NAME))
+		{
+#if defined LOG
+	LogMessage("[PH] Found timer: %d", entity);
+#endif
+			return;
+		}
+	}
+	
+	// No timer found, create it
+	LogMessage("[PH] PropHunt timer is missing.  Attempting to recreate it...");
+	int cpMaster = FindEntityByClassname(-1, "team_control_point_master");
+	
+	if (cpMaster > -1)
+	{
+		CreateRoundTimer(cpMaster);
+	}
+	else
+	{
+		LogError("[PH] Could not locate team_control_point_master when recreating PropHunt timer");
+	}
+}
+
+CreateRoundTimer(entity)
+{
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
 	
 	decl String:name[64];
-	if (GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name)) == 0)
+	GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
+	
+	if (name[0] == '\0')
 	{
-		DispatchKeyValue(entity, "targetname", "master_control_point");
-		strcopy(name, sizeof(name), "master_control_point");
+		LogError("team_control_point_master %d has no name", entity);
+		return;
 	}
 	
 	// Create our timer.
@@ -1921,24 +2001,8 @@ public OnCPMasterSpawnedPost(entity)
 	SetVariantString(finishedCommand);
 	AcceptEntityInput(timer, "AddOutput");
 	
+	HookSingleEntityOutput(timer, "OnSetupStart", OnSetupStart);
 	HookSingleEntityOutput(timer, "OnSetupFinished", OnSetupFinished);
-}
-
-public Action:OnArenaSpawned(entity)
-{
-	decl String:finishedCommand[256];
-
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:ShowInHUD:1:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(entity, "AddOutput");
-	
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Resume:0:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(entity, "AddOutput");
-	
-	Format(finishedCommand, sizeof(finishedCommand), "OnArenaRoundStart %s:Enable:0:0:-1", TIMER_NAME);
-	SetVariantString(finishedCommand);
-	AcceptEntityInput(entity, "AddOutput");
 }
 
 public OnMapEnd()
@@ -3655,6 +3719,7 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
+	CheckRoundTimer();
 	
 	g_inPreRound = true;
 	g_PlayerDied = false;
@@ -3805,7 +3870,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		if(!g_RoundOver && !g_AllowedSpawn[client])
 		{
 #if defined LOG
-			LogMessage("%N spawned outside of a round");
+			LogMessage("[PH] %N spawned outside of a round");
 #endif
 			ForcePlayerSuicide(client);
 			return;
@@ -3893,7 +3958,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 		{
 			// Players are spawning on a non-player team?
 			#if defined LOG
-			LogMessage("%N spawned on a non-player team: %d, slaying...", client, team);
+			LogMessage("[PH] %N spawned on a non-player team: %d, slaying...", client, team);
 			#endif
 			ForcePlayerSuicide(client);
 		}
@@ -4199,7 +4264,7 @@ public DoEquipProp(any:UserId)
 			model = g_PlayerModel[client];
 			modelIndex = FindStringInArray(g_ModelName, model);
 #if defined LOG
-			LogMessage("Change user model to %s", model);
+			LogMessage("[PH] Change \"%N\"'s user model to %s", client, model);
 #endif
 		}
 		else
@@ -4702,7 +4767,7 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	
 	GetLanguageInfo(languageID, langCode, sizeof(langCode));
 #if defined LOG
-	LogMessage("Client is using language code %s", langCode);
+	LogMessage("[PH] Client is using language code %s", langCode);
 #endif
 	// is client's prefered language available?
 	new langID = GetLanguageID(langCode);
@@ -4714,11 +4779,11 @@ GetClientLanguageID(client, String:languageCode[]="", maxlen=0)
 	else
 	{
 #if defined LOG
-		LogMessage("PH language code \"%s\" not found.", langCode);
+		LogMessage("[PH] Language code \"%s\" not found.", langCode);
 #endif
 		GetLanguageInfo(GetServerLanguage(), langCode, sizeof(langCode));
 #if defined LOG
-		LogMessage("Falling back to server language code \"%s\".", langCode);
+		LogMessage("[PH] Falling back to server language code \"%s\".", langCode);
 #endif
 		// is default server language available?
 		langID = GetLanguageID(langCode);
