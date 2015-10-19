@@ -163,17 +163,6 @@
 #define TEAM_PROP TEAM_RED
 #define TEAM_HUNTER TEAM_BLUE
 
-#define FLAMETHROWER "models/weapons/w_models/w_flamethrower.mdl"
-
-#define STATE_WAT -1
-#define STATE_IDLE 0
-#define STATE_RUNNING 1
-#define STATE_SWING 2
-#define STATE_CROUCH 3
-
-// Not sure what this is for, but pretty sure it's wrong.. player conditions are no longer defined like this
-#define PLAYER_ONFIRE (1 << 14)
-
 // Weapon Indexes
 #define WEP_SHOTGUN_UNIQUE 199
 
@@ -185,10 +174,6 @@
 #define LOCKVOL 0.7
 #define UNBALANCE_LIMIT 1
 #define MAXMODELNAME 96
-// Not sure what this is for, but pretty sure it's wrong.. player conditions are no longer defined like this
-#define TF2_PLAYERCOND_ONFIREALERT    (1<<20)
-
-#define IN_MOVEMENT IN_MOVELEFT | IN_MOVERIGHT | IN_FORWARD | IN_BACK | IN_JUMP
 
 #define TIMER_NAME "prop_hunt_timer"
 
@@ -200,16 +185,6 @@ enum
 	Item_Level,
 	Item_Attributes,
 }
-
-enum ScReason
-{
-	ScReason_TeamWin = 0,
-	ScReason_TeamLose,
-	ScReason_Death,
-	ScReason_Kill,
-	ScReason_Time,
-	ScReason_Friendly
-};
 
 enum PropData
 {
@@ -223,30 +198,6 @@ enum RoundChange
 	RoundChange_NoChange,
 	RoundChange_Enable,
 	RoundChange_Disable,
-}
-
-enum
-{
-	ScoreData_Captures,
-	ScoreData_Defenses,
-	ScoreData_Kills,
-	ScoreData_Deaths,
-	ScoreData_Suicides,
-	ScoreData_Dominations,
-	ScoreData_Revenge,
-	ScoreData_BuildingsBuilt,
-	ScoreData_BuildingsDestroyed,
-	ScoreData_Headshots,
-	ScoreData_Backstabs,
-	ScoreData_HealPoints,
-	ScoreData_Invulns,
-	ScoreData_Teleports,
-	ScoreData_DamageDone,
-	ScoreData_Crits,
-	ScoreData_ResupplyPoints,
-	ScoreData_KillAssists,
-	ScoreData_BonusPoints,
-	ScoreData_Points
 }
 
 enum
@@ -2149,8 +2100,6 @@ public void OnMapStart()
 				g_ModelName.Erase(i);
 			}
 		}
-		
-		PrecacheModel(FLAMETHROWER, true);
 		
 		// workaround for CreateEntityByNsme
 		g_MapStarted = true;
