@@ -4959,13 +4959,16 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 	if (FileExists(confil))
 	{
 		strcopy(destination, maxlen, confil);
+#if defined LOG
+		LogMessage("[PH] Using config file \"%s\"", confil);
+#endif
 		return true;
 	}
 	
 	new String:fileParts[4][PLATFORM_MAX_PATH];
 	new count = ExplodeString(mapPiece, "_", fileParts, sizeof(fileParts), sizeof(fileParts[])) - 1;
 	
-	while (count > 0)
+	while (count > 1)
 	{
 		mapPiece[0] = '\0';
 		ImplodeStrings(fileParts, count, "_", mapPiece, sizeof(mapPiece));
@@ -4975,6 +4978,9 @@ bool:FindConfigFileForMap(const String:map[], String:destination[] = "", maxlen 
 		if (FileExists(confil))
 		{
 			strcopy(destination, maxlen, confil);
+#if defined LOG
+			LogMessage("[PH] Using config file \"%s\"", confil);
+#endif
 			return true;
 		}
 		
