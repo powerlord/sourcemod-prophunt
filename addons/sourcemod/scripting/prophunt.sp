@@ -1295,7 +1295,6 @@ void SetCVars(){
 
 	g_TeamsUnbalanceLimit = g_hTeamsUnbalanceLimit.IntValue;
 	g_hTeamsUnbalanceLimit.IntValue = UNBALANCE_LIMIT;
-
 	
 	g_hArenaPreroundTime.SetBounds(ConVarBound_Upper, false);
 	g_ArenaPreroundTime = g_hArenaPreroundTime.IntValue;
@@ -1340,6 +1339,14 @@ void SetCVars(){
 	g_WeaponDropTime = g_hWeaponDropTime.IntValue;
 	g_hWeaponDropTime.IntValue = 0;
 	
+	g_hArenaRoundTime.Flags = g_hArenaRoundTime.Flags |= FCVAR_NOTIFY;
+	g_hArenaUseQueue.Flags = g_hArenaUseQueue.Flags |= FCVAR_NOTIFY;
+	g_hArenaMaxStreak.Flags = g_hArenaMaxStreak.Flags |= FCVAR_NOTIFY;
+	g_hTournamentStopwatch.Flags = g_hTournamentStopwatch.Flags |= FCVAR_NOTIFY;
+	g_hTournamentHideDominationIcons.Flags = g_hTournamentHideDominationIcons.Flags |= FCVAR_NOTIFY;
+	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags |= FCVAR_NOTIFY;
+	g_hArenaPreroundTime.Flags = g_hArenaPreroundTime.Flags |= FCVAR_NOTIFY;
+	
 	g_CvarsSet = true;
 }
 
@@ -1375,6 +1382,14 @@ void ResetCVars()
 	g_hSolidObjects.BoolValue = g_SolidObjects;
 	g_hArenaFirstBlood.BoolValue = g_ArenaFirstBlood;
 	g_hWeaponDropTime.IntValue = g_WeaponDropTime;
+
+	g_hArenaRoundTime.Flags = g_hArenaRoundTime.Flags |= FCVAR_NOTIFY;
+	g_hArenaUseQueue.Flags = g_hArenaUseQueue.Flags |= FCVAR_NOTIFY;
+	g_hArenaMaxStreak.Flags = g_hArenaMaxStreak.Flags |= FCVAR_NOTIFY;
+	g_hTournamentStopwatch.Flags = g_hTournamentStopwatch.Flags |= FCVAR_NOTIFY;
+	g_hTournamentHideDominationIcons.Flags = g_hTournamentHideDominationIcons.Flags |= FCVAR_NOTIFY;
+	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags |= FCVAR_NOTIFY;
+	g_hArenaPreroundTime.Flags = g_hArenaPreroundTime.Flags |= FCVAR_NOTIFY;
 	
 	g_CvarsSet = false;
 }
@@ -2526,6 +2541,20 @@ public Action Command_internet(int client, int args)
 	return Plugin_Handled;
 }
 
+// This is a fallback for if other sound playing methods fail
+void BroadcastAudio(const char[] sample, int team = -1)
+{
+	Event event = CreateEvent("teamplay_broadcast_audio");
+
+	if (event == null)
+		return;
+		
+	event.SetString("sound", sample);
+	event.SetInt("team", view_as<int>(team));
+	event.SetInt("additional_flags", 0);
+	event.Fire();
+}
+
 void PH_EmitSoundToAll(const char[] soundid, int entity = SOUND_FROM_PLAYER, int channel = SNDCHAN_AUTO, int level = SNDLEVEL_NORMAL, int flags = SND_NOFLAGS, float volume = SNDVOL_NORMAL,
 	int pitch = SNDPITCH_NORMAL, int speakerentity = -1, const float origin[3] = NULL_VECTOR, const float dir[3] = NULL_VECTOR, bool updatePos = true, float soundtime = 0.0)
 {
@@ -2537,6 +2566,14 @@ void PH_EmitSoundToAll(const char[] soundid, int entity = SOUND_FROM_PLAYER, int
 		{
 			SetVariantString(sample);
 			AcceptEntityInput(g_GameRulesProxy, "PlayVO");
+		}
+		else if (PrecacheScriptSound(sample))
+		{
+			EmitGameSoundToAll(sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
+		}
+		else
+		{
+			BroadcastAudio(sample);
 		}
 	}
 	else if(g_Sounds.GetString(soundid, sample, sizeof(sample)))
@@ -2564,10 +2601,28 @@ stock void PH_EmitSoundToTeam(TFTeam team, const char[] soundid, int entity = SO
 			{
 				AcceptEntityInput(g_GameRulesProxy, "PlayVOBlue");
 			}
-			else if (team <= 0)
+		}
+		else if (PrecacheScriptSound(sample))
+		{
+			int count = 0;
+			int clients = new int[MaxClients];
+			
+			for (int client = 1; client <= MaxClients; client++)
 			{
-				AcceptEntityInput(g_GameRulesProxy, "PlayVO");
+				if (IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == view_as<int>(team))
+				{
+					clients[count++] = client;
+				}
 			}
+			
+			if (count > 0)
+			{
+				EmitGameSound(clients, count, sample, entity, flags, speakerentity, origin, dir, updatePos, soundtime);
+			}
+		}
+		else
+		{
+			BroadcastAudio(sample, view_as<int>(team));
 		}
 	}
 	else if(g_Sounds.GetString(soundid, sample, sizeof(sample)))
@@ -2577,7 +2632,7 @@ stock void PH_EmitSoundToTeam(TFTeam team, const char[] soundid, int entity = SO
 		
 		for (int client = 1; client <= MaxClients; client++)
 		{
-			if (IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == team)
+			if (IsClientInGame(client) && !IsFakeClient(client) && GetClientTeam(client) == view_as<int>(team))
 			{
 				clients[count++] = client;
 			}
@@ -3337,35 +3392,6 @@ public void Event_arena_win_panel(Event event, const char[] name, bool dontBroad
 
 	if (Internal_ShouldSwitchTeams())
 	{
-		/*
-		 * Check if we need this or if classic works
-		  
-		int redScore;
-		int bluScore;
-		
-		// This block is necessary because _score is always 0 for the losing team
-		// even though scores aren't cleared when tf_arena_use_queue is set to 0
-		if (winner == TEAM_RED)
-		{
-			redScore = event.GetInt("red_score");
-			bluScore = event.GetInt("blue_score_prev");
-		}
-		else
-		if (winner == TEAM_BLUE)
-		{
-			redScore = event.GetInt("red_score_prev");
-			bluScore = event.GetInt("blue_score");
-		}
-		else
-		{
-			// Neither team wins, they both keep their previous scores
-			redScore = event.GetInt("red_score_prev");
-			bluScore = event.GetInt("blue_score_prev");
-		}
-		SwitchTeamScores(redScore, bluScore);
-
-		*/
-
 #if defined SWITCH_TEAMS
 		// This is OK as arena_win_panel is fired *after* SetWinningTeam is called.
 		SetSwitchTeams(true);
@@ -3376,26 +3402,7 @@ public void Event_arena_win_panel(Event event, const char[] name, bool dontBroad
 	
 	g_hTeamsUnbalanceLimit.IntValue = 0;
 
-	for(int client=1; client <= MaxClients; client++)
-	{
-		if(IsClientInGame(client))
-		{
-			// bit annoying when testing the plugin and/or maps on a listen server
-			/*
-			if(IsDedicatedServer())
-			{
-				team = GetClientTeam(client);
-				if(team == TEAM_PROP || team == TEAM_HUNTER)
-				{
-					team = team == TEAM_PROP ? TEAM_HUNTER:TEAM_PROP;
-					ChangeClientTeamAlive(client, team);
-				}
-			}
-			*/
-		}
-		//ResetPlayer(client); // Players are now reset on round start instead of round end
-	}
-
+	// Players are now reset on round start instead of round end
 	g_hTeamsUnbalanceLimit.Flags = g_hTeamsUnbalanceLimit.Flags & ~FCVAR_NOTIFY;
 	g_hTeamsUnbalanceLimit.IntValue = UNBALANCE_LIMIT;
 }
