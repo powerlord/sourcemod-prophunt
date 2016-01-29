@@ -113,7 +113,7 @@
 
 // Event and query logging for debugging purposes
 // Default: OFF
-//#define LOG
+#define LOG
 
 // Allow props to Targe Charge with enemy collisions disabled by pressing reload - pretty shit tbh.
 // Default: OFF
@@ -596,12 +596,6 @@ public OnPluginStart()
 #endif
 	
 	CloseHandle(gc);
-#if defined LOG
-	else
-	{
-		LogMessage("[PH] Failed to load gamedata");
-	}
-#endif
 #endif	
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
