@@ -592,7 +592,7 @@ public OnPluginStart()
 	g_hSwitchTeams = EndPrepSDKCall();
 	
 #if defined LOG
-	LogMessage("[PH] Created call to SetSwitchTeams at vtable offset %d", GameConfGetOffset(gc, "CTeamplayRules::SetSwitchTeams"));
+	LogMessage("[PH] Created call to SetSwitchTeams at vtable offset %d", GameConfGetOffset(gc, "CTFGameRules::SetSwitchTeams"));
 #endif
 	
 	CloseHandle(gc);
