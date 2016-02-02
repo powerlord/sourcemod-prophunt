@@ -442,6 +442,7 @@ new Handle:g_hTags;
 
 new g_Replacements[MAXPLAYERS+1][6];
 new g_ReplacementCount[MAXPLAYERS+1];
+new bool:g_bRegenerated[MAXPLAYERS+1];
 new bool:g_Rerolled[MAXPLAYERS+1] = { false, ... };
 
 new bool:g_CvarsSet;
@@ -2600,6 +2601,7 @@ public ResetPlayer(client)
 	g_FlameCount[client] = 0;
 	g_LastPropDamageTime[client] = -1;
 	g_RoundStartMessageSent[client] = false;
+	g_bRegenerated[client] = false;
 }
 
 public Action: Command_respawn(client, args)
@@ -3666,7 +3668,11 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 		
 		g_ReplacementCount[client] = 0;
 		// Now that we're adjusting weapons, this needs to happen to fix max ammo counts
-		TF2_RegeneratePlayer(client);
+		if (!g_bRegenerated[client])
+		{
+			TF2_RegeneratePlayer(client);
+		}
+		g_bRegenerated[client] = true;
 	}
 }
 
@@ -4100,7 +4106,8 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 	#if defined SCATTERGUN
 			for(new client2=1; client2 <= MaxClients; client2++)
 			{
-				if(IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
+				// client who died may not show as dead to the game, so explicitly ignore them
+				if(client2 != client && IsClientInGame(client2) && !IsFakeClient(client2) && IsPlayerAlive(client2))
 				{
 					if(GetClientTeam(client2) == TEAM_PROP)
 					{
