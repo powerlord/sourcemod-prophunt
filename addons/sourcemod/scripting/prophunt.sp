@@ -3600,6 +3600,17 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
+	// For whatever reason, this event is triggering after player death.
+	// Block it here.
+	if (client == 0 || !IsPlayerAlive(client))
+	{
+		return;
+	}
+	
+#if defined LOG
+	LogMessage("Doing post_inventory for %N", client);
+#endif
+
 	if (g_ReplacementCount[client] > 0)
 	{
 	
@@ -3703,11 +3714,13 @@ public Action:Event_teamplay_round_start_pre(Handle:event, const String:name[], 
 
 public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBroadcast)
 {
+	/*
 	if (HasSwitchedTeams())
 	{
 		SwitchTeamScoresClassic();
 	}
-	
+	*/
+
 	StopTimers();
 	
 	if (!g_Enabled)
@@ -3941,7 +3954,9 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			
 			if(TF2_GetPlayerClass(client) != g_defaultClass[red])
 			{
-				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false, false);
+				// Last arg must be true or else you'll enter an endless loop
+				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false, true);
+				//ForcePlayerSuicide(client); // This is mandatory or else characters won't have their class changed
 				TF2_RespawnPlayer(client);
 				return;	// This was missing prior to PHR 3.3.4
 			}
@@ -4001,6 +4016,10 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 
 	if(g_inSetup && GetConVarBool(g_PHRespawnDuringSetup))
 	{
+#if defined LOG
+		LogMessage("[PH] Respawning player %N during setup", client);
+#endif
+
 		CreateTimer(0.1, Timer_Respawn, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 		return Plugin_Continue;
 	}
@@ -4864,7 +4883,7 @@ public TF2Items_OnGiveNamedItem_Post(client, String:classname[], itemDefinitionI
 	}
 }
 
-bool:HasSwitchedTeams()
+stock bool:HasSwitchedTeams()
 {
 	return bool:GameRules_GetProp("m_bSwitchedTeamsThisRound");
 }
@@ -4879,7 +4898,7 @@ SetSwitchTeams(bool:bSwitchTeams)
 // Manually switch the scores.
 // The game only does this if SetWinningTeam is called with bSwitchTeams set to true.
 // This is what DHooks did, but Arena confused it anyway and it only sometimes worked
-SwitchTeamScoresClassic()
+stock SwitchTeamScoresClassic()
 {
 	new propScore = GetTeamScore(TEAM_PROP);
 	new hunterScore = GetTeamScore(TEAM_HUNTER);
