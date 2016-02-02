@@ -64,7 +64,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 alpha 5"
+#define PL_VERSION "3.4.0.0 beta 1"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
