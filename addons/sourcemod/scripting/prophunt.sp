@@ -64,7 +64,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 beta 1"
+#define PL_VERSION "3.4.0.0 beta 2"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -2659,11 +2659,11 @@ stock PH_EmitSoundToTeam(team, const String:soundid[], entity = SOUND_FROM_PLAYE
 		if (EntRefToEntIndex(g_GameRulesProxy) != INVALID_ENT_REFERENCE)
 		{
 			SetVariantString(sample);
-			if (team == TFTeam_Red)
+			if (team == _:TFTeam_Red)
 			{
 				AcceptEntityInput(g_GameRulesProxy, "PlayVORed");
 			}
-			else if (team == TFTeam_Blue)
+			else if (team == _:TFTeam_Blue)
 			{
 				AcceptEntityInput(g_GameRulesProxy, "PlayVOBlue");
 			}
@@ -3613,10 +3613,13 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 	LogMessage("Doing post_inventory for %N", client);
 #endif
 
-	if (g_ReplacementCount[client] > 0)
-	{
+	// In case there's an error, reset the replacementCount
+	new replacementCount = g_ReplacementCount[client];
+	g_ReplacementCount[client] = 0;
 	
-		for (new i = 0; i < g_ReplacementCount[client]; ++i)
+	if (replacementCount > 0)
+	{
+		for (new i = 0; i < replacementCount; ++i)
 		{
 			// DON'T require FORCE_GENERATION here, since they could pass back tf_weapon_shotgun 
 			new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL|PRESERVE_ATTRIBUTES);
@@ -3677,13 +3680,19 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 			CloseHandle(weapon);
 		}
 		
-		g_ReplacementCount[client] = 0;
-		// Now that we're adjusting weapons, this needs to happen to fix max ammo counts
-		if (!g_bRegenerated[client])
+		//Players needs to be regenerated once to fix ammo counts
+		if (g_bRegenerated[client])
 		{
-			TF2_RegeneratePlayer(client);
+			g_bRegenerated[client] = false;
 		}
-		g_bRegenerated[client] = true;
+		else
+		{
+#if defined LOG
+			LogMessage("Respawning %N to correct ammo counts for weapon replacements", client);
+#endif
+			g_bRegenerated[client] = true;
+			TF2_RegeneratePlayer(client);
+		}			
 	}
 }
 
@@ -3806,6 +3815,7 @@ public Event_arena_round_start(Handle:event, const String:name[], bool:dontBroad
 #if defined LOG
 	LogMessage("[PH] round start - %i", g_RoundOver );
 #endif
+
 	g_inPreRound = false;
 	
 	if (!g_Enabled)
@@ -3875,6 +3885,9 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 	new blue = TEAM_HUNTER - 2;
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
+	// Attempt to fix a bug where wrong items are being given out
+	g_ReplacementCount[client] = 0;
+	
 	g_currentSpeed[client] = g_classSpeeds[TF2_GetPlayerClass(client)][0]; // Reset to default speed.
 	
 	if(IsClientInGame(client) && IsPlayerAlive(client))
@@ -3922,13 +3935,14 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 
 				if (g_PreferredHunterClass[client] != TFClass_Unknown && g_PreferredHunterClass[client] != clientClass)
 				{
-					TF2_SetPlayerClass(client, g_PreferredHunterClass[client]);
+					TF2_SetPlayerClass(client, g_PreferredHunterClass[client], false);
 				}
 				else
 				{
-					TF2_SetPlayerClass(client, g_defaultClass[blue]);
+					TF2_SetPlayerClass(client, g_defaultClass[blue], false);
 				}
 				
+				g_ReplacementCount[client] = 0;
 				TF2_RespawnPlayer(client);
 				
 				return;
@@ -3939,7 +3953,8 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 #else
 			if(TF2_GetPlayerClass(client) != g_defaultClass[blue])
 			{
-				TF2_SetPlayerClass(client, g_defaultClass[blue]);
+				TF2_SetPlayerClass(client, g_defaultClass[blue], false);
+				g_ReplacementCount[client] = 0;
 				TF2_RespawnPlayer(client);
 				return;
 			}
@@ -3961,7 +3976,7 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			if(TF2_GetPlayerClass(client) != g_defaultClass[red])
 			{
 				// Last arg must be true or else you'll enter an endless loop
-				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false, true);
+				TF2_SetPlayerClass(client, TFClassType:g_defaultClass[red], false);
 				//ForcePlayerSuicide(client); // This is mandatory or else characters won't have their class changed
 				TF2_RespawnPlayer(client);
 				return;	// This was missing prior to PHR 3.3.4
@@ -4098,10 +4113,13 @@ public Action:Event_player_death(Handle:event, const String:name[], bool:dontBro
 		
 		// We now manually handle First Blood and avoid having the crit effect.
 		// We also adjust the various sound times to be more in line with PropHunt.
-		if (!g_PlayerDied)
+		if (!g_PlayerDied && attacker != 0 && attacker != client)
 		{
 			// Fast is 0-30, regular is 31-90, finally is 91+
 			new expendedTime = RoundToNearest(GetGameTime() - g_flRoundStart);
+#if defined LOG
+			LogMessage("[PH] Time to first death: %i", expendedTime);
+#endif
 			if (expendedTime <= 30)
 			{
 				PH_EmitSoundToAll("FirstBloodFast");
@@ -4504,6 +4522,7 @@ public OnSetupFinished(const String:output[], caller, activator, Float:delay)
 #endif
 	g_RoundOver = false;
 	g_inSetup = false;
+	g_PlayerDied = false;	
 	g_flRoundStart = GetGameTime();
 
 	for(new client2=1; client2 <= MaxClients; client2++)
@@ -4645,6 +4664,16 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		}
 	}
 
+	// If they're using a blocked class, the game hasn't updated their class yet
+	new TFClassType:clientClass = TF2_GetPlayerClass(client);
+	if (g_classLimits[team-2][clientClass] == 0)
+	{
+#if defined LOG
+		LogMessage("Class %d has a limit of %d on team %d, skipping.", clientClass, g_classLimits[team-2][clientClass], team);
+#endif
+		return Plugin_Continue;
+	}
+	
 	new String:defIndex[7];
 	IntToString(iItemDefinitionIndex, defIndex, sizeof(defIndex));
 	
