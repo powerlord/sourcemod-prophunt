@@ -64,7 +64,7 @@
 
 #define MAXLANGUAGECODE 4
 
-#define PL_VERSION "3.4.0.0 beta 2"
+#define PL_VERSION "3.4.0.0 beta 3"
 
 // sv_tags has a 255 limit
 #define SV_TAGS_SIZE 255 
@@ -3993,6 +3993,12 @@ public Event_player_spawn(Handle:event, const String:name[], bool:dontBroadcast)
 			ForcePlayerSuicide(client);
 		}
 		
+		// BLU players need to be refrozen during setup time.
+		if (g_inSetup && g_Freeze && team == TEAM_HUNTER)
+		{
+			SetEntityMoveType(client, MOVETYPE_NONE);
+		}
+		else
 		if (g_inPreRound)
 		{
 			SetEntityMoveType(client, MOVETYPE_NONE);
@@ -4241,6 +4247,11 @@ public DoEquipHunter(any:UserId)
 	new client = GetClientOfUserId(UserId);
 	if(client > 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
+		if (g_inSetup && g_Freeze)
+		{
+			SetEntityMoveType(client, MOVETYPE_NONE);
+		}
+		else
 		if(g_inPreRound)
 		{
 			SetEntityMoveType(client, MOVETYPE_NONE);
