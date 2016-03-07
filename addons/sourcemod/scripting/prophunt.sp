@@ -1920,14 +1920,13 @@ public Action:OnArenaSpawned(entity)
 	AcceptEntityInput(entity, "AddOutput");
 }
 
-CheckRoundTimer()
+bool:FindRoundTimer()
 {
 	new entity = -1;
-	
+
 	while ((entity = FindEntityByClassname(entity, "team_round_timer")) != -1)
 	{
 		new String:name[64];
-		
 		GetEntPropString(entity, Prop_Data, "m_iName", name, sizeof(name));
 		
 		if (StrEqual(name, TIMER_NAME))
@@ -1935,26 +1934,20 @@ CheckRoundTimer()
 #if defined LOG
 	LogMessage("[PH] Found timer: %d", entity);
 #endif
-			return;
+			return true;
 		}
 	}
 	
-	// No timer found, create it
-	LogMessage("[PH] PropHunt timer is missing.  Attempting to recreate it...");
-	new cpMaster = FindEntityByClassname(-1, "team_control_point_master");
-	
-	if (cpMaster > -1)
-	{
-		CreateRoundTimer(cpMaster);
-	}
-	else
-	{
-		LogError("[PH] Could not locate team_control_point_master when recreating PropHunt timer");
-	}
+	return false;
 }
 
 CreateRoundTimer(entity)
 {
+	if (FindRoundTimer())
+	{
+		return;
+	}
+	
 	// We need to subtract 30 from the round time for compatibility with older PropHunt Versions
 	decl String:time[5];
 	IntToString(g_RoundTime - 30, time, sizeof(time));
@@ -3741,8 +3734,6 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 	if (!g_Enabled)
 		return;
 
-	CheckRoundTimer();
-	
 	g_inPreRound = true;
 	g_PlayerDied = false;
 	g_flRoundStart = 0.0;
@@ -3773,7 +3764,9 @@ public Event_teamplay_round_start(Handle:event, const String:name[], bool:dontBr
 		DispatchKeyValue(ent, "StartDisabled", "0");
 		DispatchSpawn(ent);
 	}
-
+	
+	CreateRoundTimer(ent);
+	
 	//GameMode Explanation
 	decl String:message[256];
 
