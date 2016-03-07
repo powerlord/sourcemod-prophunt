@@ -551,6 +551,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 #endif
 
 new Handle:g_hSwitchTeams;
+new Handle:g_hEquipWearable;
 
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
@@ -597,7 +598,21 @@ public OnPluginStart()
 #endif
 	
 	CloseHandle(gc);
-#endif	
+#endif
+
+	gc = LoadGameConfigFile("tf2.wearables");
+	
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(gc, SDKConf_Virtual, "CTFPlayer::EquipWearable");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	g_hEquipWearable = EndPrepSDKCall();
+	
+#if defined LOG
+	LogMessage("[PH] Created call to EquipWearable at vtable offset %d", GameConfGetOffset(gc, "CTFPlayer::EquipWearable"));
+#endif
+	
+	CloseHandle(gc);
+	
 	decl String:hostname[255], String:ip[32], String:port[8]; //, String:map[92];
 	GetConVarString(FindConVar("hostname"), hostname, sizeof(hostname));
 	GetConVarString(FindConVar("ip"), ip, sizeof(ip));
@@ -3657,10 +3672,10 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 				
 				for (new j = 0; j < count && attribCount < 16; j += 2)
 				{
-					TrimString(newAttribs[i]);
-					TrimString(newAttribs[i+1]);
-					new attrib = StringToInt(newAttribs[i]);
-					new Float:value = StringToFloat(newAttribs[i+1]);
+					TrimString(newAttribs[j]);
+					TrimString(newAttribs[j+1]);
+					new attrib = StringToInt(newAttribs[j]);
+					new Float:value = StringToFloat(newAttribs[j+1]);
 					TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
 				}
 			}
@@ -3668,7 +3683,16 @@ public Event_post_inventory_application(Handle:event, const String:name[], bool:
 			TF2Items_SetNumAttributes(weapon, attribCount);
 			
 			new item = TF2Items_GiveNamedItem(client, weapon);
-			EquipPlayerWeapon(client, item);
+			if (StrContains(pieces[Item_Classname], "tf_wearable", false) > -1)
+			{
+				
+			}
+			else
+			{
+				EquipPlayerWeapon(client, item);
+				
+			}
+			
 			g_Replacements[client][i] = -1;
 			CloseHandle(weapon);
 		}
@@ -4696,7 +4720,9 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 		
 		if (!GetTrieValue(g_hWeaponReplacementPlayerClasses, defIndex, classBits))
 		{
-			g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
+			// TODO Test this
+			ReplaceWeapon(client, iItemDefinitionIndex);
+			//g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
 			return Plugin_Stop;
 		}
 		else
@@ -4705,7 +4731,9 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 			new class = _:TF2_GetPlayerClass(client) - 1;
 			if (classBits & (1 << class))
 			{
-				g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
+				// TODO Test this
+				ReplaceWeapon(client, iItemDefinitionIndex);
+				// g_Replacements[client][g_ReplacementCount[client]++] = iItemDefinitionIndex;
 				return Plugin_Stop;
 			}
 		}
@@ -4780,6 +4808,80 @@ public Action:TF2Items_OnGiveNamedItem(client, String:classname[], iItemDefiniti
 	}
 
 	return Plugin_Continue;
+}
+
+ReplaceWeapon(client, itemDefinitionIndex)
+{
+	// DON'T require FORCE_GENERATION here, since they could pass back tf_weapon_shotgun 
+	new Handle:weapon = TF2Items_CreateItem(OVERRIDE_ALL|PRESERVE_ATTRIBUTES);
+	
+	new String:defIndex[7];
+	IntToString(itemDefinitionIndex, defIndex, sizeof(defIndex));
+	
+	new String:replacement[140];
+	if (!GetTrieString(g_hWeaponReplacements, defIndex, replacement, sizeof(replacement)))
+	{
+		return;
+	}
+	
+	new String:pieces[5][128];
+	
+	ExplodeString(replacement, ":", pieces, sizeof(pieces), sizeof(pieces[]));
+
+	TrimString(pieces[Item_Classname]);
+	TrimString(pieces[Item_Index]);
+	TrimString(pieces[Item_Quality]);
+	TrimString(pieces[Item_Level]);
+	TrimString(pieces[Item_Attributes]);
+	
+	new index = StringToInt(pieces[Item_Index]);
+	new quality = StringToInt(pieces[Item_Quality]);
+	new level = StringToInt(pieces[Item_Level]);
+	TF2Items_SetClassname(weapon, pieces[Item_Classname]);
+	TF2Items_SetItemIndex(weapon, index);
+	TF2Items_SetQuality(weapon, quality);
+	TF2Items_SetLevel(weapon, level);
+	
+	new attribCount = 0;
+	if (strlen(pieces[Item_Attributes]) > 0)
+	{
+		new String:newAttribs[32][6];
+		new count = ExplodeString(pieces[Item_Attributes], ";", newAttribs, sizeof(newAttribs), sizeof(newAttribs[]));
+		if (count % 2 > 0)
+		{
+			LogError("Error parsing replacement attributes for item definition index %d", itemDefinitionIndex);
+			return;
+		}
+		
+		for (new i = 0; i < count && attribCount < 16; i += 2)
+		{
+			TrimString(newAttribs[i]);
+			TrimString(newAttribs[i+1]);
+			new attrib = StringToInt(newAttribs[i]);
+			new Float:value = StringToFloat(newAttribs[i+1]);
+			TF2Items_SetAttribute(weapon, attribCount++, attrib, value);
+		}
+	}
+	
+	TF2Items_SetNumAttributes(weapon, attribCount);
+	
+	new item = TF2Items_GiveNamedItem(client, weapon);
+	CloseHandle(weapon);
+	
+	// Item creation failed?!
+	if (item == -1)
+	{
+		return;
+	}
+	
+	if (StrContains(pieces[Item_Classname], "tf_wearable"))
+	{
+		EquipWearable(client, item);
+	}
+	else
+	{
+		EquipPlayerWeapon(client, item);
+	}
 }
 
 #if defined OIMM
@@ -5147,6 +5249,11 @@ Internal_RemoveServerTag()
 		SetConVarString(g_hTags, tags);
 	}
 	
+}
+
+EquipWearable(client, wearable)
+{
+	SDKCall(g_hEquipWearable, client, wearable);
 }
 
 // Below this point are the forward calls
