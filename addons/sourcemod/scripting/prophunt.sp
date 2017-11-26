@@ -2230,7 +2230,7 @@ stock void RemovePropModel (int client){
 		
 		SetVariantString("");
 		AcceptEntityInput(client, "SetCustomModel");
-		
+		RemoveValveHat(client, false);
 		SetEntProp(client, Prop_Send, "m_bForcedSkin", false);
 		SetEntProp(client, Prop_Send, "m_nForcedSkin", 0);
 	}
@@ -4883,4 +4883,31 @@ void Internal_RemoveServerTag()
 		g_hTags.SetString(tags);
 	}
 	
+}
+
+stock RemoveValveHat(client, bool:unhide = false)
+{
+	new edict = MaxClients+1;
+	while((edict = FindEntityByClassnameSafe(edict, "tf_wearable")) != -1)
+	{
+		decl String:netclass[32];
+		if (GetEntityNetClass(edict, netclass, sizeof(netclass)) && strcmp(netclass, "CTFWearable") == 0)
+		{
+			new idx = GetEntProp(edict, Prop_Send, "m_iItemDefinitionIndex");
+			if (idx != 57 && idx != 133 && idx != 231 && idx != 444 && idx != 405 && idx != 608 && GetEntPropEnt(edict, Prop_Send, "m_hOwnerEntity") == client)
+			{
+				SetEntityRenderMode(edict, (unhide ? RENDER_NORMAL : RENDER_TRANSCOLOR));
+				SetEntityRenderColor(edict, 255, 255, 255, (unhide ? 255 : 0));
+			}
+		}
+	}
+}
+int FindEntityByClassnameSafe(int iStart, char[] sClassName)
+{
+	while (iStart > -1 && !IsValidEntity(iStart))
+	{
+		iStart--;
+	}
+	
+	return FindEntityByClassname(iStart, sClassName);
 }
